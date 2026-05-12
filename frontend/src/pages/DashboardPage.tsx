@@ -1,24 +1,26 @@
-import { useAuth } from "../context/AuthContext"
+import { useEffect } from "react"
+import { useNavigate } from "react-router-dom"
+import { useAuth } from "../context/AuthContextV2"
+import UserDashboard from "./UserDashboard"
 
 const DashboardPage = () => {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
+  const navigate = useNavigate()
 
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-6">
+  // Redirect admin users to admin dashboard
+  useEffect(() => {
+    if (user?.role === "admin") {
+      navigate("/admin/dashboard")
+    }
+  }, [user, navigate])
 
-      <h1 className="text-5xl font-bold">
-        Welcome {user?.name}
-      </h1>
+  // Show user dashboard for regular users
+  if (user?.role === "user") {
+    return <UserDashboard />
+  }
 
-      <button
-        onClick={logout}
-        className="bg-red-500 text-white px-6 py-3 rounded-lg"
-      >
-        Logout
-      </button>
-
-    </div>
-  )
+  // Fallback (shouldn't reach here)
+  return null
 }
 
 export default DashboardPage

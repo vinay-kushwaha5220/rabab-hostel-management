@@ -1,0 +1,121 @@
+import api from "./apiV2"
+import type { MonthlyBill, Message, Payment, RenterDashboardData } from "../types/billing"
+
+// ==========================================
+// MONTHLY BILLS
+// ==========================================
+export const billingService = {
+  // Renter endpoints
+  getRenterDashboard: async (): Promise<RenterDashboardData> => {
+    const response = await api.get("/monthly-bills/renter/dashboard")
+    return response.data
+  },
+
+  getRenterBills: async (): Promise<MonthlyBill[]> => {
+    const response = await api.get("/monthly-bills/renter/bills")
+    return response.data
+  },
+
+  getBill: async (billId: number): Promise<MonthlyBill> => {
+    const response = await api.get(`/monthly-bills/${billId}`)
+    return response.data
+  },
+
+  // Admin endpoints
+  createBill: async (data: {
+    bookingId: number
+    month: string
+    rentAmount: number
+    electricityAmount?: number
+    extraCharges?: number
+    dueDate: string
+  }): Promise<MonthlyBill> => {
+    const response = await api.post("/monthly-bills", data)
+    return response.data.bill
+  },
+
+  getAllBills: async (status?: string, month?: string): Promise<MonthlyBill[]> => {
+    const params = new URLSearchParams()
+    if (status) params.append("status", status)
+    if (month) params.append("month", month)
+    const response = await api.get(`/monthly-bills/admin/all?${params}`)
+    return response.data
+  },
+
+  updateBill: async (
+    billId: number,
+    data: {
+      rentAmount?: number
+      electricityAmount?: number
+      extraCharges?: number
+      dueDate?: string
+    }
+  ): Promise<MonthlyBill> => {
+    const response = await api.put(`/monthly-bills/${billId}`, data)
+    return response.data.bill
+  },
+
+  deleteBill: async (billId: number): Promise<void> => {
+    await api.delete(`/monthly-bills/${billId}`)
+  },
+}
+
+// ==========================================
+// MESSAGES
+// ==========================================
+export const messagingService = {
+  sendMessage: async (data: {
+    bookingId: number
+    receiverId: number
+    content: string
+  }): Promise<Message> => {
+    const response = await api.post("/messages/send", data)
+    return response.data.data
+  },
+
+  getConversation: async (bookingId: number): Promise<Message[]> => {
+    const response = await api.get(`/messages/conversation/${bookingId}`)
+    return response.data
+  },
+
+  getUnreadCount: async (): Promise<number> => {
+    const response = await api.get("/messages/unread/count")
+    return response.data.unreadCount
+  },
+
+  getAllConversations: async (): Promise<any[]> => {
+    const response = await api.get("/messages/admin/conversations")
+    return response.data
+  },
+}
+
+// ==========================================
+// PAYMENTS
+// ==========================================
+export const paymentService = {
+  processMonthlyPayment: async (data: {
+    billId: number
+    paymentMethod: string
+  }): Promise<Payment> => {
+    const response = await api.post("/monthly-payments/process", data)
+    return response.data.payment
+  },
+
+  getPaymentHistory: async (): Promise<Payment[]> => {
+    const response = await api.get("/monthly-payments/history")
+    return response.data
+  },
+
+  getAllPayments: async (status?: string, month?: string): Promise<Payment[]> => {
+    const params = new URLSearchParams()
+    if (status) params.append("status", status)
+    if (month) params.append("month", month)
+    const response = await api.get(`/monthly-payments/admin/all?${params}`)
+    return response.data
+  },
+
+  getPaymentStats: async (): Promise<any> => {
+    const response = await api.get("/monthly-payments/admin/stats")
+    return response.data
+  },
+}
