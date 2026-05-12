@@ -7,12 +7,232 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// User model - for customers and admins
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("user")
-  createdAt DateTime @default(now())
+  id            Int            @id @default(autoincrement())
+  name          String
+  email         String         @unique
+  password      String
+  phone         String?
+  role          String         @default("user") // "user" or "admin"
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @default(now()) @updatedAt
+  bookings      Booking[]
+  refreshTokens RefreshToken[]
+  sentMessages  Message[]      @relation("MessageSender")
+  receivedMessages Message[]   @relation("MessageReceiver")
 }
 
+// RefreshToken model - for JWT refresh tokens
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  deviceInfo String? // Optional: store device/browser info
+  ipAddress  String? // Optional: store IP address
+}
+
+// Room model - hostel rooms
+model Room {
+  id              Int                @id @default(autoincrement())
+  roomNumber      String             @unique
+  title           String
+  description     String
+  price           Float
+  roomType        String             // "AC" or "Non-AC"
+  bookingType     String             // "Daily" or "Monthly"
+  floor           Int
+  capacity        Int
+  isAvailable     Boolean            @default(true)
+  images          String?            // JSON array of image URLs
+  amenities       String?            // JSON array of amenities
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  bookings        Booking[]
+  electricityBills ElectricityBill[]
+}
+
+// Booking model - customer bookings
+model Booking {
+  id              Int      @id @default(autoincrement())
+  bookingId       String   @unique // e.g., "RBS-2026-001"
+  
+  // Customer details
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id])
+  customerName    String
+  customerEmail   String
+  customerPhone   String
+  customerAadhaar String?
+  
+  // Room details
+  roomId          Int
+  room            Room     @relation(fields: [roomId], references: [id])
+  
+  // Booking details
+  checkInDate     DateTime
+  checkOutDate    DateTime
+  numberOfGuests  Int
+  totalDays       Int
+  totalAmount     Float
+  
+  // Status
+  status          String   @default("pending") // "pending", "confirmed", "cancelled", "completed"
+  paymentStatus   String   @default("pending") // "pending", "paid", "failed", "refunded"
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  payment         Payment?
+  notifications   Notification[]
+}
+
+// Payment model - payment records
+model Payment {
+  id              Int      @id @default(autoincrement())
+  bookingId       Int      @unique
+  booking         Booking  @relation(fields: [bookingId], references: [id])
+  
+  amount          Float
+  paymentMethod   String   // "card", "upi", "cash", "online"
+  transactionId   String?  @unique
+  paymentStatus   String   @default("pending") // "pending", "success", "failed"
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Notification model - admin notifications
+model Notification {
+  id          Int      @id @default(autoincrement())
+  bookingId   Int
+  booking     Booking  @relation(fields: [bookingId], references: [id])
+  
+  title       String
+  message     String
+  type        String   // "booking", "payment", "cancellation", "electricity"
+  isRead      Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+}
+
+// Electricity Bill model - monthly electricity bills per room
+model ElectricityBill {
+  id              Int      @id @default(autoincrement())
+  roomId          Int
+  room            Room     @relation(fields: [roomId], references: [id])
+  
+  month           String   // e.g., "2026-05" for May 2026
+  units           Float    // Electricity units consumed
+  amount          Float    // Bill amount
+  dueDate         DateTime
+  isPaid          Boolean  @default(false)
+  paidDate        DateTime?
+  
+  // If room is occupied, link to booking
+  bookingId       Int?
+  
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Monthly Bill model - for monthly rent and charges
+model MonthlyBill {
+  id              Int      @id @default(autoincrement())
+  bookingId       Int      @unique
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  
+  month           String   // e.g., "2026-05" for May 2026
+  rentAmount      Float    // Monthly rent
+  electricityAmount Float  @default(0) // Electricity bill
+  extraCharges    Float    @default(0) // Any extra charges
+  totalAmount     Float    // Total due
+  
+  dueDate         DateTime
+  isPaid          Boolean  @default(false)
+  paidDate        DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  payments        Payment[]
+  notifications   Notification[]
+}
+
+// Message model - for renter-admin communication
+model Message {
+  id              Int      @id @default(autoincrement())
+  bookingId       Int
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  
+  senderId        Int
+  sender          User     @relation("MessageSender", fields: [senderId], references: [id])
+  
+  receiverId      Int
+  receiver        User     @relation("MessageReceiver", fields: [receiverId], references: [id])
+  
+  content         String
+  isRead          Boolean  @default(false)
+  readAt          DateTime?
+  
+  createdAt       DateTime @default(now())
+}
+
+// Payment model - updated to support monthly bills
+model Payment {
+  id              Int      @id @default(autoincrement())
+  bookingId       Int
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  
+  monthlyBillId   Int?
+  monthlyBill     MonthlyBill? @relation(fields: [monthlyBillId], references: [id], onDelete: Cascade)
+  
+  amount          Float
+  paymentMethod   String   // "card", "upi", "cash", "online"
+  transactionId   String?  @unique
+  paymentStatus   String   @default("pending") // "pending", "success", "failed"
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Update Booking model to include monthly bills and messages
+model Booking {
+  id              Int      @id @default(autoincrement())
+  bookingId       String   @unique
+  
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id])
+  customerName    String
+  customerEmail   String
+  customerPhone   String
+  customerAadhaar String?
+  
+  roomId          Int
+  room            Room     @relation(fields: [roomId], references: [id])
+  
+  checkInDate     DateTime
+  checkOutDate    DateTime
+  numberOfGuests  Int
+  totalDays       Int
+  totalAmount     Float
+  
+  status          String   @default("pending")
+  paymentStatus   String   @default("pending")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  payment         Payment?
+  notifications   Notification[]
+  monthlyBill     MonthlyBill?
+  messages        Message[]
+}

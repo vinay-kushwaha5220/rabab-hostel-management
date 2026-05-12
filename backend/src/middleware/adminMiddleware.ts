@@ -33,8 +33,10 @@ export const adminOnly = async (
 
     next()
   } catch (error) {
+    console.error("Admin middleware error:", error)
     return res.status(500).json({
       message: "Server error",
+      error: error instanceof Error ? error.message : "Unknown error"
     })
   }
 }
