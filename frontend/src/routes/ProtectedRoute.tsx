@@ -1,4 +1,5 @@
 import { Navigate } from "react-router-dom"
+
 import { useAuth } from "../context/AuthContext"
 
 const ProtectedRoute = ({
@@ -6,9 +7,9 @@ const ProtectedRoute = ({
 }: {
   children: React.ReactNode
 }) => {
-  const { user } = useAuth()
+  const { token } = useAuth()
 
-  if (!user) {
+  if (!token) {
     return <Navigate to="/login" />
   }
 

@@ -1,4 +1,45 @@
+import { useState } from "react"
+import { useNavigate } from "react-router-dom"
+
+import api from "../services/api"
+import { useAuth } from "../context/AuthContext"
+
 const LoginPage = () => {
+  const navigate = useNavigate()
+
+  const { login } = useAuth()
+
+  const [email, setEmail] = useState("")
+  const [password, setPassword] =
+    useState("")
+
+  const handleLogin = async (
+    e: React.FormEvent
+  ) => {
+    e.preventDefault()
+
+    try {
+      const response = await api.post(
+        "/auth/login",
+        {
+          email,
+          password,
+        }
+      )
+
+      login(
+        response.data.user,
+        response.data.token
+      )
+
+      alert("Login successful")
+
+      navigate("/dashboard")
+    } catch (error: any) {
+      alert(error.response.data.message)
+    }
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
 
@@ -8,18 +49,29 @@ const LoginPage = () => {
           Login
         </h1>
 
-        <form className="space-y-5">
+        <form
+          onSubmit={handleLogin}
+          className="space-y-5"
+        >
 
           <input
             type="email"
             placeholder="Email"
             className="w-full border p-3 rounded-lg"
+            value={email}
+            onChange={(e) =>
+              setEmail(e.target.value)
+            }
           />
 
           <input
             type="password"
             placeholder="Password"
             className="w-full border p-3 rounded-lg"
+            value={password}
+            onChange={(e) =>
+              setPassword(e.target.value)
+            }
           />
 
           <button className="w-full bg-blue-600 text-white py-3 rounded-lg">
