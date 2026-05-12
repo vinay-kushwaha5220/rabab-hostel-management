@@ -1,21 +1,26 @@
+import HeroSection from "../components/home/HeroSection"
+import SearchSection from "../components/home/SearchSection"
+import PopularRooms from "../components/home/PopularRooms"
+import FacilitiesSection from "../components/home/FacilitiesSection"
+import GallerySection from "../components/home/GallerySection"
+import TestimonialsSection from "../components/home/TestimonialsSection"
+
 const HomePage = () => {
   return (
     <div>
-      <section className="h-[90vh] bg-blue-100 flex flex-col justify-center items-center text-center">
-        
-        <h1 className="text-6xl font-bold text-blue-700">
-          Welcome to Rabab Stay
-        </h1>
 
-        <p className="mt-4 text-xl text-gray-700">
-          Affordable AC & Non-AC Rooms
-        </p>
+      <HeroSection />
 
-        <button className="mt-6 bg-blue-600 text-white px-6 py-3 rounded-lg">
-          Book Now
-        </button>
+      <SearchSection />
 
-      </section>
+      <PopularRooms />
+
+      <FacilitiesSection />
+
+      <GallerySection />
+
+      <TestimonialsSection />
+
     </div>
   )
 }
