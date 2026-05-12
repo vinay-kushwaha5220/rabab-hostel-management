@@ -1,7 +1,7 @@
 import { createBrowserRouter } from "react-router-dom"
 
 import MainLayout from "../layouts/MainLayout"
-
+import RoomDetailsPage from "../pages/RoomDetailsPage"
 import HomePage from "../pages/HomePage"
 import RoomsPage from "../pages/RoomsPage"
 import ContactPage from "../pages/ContactPage"
@@ -27,7 +27,11 @@ export const router = createBrowserRouter([
       {
         path: "/login",
         element: <LoginPage />
-      }
+      },
+      {
+  path: "/rooms/:id",
+  element: <RoomDetailsPage />
+}
     ]
   }
 ])

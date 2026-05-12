@@ -11,6 +11,7 @@ const PopularRooms = () => {
       <div className="grid md:grid-cols-3 gap-8">
 
         <RoomCard
+          id={1}
           image="https://images.unsplash.com/photo-1505693416388-ac5ce068fe85"
           title="Deluxe AC Room"
           price="₹1500/day"
@@ -18,6 +19,7 @@ const PopularRooms = () => {
         />
 
         <RoomCard
+          id={2}
           image="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267"
           title="Standard Non-AC"
           price="₹800/day"
@@ -25,6 +27,7 @@ const PopularRooms = () => {
         />
 
         <RoomCard
+          id={3}
           image="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2"
           title="Monthly Stay"
           price="₹6000/month"
