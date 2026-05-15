@@ -1,128 +1,379 @@
+import { useEffect, useState, useMemo } from "react"
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  AreaChart, Area, PieChart, Pie, Cell
+} from 'recharts'
+import { 
+  IndianRupee, Home, Users, LayoutDashboard, Clock, 
+  CreditCard, Banknote, ShieldCheck, Zap, Building2,
+  TrendingUp, ArrowUpRight, ArrowDownRight
+} from 'lucide-react'
+import api from "../services/apiV2"
+import { billingService } from "../services/billingService"
+import type { BookingType } from "../types/booking"
+import type { RoomType } from "../types/room"
+import type { MonthlyBill } from "../types/billing"
 import Card from "../components/ui/Card"
+import Badge from "../components/ui/Badge"
+import LoadingSpinner from "../components/ui/LoadingSpinner"
+
+const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
 
 const AnalyticsPage = () => {
-  const stats = [
-    {
-      label: "Total Bookings",
-      value: "24",
-      change: "+12%",
-      icon: "📊",
-      color: "bg-blue-100 text-blue-600",
-    },
-    {
-      label: "Total Revenue",
-      value: "₹1,24,500",
-      change: "+8%",
-      icon: "💰",
-      color: "bg-green-100 text-green-600",
-    },
-    {
-      label: "Occupancy Rate",
-      value: "85%",
-      change: "+5%",
-      icon: "🏨",
-      color: "bg-purple-100 text-purple-600",
-    },
-    {
-      label: "Avg Rating",
-      value: "4.8/5",
-      change: "+0.2",
-      icon: "⭐",
-      color: "bg-yellow-100 text-yellow-600",
-    },
-  ]
+  const [loading, setLoading] = useState(true)
+  const [bookings, setBookings] = useState<BookingType[]>([])
+  const [rooms, setRooms] = useState<RoomType[]>([])
+  const [bills, setBills] = useState<MonthlyBill[]>([])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [bookingsRes, roomsRes, billsRes] = await Promise.all([
+          api.get("/bookings"),
+          api.get("/rooms"),
+          billingService.getAllBills()
+        ])
+        setBookings(bookingsRes.data)
+        setRooms(roomsRes.data)
+        setBills(billsRes)
+      } catch (error) {
+        console.error('Analytics Error:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  // ==========================================
+  // PREMIUM DATA AGGREGATION
+  // ==========================================
+  const stats = useMemo(() => {
+    if (!rooms.length) return null
+
+    const totalRooms = rooms.length
+    const bookedRooms = rooms.filter(r => !r.isAvailable).length
+    const availableRooms = totalRooms - bookedRooms
+
+    const acBooked = rooms.filter(r => r.roomType === "AC" && !r.isAvailable).length
+    const nonAcBooked = rooms.filter(r => r.roomType === "NON_AC" && !r.isAvailable).length
+
+    const floor1Booked = rooms.filter(r => r.floor === 1 && !r.isAvailable).length
+    const floor2Booked = rooms.filter(r => r.floor === 2 && !r.isAvailable).length
+
+    const dailyBookings = bookings.filter(b => b.bookingType === "DAILY" && b.status === "CONFIRMED").length
+    const monthlyBookings = bookings.filter(b => b.bookingType === "MONTHLY" && b.status === "CONFIRMED").length
+
+    let onlinePay = 0
+    let cashPay = 0
+    bookings.forEach(b => {
+      if (b.paymentStatus === "SUCCESS" && b.payment?.[0]) {
+        if (b.payment[0].paymentMethod === "CASH") cashPay += b.totalAmount
+        else onlinePay += b.totalAmount
+      }
+    })
+    const pendingPay = bookings
+      .filter(b => b.paymentStatus === "PENDING" && b.status !== "CANCELLED")
+      .reduce((sum, b) => sum + b.totalAmount, 0)
+
+    const collectedBills = bills.filter(b => b.status === "PAID").reduce((s, b) => s + b.rentAmount, 0)
+    const pendingBills = bills.filter(b => b.status !== "PAID").reduce((s, b) => s + b.rentAmount, 0)
+
+    const monthData = bills.reduce((acc: any, bill) => {
+      acc[bill.month] = acc[bill.month] || { month: bill.month, collected: 0, total: 0 }
+      acc[bill.month].total += bill.rentAmount
+      if (bill.status === "PAID") acc[bill.month].collected += bill.rentAmount
+      return acc
+    }, {})
+    const collectionTrend = Object.values(monthData).sort((a: any, b: any) => a.month.localeCompare(b.month))
+
+    return {
+      totalRooms, bookedRooms, availableRooms,
+      acBooked, nonAcBooked,
+      floor1Booked, floor2Booked,
+      dailyBookings, monthlyBookings,
+      onlinePay, cashPay, pendingPay,
+      collectedBills, pendingBills,
+      collectionTrend
+    }
+  }, [rooms, bookings, bills])
+
+  if (loading) return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <LoadingSpinner size="xl" text="Generating Business Insights..." />
+    </div>
+  )
+
+  if (!stats) return <div>Data Error.</div>
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Analytics</h1>
-        <p className="text-gray-600 mt-2">View your business performance metrics</p>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {stats.map((stat, index) => (
-          <Card key={index} className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">{stat.label}</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stat.value}</p>
-                <p className="text-sm text-green-600 font-semibold mt-2">{stat.change} from last month</p>
-              </div>
-              <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl ${stat.color}`}>
-                {stat.icon}
-              </div>
+    <div className="min-h-screen bg-slate-50/50 p-4 sm:p-6 lg:p-10">
+      {/* Header Section */}
+      <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+            <div className="p-2 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-200">
+              <LayoutDashboard className="w-6 h-6 text-white" />
             </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Booking Trends */}
-        <Card className="p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Booking Trends</h2>
-          <div className="h-64 flex items-end justify-around gap-2">
-            {[65, 78, 90, 81, 56, 85, 92].map((height, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div
-                  className="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-lg transition-all hover:from-blue-700 hover:to-blue-500"
-                  style={{ height: `${height}%` }}
-                ></div>
-                <span className="text-xs text-gray-600">Week {i + 1}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* Revenue Distribution */}
-        <Card className="p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Revenue Distribution</h2>
-          <div className="space-y-4">
-            {[
-              { label: "Room Bookings", value: 65, color: "bg-blue-600" },
-              { label: "Electricity Bills", value: 20, color: "bg-green-600" },
-              { label: "Extra Charges", value: 15, color: "bg-yellow-600" },
-            ].map((item, i) => (
-              <div key={i}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">{item.label}</span>
-                  <span className="text-sm font-semibold text-gray-900">{item.value}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full ${item.color}`}
-                    style={{ width: `${item.value}%` }}
-                  ></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      {/* Recent Activity */}
-      <Card className="p-6 mt-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Recent Activity</h2>
-        <div className="space-y-4">
-          {[
-            { action: "New booking created", time: "2 hours ago", icon: "📅" },
-            { action: "Payment received", time: "5 hours ago", icon: "💳" },
-            { action: "Room rating updated", time: "1 day ago", icon: "⭐" },
-            { action: "New message from renter", time: "2 days ago", icon: "💬" },
-          ].map((activity, i) => (
-            <div key={i} className="flex items-center gap-4 pb-4 border-b border-gray-200 last:border-0">
-              <div className="text-2xl">{activity.icon}</div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">{activity.action}</p>
-                <p className="text-sm text-gray-600">{activity.time}</p>
-              </div>
-            </div>
-          ))}
+            Analytics Dashboard
+          </h1>
+          <p className="text-xs text-slate-400 font-bold uppercase tracking-[0.2em] mt-2 ml-1">Live Operational Intelligence</p>
         </div>
-      </Card>
+        <div className="flex items-center gap-4 bg-white/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+            <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Real-time Sync</span>
+          </div>
+          <Badge variant="success" className="text-[9px] font-black uppercase">Active</Badge>
+        </div>
+      </div>
+
+      {/* High-Impact KPI Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <PremiumStatCard 
+          label="Inventory Status" 
+          value={`${stats.bookedRooms} / ${stats.totalRooms}`} 
+          subValue={`${stats.availableRooms} Units Available`}
+          icon={<Home className="w-5 h-5 text-indigo-600" />}
+          progress={(stats.bookedRooms / stats.totalRooms) * 100}
+          color="indigo"
+        />
+        <PremiumStatCard 
+          label="Confirmed Stays" 
+          value={stats.dailyBookings + stats.monthlyBookings} 
+          subValue="Active Reservations"
+          icon={<Users className="w-5 h-5 text-emerald-600" />}
+          trend="+8%"
+          color="emerald"
+        />
+        <PremiumStatCard 
+          label="Total Receivables" 
+          value={`₹${(stats.onlinePay + stats.cashPay).toLocaleString()}`} 
+          subValue={`₹${stats.pendingPay.toLocaleString()} Outstanding`}
+          icon={<IndianRupee className="w-5 h-5 text-blue-600" />}
+          trend="+12%"
+          color="blue"
+        />
+        <PremiumStatCard 
+          label="Bill Collection" 
+          value={`₹${stats.collectedBills.toLocaleString()}`} 
+          subValue={`${Math.round((stats.collectedBills / (stats.collectedBills + stats.pendingBills || 1)) * 100)}% Success Rate`}
+          icon={<ShieldCheck className="w-5 h-5 text-purple-600" />}
+          progress={(stats.collectedBills / (stats.collectedBills + stats.pendingBills || 1)) * 100}
+          color="purple"
+        />
+      </div>
+
+      {/* Analytics Visualization Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Revenue Performance Chart */}
+        <Card className="lg:col-span-2 p-8 border-none shadow-xl shadow-slate-200/50 bg-white relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-indigo-100/50 transition-all duration-500"></div>
+          <div className="flex justify-between items-start mb-10 relative">
+            <div>
+              <h2 className="text-lg font-black text-slate-900 tracking-tight">Financial Trajectory</h2>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Monthly collection flow</p>
+            </div>
+            <div className="flex items-center gap-1.5 text-emerald-600 font-black text-xs">
+              <TrendingUp className="w-4 h-4" />
+              +24% Growth
+            </div>
+          </div>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={stats.collectionTrend}>
+                <defs>
+                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f8fafc" />
+                <XAxis dataKey="month" hide />
+                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#94a3b8'}} />
+                <Tooltip 
+                  contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 700}}
+                />
+                <Area type="monotone" dataKey="collected" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorRev)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        {/* Occupancy Density */}
+        <Card className="p-8 border-none shadow-xl shadow-slate-200/50 bg-white group">
+          <h2 className="text-lg font-black text-slate-900 tracking-tight mb-8">Unit Density</h2>
+          <div className="h-[250px] w-full relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Occupied', value: stats.bookedRooms },
+                    { name: 'Empty', value: stats.availableRooms }
+                  ]}
+                  innerRadius={65}
+                  outerRadius={85}
+                  paddingAngle={8}
+                  dataKey="value"
+                >
+                  <Cell fill="#6366f1" />
+                  <Cell fill="#f1f5f9" />
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+              <p className="text-3xl font-black text-slate-900 leading-none">
+                {Math.round((stats.bookedRooms / stats.totalRooms) * 100)}%
+              </p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 tracking-widest">Occupancy</p>
+            </div>
+          </div>
+          <div className="mt-8 space-y-4">
+            <DensityRow label="AC Booked" count={stats.acBooked} color="#6366f1" />
+            <DensityRow label="Non-AC Booked" count={stats.nonAcBooked} color="#94a3b8" />
+          </div>
+        </Card>
+
+        {/* Payment Channels */}
+        <Card className="p-8 border-none shadow-xl shadow-slate-200/50 bg-white">
+          <h2 className="text-lg font-black text-slate-900 tracking-tight mb-8">Settlement Channels</h2>
+          <div className="grid grid-cols-2 gap-6">
+            <ChannelCard label="Online" amount={stats.onlinePay} icon={<Zap className="w-4 h-4" />} color="emerald" />
+            <ChannelCard label="Cash" amount={stats.cashPay} icon={<Banknote className="w-4 h-4" />} color="blue" />
+            <div className="col-span-2">
+              <ChannelCard label="Outstanding Dues" amount={stats.pendingPay} icon={<Clock className="w-4 h-4" />} color="orange" />
+            </div>
+          </div>
+        </Card>
+
+        {/* Floor Analytics */}
+        <Card className="p-8 border-none shadow-xl shadow-slate-200/50 bg-white lg:col-span-1">
+          <h2 className="text-lg font-black text-slate-900 tracking-tight mb-8">Floor Performance</h2>
+          <div className="space-y-6">
+            <FloorRow floor="01" booked={stats.floor1Booked} total={13} color="indigo" />
+            <FloorRow floor="02" booked={stats.floor2Booked} total={13} color="blue" />
+          </div>
+        </Card>
+
+        {/* Stay Type Breakdown */}
+        <Card className="p-8 border-none shadow-xl shadow-slate-200/50 bg-white lg:col-span-1">
+          <h2 className="text-lg font-black text-slate-900 tracking-tight mb-8">Stay Dynamics</h2>
+          <div className="flex flex-col h-full justify-around py-2">
+            <StayRow label="Monthly Stays" count={stats.monthlyBookings} icon={<Building2 className="w-5 h-5 text-indigo-500" />} color="indigo" />
+            <div className="h-px bg-slate-50 w-full my-4"></div>
+            <StayRow label="Daily Bookings" count={stats.dailyBookings} icon={<Clock className="w-5 h-5 text-emerald-500" />} color="emerald" />
+          </div>
+        </Card>
+
+      </div>
     </div>
   )
 }
 
+// ==========================================
+// PREMIUM SUB-COMPONENTS
+// ==========================================
+
+const PremiumStatCard = ({ label, value, subValue, icon, progress, trend, color }: any) => {
+  const colorMap: any = {
+    indigo: "bg-indigo-50 text-indigo-600",
+    emerald: "bg-emerald-50 text-emerald-600",
+    blue: "bg-blue-50 text-blue-600",
+    purple: "bg-purple-50 text-purple-600",
+  }
+  return (
+    <Card className="p-6 border-none shadow-xl shadow-slate-200/40 bg-white hover:-translate-y-1 transition-all duration-300 group">
+      <div className="flex justify-between items-start mb-6">
+        <div className={`p-3 rounded-2xl ${colorMap[color]} group-hover:scale-110 transition-transform duration-500`}>
+          {icon}
+        </div>
+        {trend && (
+          <div className="flex items-center gap-1 text-[10px] font-black text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg">
+            <ArrowUpRight className="w-3 h-3" />
+            {trend}
+          </div>
+        )}
+      </div>
+      <div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 leading-none">{label}</p>
+        <p className="text-2xl font-black text-slate-900 tracking-tight leading-none mb-3">{value}</p>
+        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter leading-none">{subValue}</p>
+      </div>
+      {progress !== undefined && (
+        <div className="mt-6 h-1.5 bg-slate-50 rounded-full overflow-hidden">
+          <div 
+            className={`h-full transition-all duration-1000 ${color === 'indigo' ? 'bg-indigo-500' : 'bg-purple-500'}`} 
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
+    </Card>
+  )
+}
+
+const DensityRow = ({ label, count, color }: any) => (
+  <div className="flex items-center justify-between">
+    <div className="flex items-center gap-3">
+      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }}></div>
+      <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">{label}</span>
+    </div>
+    <span className="text-sm font-black text-slate-900">{count} Units</span>
+  </div>
+)
+
+const ChannelCard = ({ label, amount, icon, color }: any) => {
+  const colorMap: any = {
+    emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
+    blue: "bg-blue-50 text-blue-600 border-blue-100",
+    orange: "bg-orange-50 text-orange-600 border-orange-100",
+  }
+  return (
+    <div className={`p-5 rounded-2xl border ${colorMap[color]} transition-all hover:shadow-md`}>
+      <div className="flex items-center gap-2 mb-3">
+        {icon}
+        <span className="text-[9px] font-black uppercase tracking-widest">{label}</span>
+      </div>
+      <p className="text-xl font-black text-slate-900 tracking-tight">₹{amount.toLocaleString()}</p>
+    </div>
+  )
+}
+
+const FloorRow = ({ floor, booked, total, color }: any) => (
+  <div className="group">
+    <div className="flex justify-between items-end mb-2">
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Floor</span>
+        <span className="text-xl font-black text-slate-900 leading-none">{floor}</span>
+      </div>
+      <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{booked} / {total} Booked</span>
+    </div>
+    <div className="h-2 bg-slate-50 rounded-full overflow-hidden">
+      <div 
+        className={`h-full transition-all duration-1000 ${color === 'indigo' ? 'bg-indigo-500' : 'bg-blue-500'}`}
+        style={{ width: `${(booked / total) * 100}%` }}
+      />
+    </div>
+  </div>
+)
+
+const StayRow = ({ label, count, icon, color }: any) => (
+  <div className="flex items-center justify-between group cursor-default">
+    <div className="flex items-center gap-4">
+      <div className={`p-3 rounded-2xl bg-white shadow-md border border-slate-50 group-hover:scale-110 transition-all duration-300`}>
+        {icon}
+      </div>
+      <div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">{label}</p>
+        <p className="text-lg font-black text-slate-900 leading-none">{count} Active Stays</p>
+      </div>
+    </div>
+    <ArrowUpRight className="w-4 h-4 text-slate-200 group-hover:text-slate-400 transition-colors" />
+  </div>
+)
+
 export default AnalyticsPage
+
+
+

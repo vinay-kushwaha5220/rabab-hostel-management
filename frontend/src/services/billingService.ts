@@ -34,11 +34,21 @@ export const billingService = {
     return response.data.bill
   },
 
-  getAllBills: async (status?: string, month?: string): Promise<MonthlyBill[]> => {
+  getAllBills: async (filters: { status?: string, month?: string, year?: string, roomNumber?: string } = {}): Promise<MonthlyBill[]> => {
     const params = new URLSearchParams()
-    if (status) params.append("status", status)
-    if (month) params.append("month", month)
+    if (filters.status) params.append("status", filters.status)
+    if (filters.month) params.append("month", filters.month)
+    if (filters.year) params.append("year", filters.year)
+    if (filters.roomNumber) params.append("roomNumber", filters.roomNumber)
     const response = await api.get(`/monthly-bills/admin/all?${params}`)
+    return response.data
+  },
+
+  getBillingStats: async (month?: string, year?: string): Promise<any> => {
+    const params = new URLSearchParams()
+    if (month) params.append("month", month)
+    if (year) params.append("year", year)
+    const response = await api.get(`/monthly-bills/admin/stats?${params}`)
     return response.data
   },
 

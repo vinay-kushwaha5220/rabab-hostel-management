@@ -9,6 +9,11 @@ import {
   getBookingById,
   cancelBooking,
   confirmBooking,
+  checkInBooking,
+  checkOutBooking,
+  refundBooking,
+  undoCheckOutBooking,
+  renewMonthlyStay,
 } from "../controllers/bookingController.js"
 
 import { protect } from "../middleware/authMiddleware.js"
@@ -26,6 +31,11 @@ router.get("/monthly-active", protect, adminOnly, getMonthlyActiveBookings)
 router.get("/", protect, adminOnly, getAllBookings)
 router.put("/:id/cancel", protect, adminOnly, cancelBooking)
 router.put("/:id/confirm", protect, adminOnly, confirmBooking)
+router.put("/:id/check-in", protect, adminOnly, checkInBooking)
+router.put("/:id/check-out", protect, adminOnly, checkOutBooking)
+router.put("/:id/refund", protect, adminOnly, refundBooking)
+router.put("/:id/undo-checkout", protect, adminOnly, undoCheckOutBooking)
+router.put("/:id/renew-stay", protect, adminOnly, renewMonthlyStay)
 
 // Detail routes - Generic parameters MUST be last to avoid catching static routes
 router.get("/:id", protect, getBookingById)

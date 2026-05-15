@@ -1,7 +1,7 @@
 import type { Request, Response } from "express"
 import prisma from "../config/prisma.js"
 import type { AuthRequest } from "../middleware/authMiddleware.js"
-import { MonthlyBillStatus, VerificationStatus, PaymentStatus, PaymentMethod, NotificationType, NotificationPriority, UserRole } from "@prisma/client"
+import { MonthlyBillStatus, VerificationStatus, PaymentStatus, PaymentMethod, NotificationType, NotificationPriority, UserRole, BookingStatus } from "@prisma/client"
 
 // ==========================================
 // CREATE MONTHLY BILL (Admin)
@@ -61,7 +61,22 @@ export const createMonthlyBill = async (req: AuthRequest, res: Response) => {
       })
     }
 
-    const totalAmount = rentAmount + (electricityAmount || 0) + (extraCharges || 0)
+    // Calculate totals and dues
+    const currentMonthTotal = rentAmount + (electricityAmount || 0) + (extraCharges || 0)
+    
+    // Find previous month's bill to get remaining dues
+    const previousBill = await prisma.monthlyBill.findFirst({
+      where: {
+        bookingId: actualBookingId,
+      },
+      orderBy: {
+        month: 'desc'
+      }
+    })
+
+    const previousDue = previousBill ? previousBill.remainingAmount : 0
+    const totalDue = currentMonthTotal + previousDue
+    const remainingAmount = totalDue // Initially full amount is remaining
 
     // Create monthly bill
     const bill = await prisma.monthlyBill.create({
@@ -71,7 +86,11 @@ export const createMonthlyBill = async (req: AuthRequest, res: Response) => {
         rentAmount,
         electricityAmount: electricityAmount || 0,
         extraCharges: extraCharges || 0,
-        totalAmount,
+        totalAmount: currentMonthTotal,
+        previousDue,
+        totalDue,
+        paidAmount: 0,
+        remainingAmount,
         dueDate: new Date(dueDate),
         status: MonthlyBillStatus.PENDING,
         verificationStatus: VerificationStatus.PENDING,
@@ -109,6 +128,106 @@ export const createMonthlyBill = async (req: AuthRequest, res: Response) => {
       message: "Server error",
       error: error instanceof Error ? error.message : "Unknown error",
     })
+  }
+}
+
+// ==========================================
+// GENERATE BULK MONTHLY BILLS (Admin)
+// ==========================================
+export const generateBulkMonthlyBills = async (req: AuthRequest, res: Response) => {
+  try {
+    const { month, year } = req.body
+    if (!month || !year) {
+      return res.status(400).json({ message: "Month and Year are required" })
+    }
+
+    const targetMonth = `${month} ${year}`
+    
+    // 1. Get all active monthly renters
+    const activeBookings = await prisma.booking.findMany({
+      where: {
+        status: BookingStatus.CONFIRMED,
+        stayStatus: StayStatus.CHECKED_IN,
+        room: {
+          bookingType: "MONTHLY"
+        }
+      },
+      include: {
+        room: true,
+        monthlyBills: {
+          where: { month: targetMonth }
+        }
+      }
+    })
+
+    let createdCount = 0
+    let skippedCount = 0
+
+    for (const booking of activeBookings) {
+      // Skip if bill already exists for this month
+      if (booking.monthlyBills.length > 0) {
+        skippedCount++
+        continue
+      }
+
+      const rentAmount = booking.room.monthlyPrice || booking.room.price
+      
+      // Get previous dues
+      const lastBill = await prisma.monthlyBill.findFirst({
+        where: { bookingId: booking.id },
+        orderBy: { createdAt: 'desc' }
+      })
+      
+      const previousDue = lastBill ? lastBill.remainingAmount : 0
+      const totalAmount = rentAmount // Starting with just rent for auto-gen
+      const totalDue = totalAmount + previousDue
+      
+      // Default due date: 5th of the month
+      const dueDate = new Date()
+      dueDate.setDate(5)
+      if (dueDate < new Date()) {
+        dueDate.setMonth(dueDate.getMonth() + 1)
+      }
+
+      await prisma.monthlyBill.create({
+        data: {
+          bookingId: booking.id,
+          month: targetMonth,
+          rentAmount,
+          electricityAmount: 0,
+          extraCharges: 0,
+          totalAmount,
+          previousDue,
+          totalDue,
+          paidAmount: 0,
+          remainingAmount: totalDue,
+          dueDate,
+          status: MonthlyBillStatus.PENDING,
+          verificationStatus: VerificationStatus.PENDING,
+        }
+      })
+
+      // Notify
+      await prisma.notification.create({
+        data: {
+          bookingId: booking.id,
+          title: `Rent Invoice: ${targetMonth}`,
+          message: `Your monthly rent bill for ${targetMonth} has been generated. Amount: ₹${totalDue}`,
+          type: NotificationType.BILL,
+          priority: NotificationPriority.HIGH
+        }
+      })
+
+      createdCount++
+    }
+
+    res.status(200).json({ 
+      message: `Processing complete. Generated: ${createdCount}, Skipped: ${skippedCount}`,
+      createdCount,
+      skippedCount
+    })
+  } catch (error: any) {
+    res.status(500).json({ message: error.message })
   }
 }
 
@@ -201,21 +320,52 @@ export const getRenterMonthlyBills = async (req: AuthRequest, res: Response) => 
 // GET ALL MONTHLY BILLS (Admin)
 // ==========================================
 export const getAllMonthlyBills = async (req: AuthRequest, res: Response) => {
-  console.log("🔍 DEBUG: getAllMonthlyBills Request - User ID:", req.userId)
   try {
-    const { status, month } = req.query
+    const { status, month, year, roomNumber } = req.query
 
-    const where: any = {}
+    const where: any = {
+      isDeleted: false
+    }
 
-    if (status === "paid") {
-      where.status = MonthlyBillStatus.PAID_ONLINE // or PAID_CASH
-    } else if (status === "pending") {
-      where.status = MonthlyBillStatus.PENDING
+    if (status) {
+      if (status === "PAID") {
+        where.status = { in: [MonthlyBillStatus.PAID_ONLINE, MonthlyBillStatus.PAID_CASH] }
+      } else {
+        where.status = status as MonthlyBillStatus
+      }
     }
 
     if (month) {
-      where.month = month
+      // If month is just a name like "January", we might need to handle year too
+      if (year) {
+        where.month = `${month} ${year}`
+      } else {
+        where.month = { contains: String(month) }
+      }
+    } else if (year) {
+      where.month = { contains: String(year) }
     }
+
+    if (roomNumber) {
+      where.booking = {
+        room: {
+          roomNumber: String(roomNumber)
+        }
+      }
+    }
+
+    // AUTO OVERDUE SYSTEM: Check and update status for all pending bills before returning
+    const now = new Date()
+    await prisma.monthlyBill.updateMany({
+      where: {
+        status: { in: [MonthlyBillStatus.PENDING, MonthlyBillStatus.PARTIAL] },
+        dueDate: { lt: now },
+        isPaid: false
+      },
+      data: {
+        status: MonthlyBillStatus.OVERDUE
+      }
+    })
 
     const bills = await prisma.monthlyBill.findMany({
       where,
@@ -344,6 +494,7 @@ export const deleteMonthlyBill = async (req: AuthRequest, res: Response) => {
 export const verifyMonthlyPayment = async (req: AuthRequest, res: Response) => {
   try {
     const { billId } = req.params
+    const { amount, paymentMethod = PaymentMethod.CASH, transactionId } = req.body
     const numericBillId = Number(billId)
 
     if (isNaN(numericBillId)) {
@@ -359,13 +510,24 @@ export const verifyMonthlyPayment = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: "Bill not found" })
     }
 
+    const paymentAmount = amount ? parseFloat(amount) : bill.remainingAmount
+    const newPaidAmount = bill.paidAmount + paymentAmount
+    const newRemainingAmount = Math.max(0, bill.totalDue - newPaidAmount)
+    
+    let newStatus: MonthlyBillStatus = MonthlyBillStatus.PARTIAL
+    if (newRemainingAmount <= 0) {
+      newStatus = paymentMethod === PaymentMethod.CASH ? MonthlyBillStatus.PAID_CASH : MonthlyBillStatus.PAID_ONLINE
+    }
+
     // Update bill
     await prisma.monthlyBill.update({
       where: { id: numericBillId },
       data: {
-        isPaid: true,
-        paidDate: new Date(),
-        status: MonthlyBillStatus.PAID_CASH,
+        isPaid: newRemainingAmount <= 0,
+        paidAmount: newPaidAmount,
+        remainingAmount: newRemainingAmount,
+        paidDate: newRemainingAmount <= 0 ? new Date() : bill.paidDate,
+        status: newStatus,
         verificationStatus: VerificationStatus.VERIFIED,
       },
     })
@@ -375,11 +537,11 @@ export const verifyMonthlyPayment = async (req: AuthRequest, res: Response) => {
       data: {
         bookingId: bill.bookingId,
         monthlyBillId: numericBillId,
-        amount: bill.totalAmount,
-        paymentMethod: PaymentMethod.CASH,
+        amount: paymentAmount,
+        paymentMethod: paymentMethod as PaymentMethod,
         paymentStatus: PaymentStatus.SUCCESS,
         verificationStatus: VerificationStatus.VERIFIED,
-        transactionId: `ADMIN-VERIFIED-${Date.now()}`,
+        transactionId: transactionId || `ADMIN-VERIFIED-${Date.now()}`,
       },
     })
 
@@ -388,13 +550,17 @@ export const verifyMonthlyPayment = async (req: AuthRequest, res: Response) => {
       data: {
         bookingId: bill.bookingId,
         title: "Payment Verified",
-        message: `Your payment of ₹${bill.totalAmount} for ${bill.month} has been verified by admin.`,
+        message: `Your payment of ₹${paymentAmount} for ${bill.month} has been verified. Remaining: ₹${newRemainingAmount}`,
         type: NotificationType.PAYMENT,
         priority: NotificationPriority.MEDIUM,
       },
     })
 
-    res.status(200).json({ message: "Payment verified successfully" })
+    res.status(200).json({ 
+      message: "Payment verified successfully",
+      remainingAmount: newRemainingAmount,
+      status: newStatus
+    })
   } catch (error) {
     console.error("Verify payment error:", error)
     res.status(500).json({ message: "Server error", error: error instanceof Error ? error.message : "Unknown error" })
@@ -409,7 +575,7 @@ export const getRenterDashboardData = async (req: AuthRequest, res: Response) =>
     const activeBooking = await prisma.booking.findFirst({
       where: {
         userId,
-        status: "confirmed",
+        status: BookingStatus.CONFIRMED,
       },
       include: {
         room: true,
@@ -496,5 +662,74 @@ export const getRenterDashboardData = async (req: AuthRequest, res: Response) =>
       message: "Server error",
       error: error instanceof Error ? error.message : "Unknown error",
     })
+  }
+}
+
+export const getAdminBillingStats = async (req: AuthRequest, res: Response) => {
+  try {
+    const { month, year } = req.query
+    
+    const where: any = { isDeleted: false }
+    if (month && year) {
+      where.month = `${month} ${year}`
+    } else if (month) {
+      where.month = { contains: String(month) }
+    } else if (year) {
+      where.month = { contains: String(year) }
+    }
+
+    const bills = await prisma.monthlyBill.findMany({
+      where,
+      include: {
+        booking: true
+      }
+    })
+
+    const stats = {
+      totalExpected: bills.reduce((sum, b) => sum + b.totalDue, 0),
+      totalReceived: bills.reduce((sum, b) => sum + b.paidAmount, 0),
+      remainingDues: bills.reduce((sum, b) => sum + b.remainingAmount, 0),
+      totalPendingRenters: bills.filter(b => b.status === MonthlyBillStatus.PENDING).length,
+      totalPartialRenters: bills.filter(b => b.status === MonthlyBillStatus.PARTIAL).length,
+      totalPaidRenters: bills.filter(b => b.isPaid).length,
+      monthlyRevenue: bills.reduce((sum, b) => sum + b.paidAmount, 0), // Assuming revenue = actually received
+    }
+
+    res.status(200).json(stats)
+  } catch (error) {
+    console.error("Get admin billing stats error:", error)
+    res.status(500).json({ message: "Server error", error: error instanceof Error ? error.message : "Unknown error" })
+  }
+}
+
+export const getRoomBillingHistory = async (req: AuthRequest, res: Response) => {
+  try {
+    const { roomId } = req.params
+    const numericRoomId = Number(roomId)
+
+    if (isNaN(numericRoomId)) {
+      return res.status(400).json({ message: "Invalid room ID" })
+    }
+
+    const bills = await prisma.monthlyBill.findMany({
+      where: {
+        booking: {
+          roomId: numericRoomId
+        },
+        isDeleted: false
+      },
+      include: {
+        booking: true,
+        payments: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    res.status(200).json(bills)
+  } catch (error) {
+    console.error("Get room billing history error:", error)
+    res.status(500).json({ message: "Server error", error: error instanceof Error ? error.message : "Unknown error" })
   }
 }

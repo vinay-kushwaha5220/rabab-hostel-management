@@ -88,6 +88,7 @@ enum MaintenanceStatus {
 
 enum MonthlyBillStatus {
   PENDING
+  PARTIAL
   PAID_ONLINE
   PAID_CASH
   OVERDUE
@@ -148,9 +149,11 @@ model Room {
   roomNumber      String             @unique
   title           String
   description     String
-  price           Float
+  dailyPrice      Float              @default(0)
+  monthlyPrice    Float              @default(0)
+  price           Float              // Keep for backward compatibility (map to dailyPrice)
   roomType        RoomType           @default(NON_AC)
-  bookingType     BookingType        @default(DAILY)
+  bookingType     BookingType        @default(DAILY) // Default type, but room supports both
   floor           Int
   capacity        Int
   isAvailable     Boolean            @default(true) // Keep for backward compatibility
@@ -200,6 +203,7 @@ model Booking {
   roomId          Int
   room            Room     @relation(fields: [roomId], references: [id])
   
+  bookingType     BookingType @default(DAILY)
   checkInDate     DateTime
   checkOutDate    DateTime
   numberOfGuests  Int
@@ -328,10 +332,16 @@ model MonthlyBill {
   booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   
   month           String
-  rentAmount      Float
+  rentAmount      Float    @default(0)
   electricityAmount Float  @default(0)
   extraCharges    Float    @default(0)
-  totalAmount     Float
+  
+  paidAmount      Float    @default(0)
+  remainingAmount Float    @default(0)
+  previousDue     Float    @default(0)
+  totalDue        Float    @default(0)
+  
+  totalAmount     Float    @default(0) // Keep for backward compatibility (represents rent + elec + extra)
   
   isPaid          Boolean  @default(false) // Keep for backward compatibility
   status          MonthlyBillStatus @default(PENDING)

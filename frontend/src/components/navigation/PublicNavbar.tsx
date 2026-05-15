@@ -3,53 +3,65 @@ import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "../../context/AuthContextV2"
 
 const PublicNavbar = () => {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user, logout } = useAuth()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
-  if (isAuthenticated) {
-    return null
-  }
 
   return (
     <nav className="bg-white shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-12">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">R</span>
+            <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-black text-sm">R</span>
             </div>
-            <span className="font-bold text-xl text-gray-900 hidden sm:inline">Rabab Stay</span>
+            <span className="font-black text-base text-gray-900 hidden sm:inline tracking-tight">Rabab Stay</span>
           </Link>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center gap-8">
-            <Link to="/" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">
+          <div className="hidden md:flex items-center gap-6">
+            <Link to="/" className="text-gray-500 hover:text-blue-600 font-bold text-[11px] uppercase tracking-widest transition-colors">
               Home
             </Link>
-            <Link to="/rooms" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">
+            <Link to="/rooms" className="text-gray-500 hover:text-blue-600 font-bold text-[11px] uppercase tracking-widest transition-colors">
               Rooms
             </Link>
-            <Link to="/contact" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">
+            <Link to="/contact" className="text-gray-500 hover:text-blue-600 font-bold text-[11px] uppercase tracking-widest transition-colors">
               Contact
             </Link>
           </div>
 
-          {/* Auth Buttons */}
-          <div className="hidden md:flex items-center gap-4">
-            <button
-              onClick={() => navigate("/login")}
-              className="px-6 py-2 text-blue-600 font-semibold hover:bg-blue-50 rounded-lg transition-colors"
-            >
-              Login
-            </button>
-            <button
-              onClick={() => navigate("/register")}
-              className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Register
-            </button>
+          <div className="hidden md:flex items-center gap-3">
+            {!isAuthenticated ? (
+              <>
+                <button
+                  onClick={() => navigate("/login")}
+                  className="px-4 py-1.5 text-blue-600 font-bold text-[11px] uppercase tracking-widest hover:bg-blue-50 rounded-lg transition-colors"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => navigate("/register")}
+                  className="px-4 py-1.5 bg-blue-600 text-white font-bold text-[11px] uppercase tracking-widest rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                  Join Now
+                </button>
+              </>
+            ) : (
+              <div className="flex items-center gap-4">
+                <div className="flex flex-col items-end mr-2">
+                  <span className="text-sm font-bold text-gray-900">{user?.name}</span>
+                  <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{user?.role}</span>
+                </div>
+                <button
+                  onClick={logout}
+                  className="px-6 py-2 border-2 border-red-100 text-red-600 font-semibold rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -88,24 +100,38 @@ const PublicNavbar = () => {
               Contact
             </Link>
             <div className="pt-2 border-t space-y-2">
-              <button
-                onClick={() => {
-                  navigate("/login")
-                  setMobileMenuOpen(false)
-                }}
-                className="w-full px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 rounded-lg transition-colors"
-              >
-                Login
-              </button>
-              <button
-                onClick={() => {
-                  navigate("/register")
-                  setMobileMenuOpen(false)
-                }}
-                className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Register
-              </button>
+              {!isAuthenticated ? (
+                <>
+                  <button
+                    onClick={() => {
+                      navigate("/login")
+                      setMobileMenuOpen(false)
+                    }}
+                    className="w-full px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 rounded-lg transition-colors text-left"
+                  >
+                    Login
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigate("/register")
+                      setMobileMenuOpen(false)
+                    }}
+                    className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Register
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => {
+                    logout()
+                    setMobileMenuOpen(false)
+                  }}
+                  className="w-full px-4 py-2 text-red-600 font-semibold hover:bg-red-50 rounded-lg transition-colors text-left"
+                >
+                  Logout ({user?.name})
+                </button>
+              )}
             </div>
           </div>
         )}

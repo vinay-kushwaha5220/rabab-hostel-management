@@ -3,16 +3,29 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContextV2"
 import api from "../services/apiV2"
 import type { BookingType } from "../types/booking"
+import Button from "../components/ui/Button"
+import Badge from "../components/ui/Badge"
 
 const UserDashboard = () => {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [bookings, setBookings] = useState<BookingType[]>([])
   const [loading, setLoading] = useState(true)
+  const [billingData, setBillingData] = useState<any>(null)
 
   useEffect(() => {
     fetchMyBookings()
+    fetchBillingData()
   }, [])
+
+  const fetchBillingData = async () => {
+    try {
+      const response = await api.get("/monthly-bills/renter/dashboard")
+      setBillingData(response.data)
+    } catch (err) {
+      console.error("Failed to fetch billing data:", err)
+    }
+  }
 
   const fetchMyBookings = async () => {
     try {
@@ -39,54 +52,60 @@ const UserDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-12">
-        <div className="max-w-7xl mx-auto px-4">
-          <h1 className="text-4xl font-bold mb-2">Welcome back, {user?.name}!</h1>
-          <p className="text-blue-100">Manage your bookings and account</p>
+      <div className="bg-slate-900 text-white py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-black tracking-tight">Welcome, {user?.name.split(' ')[0]}</h1>
+            <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mt-0.5">Member Portal</p>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg border border-white/10">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-white/70">Verified Account</span>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 -mt-4">
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-600">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 border-l-4 border-l-blue-600">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Active Bookings</p>
-                <p className="text-3xl font-bold text-gray-900">{activeBookings.length}</p>
+                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Active Bookings</p>
+                <p className="text-2xl font-black text-gray-900">{activeBookings.length}</p>
               </div>
-              <div className="bg-blue-100 p-3 rounded-full">
-                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-blue-50 p-2 rounded-lg">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-600">
+          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 border-l-4 border-l-green-600">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Total Bookings</p>
-                <p className="text-3xl font-bold text-gray-900">{bookings.length}</p>
+                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Total Bookings</p>
+                <p className="text-2xl font-black text-gray-900">{bookings.length}</p>
               </div>
-              <div className="bg-green-100 p-3 rounded-full">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-green-50 p-2 rounded-lg">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-600">
+          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 border-l-4 border-l-purple-600">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Total Spent</p>
-                <p className="text-3xl font-bold text-gray-900">
+                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Total Spent</p>
+                <p className="text-2xl font-black text-gray-900">
                   ₹{bookings.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString()}
                 </p>
               </div>
-              <div className="bg-purple-100 p-3 rounded-full">
-                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-purple-50 p-2 rounded-lg">
+                <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
@@ -94,38 +113,84 @@ const UserDashboard = () => {
           </div>
         </div>
 
+        {/* Rent & Billing Alerts */}
+        {billingData?.monthlyBill && (
+          <div className="mb-6">
+            <div className={`rounded-xl p-4 border-2 ${billingData.monthlyBill.status === 'OVERDUE' ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100 shadow-sm'}`}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${billingData.monthlyBill.status === 'OVERDUE' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Monthly Rent: {billingData.monthlyBill.month}</h3>
+                    <p className={`text-[10px] font-bold ${billingData.monthlyBill.status === 'OVERDUE' ? 'text-red-500 animate-pulse' : 'text-gray-400'}`}>
+                      {billingData.monthlyBill.status === 'OVERDUE' ? '⚠️ PAYMENT OVERDUE' : 'Billing Period Active'}
+                    </p>
+                  </div>
+                </div>
+                <Badge variant={billingData.monthlyBill.status === 'OVERDUE' ? 'danger' : 'warning'} size="sm">
+                  {billingData.monthlyBill.status.replace('_', ' ')}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="bg-slate-50/50 p-2.5 rounded-lg">
+                  <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Base Rent</p>
+                  <p className="text-sm font-black text-gray-900">₹{billingData.monthlyBill.rentAmount.toLocaleString()}</p>
+                </div>
+                <div className="bg-slate-50/50 p-2.5 rounded-lg">
+                  <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Electricity</p>
+                  <p className="text-sm font-black text-gray-900">₹{billingData.monthlyBill.electricityAmount.toLocaleString()}</p>
+                </div>
+                <div className="bg-slate-50/50 p-2.5 rounded-lg">
+                  <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Extras</p>
+                  <p className="text-sm font-black text-gray-900">₹{billingData.monthlyBill.extraCharges.toLocaleString()}</p>
+                </div>
+                <div className="bg-blue-600/5 p-2.5 rounded-lg border border-blue-600/10">
+                  <p className="text-[8px] font-bold text-blue-600 uppercase tracking-widest mb-0.5">Total Due</p>
+                  <p className="text-sm font-black text-blue-700">₹{billingData.monthlyBill.remainingAmount.toLocaleString()}</p>
+                </div>
+              </div>
+              
+              {billingData.monthlyBill.remainingAmount > 0 && (
+                <div className="mt-4 flex items-center justify-between p-2 bg-blue-50/30 rounded-lg border border-dashed border-blue-200">
+                  <p className="text-[9px] font-bold text-blue-600 uppercase">Due by: {new Date(billingData.monthlyBill.dueDate).toLocaleDateString()}</p>
+                  <button onClick={() => navigate("/contact")} className="text-[9px] font-black text-blue-700 uppercase hover:underline">Verify Payment</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-2 gap-3 mb-6">
           <button
             onClick={() => navigate("/rooms")}
-            className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow text-left group"
+            className="bg-white rounded-lg border border-gray-50 p-3 shadow-sm hover:shadow-md transition-all text-left group"
           >
-            <div className="flex items-center gap-4">
-              <div className="bg-blue-100 p-3 rounded-full group-hover:bg-blue-200 transition-colors">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+            <div className="flex items-center gap-2.5">
+              <div className="bg-blue-50 p-1.5 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-all">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">Browse Rooms</h3>
-                <p className="text-sm text-gray-600">Find your perfect stay</p>
+                <h3 className="font-bold text-gray-800 text-[11px] uppercase tracking-tight">Find Unit</h3>
+                <p className="text-[9px] text-gray-400 font-medium">Browse rooms</p>
               </div>
             </div>
           </button>
 
           <button
             onClick={() => navigate("/contact")}
-            className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow text-left group"
+            className="bg-white rounded-lg border border-gray-50 p-3 shadow-sm hover:shadow-md transition-all text-left group"
           >
-            <div className="flex items-center gap-4">
-              <div className="bg-green-100 p-3 rounded-full group-hover:bg-green-200 transition-colors">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
+            <div className="flex items-center gap-2.5">
+              <div className="bg-green-50 p-1.5 rounded-lg group-hover:bg-green-600 group-hover:text-white transition-all">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">Contact Admin</h3>
-                <p className="text-sm text-gray-600">Get help & support</p>
+                <h3 className="font-bold text-gray-800 text-[11px] uppercase tracking-tight">Support</h3>
+                <p className="text-[9px] text-gray-400 font-medium">Get assistance</p>
               </div>
             </div>
           </button>
@@ -134,57 +199,63 @@ const UserDashboard = () => {
         {/* Active Bookings */}
         {activeBookings.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Active Bookings</h2>
-            <div className="space-y-4">
+            <h2 className="text-sm font-black text-gray-900 mb-3 uppercase tracking-widest">Active Stay</h2>
+            <div className="space-y-3">
               {activeBookings.map((booking) => (
-                <div key={booking.id} className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+                <div key={booking.id} className="bg-white rounded-xl border border-gray-50 p-4 shadow-sm">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="bg-green-100 text-green-800 text-xs font-semibold px-3 py-1 rounded-full">
-                          {booking.status.toUpperCase()}
-                        </span>
-                        <span className="text-gray-600 text-sm">Booking ID: {booking.bookingId}</span>
+                      <div className="flex items-center flex-wrap gap-1.5 mb-2">
+                        <Badge variant="success" size="sm" className="text-[9px]">
+                          {booking.status}
+                        </Badge>
+                        <Badge variant={booking.bookingType === 'MONTHLY' ? 'primary' : 'info'} size="sm" className="text-[9px]">
+                          {booking.bookingType}
+                        </Badge>
+                        <span className="text-gray-300 text-[9px] font-bold uppercase tracking-widest ml-auto">{booking.bookingId}</span>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">
-                        {booking.room?.title || "Room"}
+                      <h3 className="text-base font-black text-slate-800 mb-4">
+                        {booking.room?.title || "Unit Allocation"}
                       </h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                         <div>
-                          <p className="text-gray-600">Room Number</p>
-                          <p className="font-semibold text-gray-900">{booking.room?.roomNumber}</p>
+                          <p className="text-gray-400 font-bold uppercase text-[9px]">Room No.</p>
+                          <p className="font-bold text-gray-900">{booking.room?.roomNumber}</p>
                         </div>
                         <div>
-                          <p className="text-gray-600">Check-in</p>
-                          <p className="font-semibold text-gray-900">
+                          <p className="text-gray-400 font-bold uppercase text-[9px]">Check-in</p>
+                          <p className="font-bold text-gray-900">
                             {new Date(booking.checkInDate).toLocaleDateString()}
                           </p>
                         </div>
                         <div>
-                          <p className="text-gray-600">Check-out</p>
-                          <p className="font-semibold text-gray-900">
+                          <p className="text-gray-400 font-bold uppercase text-[9px]">Check-out</p>
+                          <p className="font-bold text-gray-900">
                             {new Date(booking.checkOutDate).toLocaleDateString()}
                           </p>
                         </div>
                         <div>
-                          <p className="text-gray-600">Total Amount</p>
-                          <p className="font-semibold text-gray-900">₹{booking.totalAmount.toLocaleString()}</p>
+                          <p className="text-gray-400 font-bold uppercase text-[9px]">Total</p>
+                          <p className="font-bold text-green-600">₹{booking.totalAmount.toLocaleString()}</p>
                         </div>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <button
+                    <div className="flex flex-row md:flex-col gap-2">
+                      <Button
                         onClick={() => navigate(`/booking-confirmation/${booking.id}`)}
-                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                        size="sm"
+                        className="flex-1"
                       >
-                        View Details
-                      </button>
-                      <button
+                        Details
+                      </Button>
+                      <Button
                         onClick={() => navigate("/contact")}
-                        className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
                       >
-                        Contact Admin
-                      </button>
+                        Help
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -196,53 +267,54 @@ const UserDashboard = () => {
         {/* Past Bookings */}
         {pastBookings.length > 0 && (
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Past Bookings</h2>
-            <div className="space-y-4">
+            <h2 className="text-lg font-bold text-gray-900 mb-3 tracking-tight">Past Bookings</h2>
+            <div className="space-y-3">
               {pastBookings.map((booking) => (
-                <div key={booking.id} className="bg-white rounded-xl shadow-md p-6 opacity-75">
+                <div key={booking.id} className="bg-white rounded-xl border border-gray-100 p-4 opacity-75 shadow-sm hover:opacity-100 transition-all">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className={`text-xs font-semibold px-3 py-1 rounded-full ${booking.status === "COMPLETED"
-                            ? "bg-gray-100 text-gray-800"
-                            : "bg-red-100 text-red-800"
-                          }`}>
-                          {booking.status.toUpperCase()}
-                        </span>
-                        <span className="text-gray-600 text-sm">Booking ID: {booking.bookingId}</span>
+                      <div className="flex items-center flex-wrap gap-2 mb-2">
+                        <Badge variant={booking.status === "COMPLETED" ? "secondary" : "danger"} size="sm">
+                          {booking.status}
+                        </Badge>
+                        <Badge variant={booking.bookingType === 'MONTHLY' ? 'primary' : 'info'} size="sm">
+                          {booking.bookingType}
+                        </Badge>
+                        <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">ID: {booking.bookingId}</span>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">
+                      <h3 className="text-base font-bold text-gray-900 mb-3">
                         {booking.room?.title || "Room"}
                       </h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                         <div>
-                          <p className="text-gray-600">Room Number</p>
-                          <p className="font-semibold text-gray-900">{booking.room?.roomNumber}</p>
+                          <p className="text-gray-400 font-bold uppercase text-[9px]">Room No.</p>
+                          <p className="font-bold text-gray-900">{booking.room?.roomNumber}</p>
                         </div>
                         <div>
-                          <p className="text-gray-600">Check-in</p>
-                          <p className="font-semibold text-gray-900">
+                          <p className="text-gray-400 font-bold uppercase text-[9px]">Check-in</p>
+                          <p className="font-bold text-gray-900">
                             {new Date(booking.checkInDate).toLocaleDateString()}
                           </p>
                         </div>
                         <div>
-                          <p className="text-gray-600">Check-out</p>
-                          <p className="font-semibold text-gray-900">
+                          <p className="text-gray-400 font-bold uppercase text-[9px]">Check-out</p>
+                          <p className="font-bold text-gray-900">
                             {new Date(booking.checkOutDate).toLocaleDateString()}
                           </p>
                         </div>
                         <div>
-                          <p className="text-gray-600">Total Amount</p>
-                          <p className="font-semibold text-gray-900">₹{booking.totalAmount.toLocaleString()}</p>
+                          <p className="text-gray-400 font-bold uppercase text-[9px]">Total</p>
+                          <p className="font-bold text-gray-900">₹{booking.totalAmount.toLocaleString()}</p>
                         </div>
                       </div>
                     </div>
-                    <button
+                    <Button
                       onClick={() => navigate(`/booking-confirmation/${booking.id}`)}
-                      className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+                      variant="outline"
+                      size="sm"
                     >
-                      View Details
-                    </button>
+                      Details
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -252,19 +324,17 @@ const UserDashboard = () => {
 
         {/* No Bookings */}
         {bookings.length === 0 && (
-          <div className="bg-white rounded-xl shadow-md p-12 text-center">
-            <div className="bg-gray-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
+            <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">No Bookings Yet</h3>
-            <p className="text-gray-600 mb-6">Start your journey by booking your first room!</p>
+            <h3 className="text-lg font-black text-gray-900 mb-1">No Bookings Found</h3>
+            <p className="text-xs text-gray-400 mb-6 font-medium">Ready to start your journey? Browse our luxury rooms today.</p>
             <button
               onClick={() => navigate("/rooms")}
-              className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 transition-all font-black text-xs uppercase tracking-widest shadow-md shadow-blue-100"
             >
-              Browse Available Rooms
+              Explore Units
             </button>
           </div>
         )}

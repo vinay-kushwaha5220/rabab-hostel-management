@@ -15,48 +15,48 @@ const DashboardTopbar = ({ onMenuClick }: DashboardTopbarProps) => {
   }
 
   return (
-    <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between sticky top-0 z-40">
+    <div className="bg-white border-b border-gray-100 px-4 sm:px-6 h-12 flex items-center justify-between sticky top-0 z-40">
       {/* Left: Menu Button */}
       <button
         onClick={onMenuClick}
-        className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+        className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
       >
-        <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
         </svg>
       </button>
 
       {/* Center: Logo (Mobile) */}
       <div className="lg:hidden flex items-center gap-2">
-        <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
-          <span className="text-white font-bold text-lg">R</span>
+        <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
+          <span className="text-white font-bold text-base">R</span>
         </div>
       </div>
 
       {/* Right: User Menu */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {/* Notifications */}
-        <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors relative">
-          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors relative">
+          <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
         </button>
 
         {/* User Avatar & Dropdown */}
-        <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
+        <div className="flex items-center gap-2 pl-3 border-l border-gray-200">
           <div className="hidden sm:block text-right">
-            <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
-            <p className="text-xs text-gray-600 capitalize">{user?.role}</p>
+            <p className="text-xs font-bold text-gray-900 leading-tight">{user?.name}</p>
+            <p className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">{user?.role}</p>
           </div>
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm">
             {user?.name?.charAt(0).toUpperCase()}
           </div>
 
           {/* Dropdown Menu */}
           <div className="relative group">
-            <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-              <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button className="p-1 rounded-lg hover:bg-gray-100 transition-colors">
+              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>

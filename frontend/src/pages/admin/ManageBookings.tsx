@@ -165,9 +165,14 @@ const ManageBookings = () => {
                   {filteredBookings.map((booking) => (
                     <tr key={booking.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-4 px-6">
-                        <span className="font-mono text-sm font-bold text-blue-600">
-                          {booking.bookingId}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className="font-mono text-sm font-bold text-blue-600">
+                            {booking.bookingId}
+                          </span>
+                          <Badge variant={booking.bookingType === 'MONTHLY' ? 'primary' : 'info'} size="sm" className="w-fit">
+                            {booking.bookingType}
+                          </Badge>
+                        </div>
                       </td>
                       <td className="py-4 px-6">
                         <div>

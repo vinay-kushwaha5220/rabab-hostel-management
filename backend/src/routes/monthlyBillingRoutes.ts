@@ -9,6 +9,9 @@ import {
   deleteMonthlyBill,
   getRenterDashboardData,
   verifyMonthlyPayment,
+  getAdminBillingStats,
+  getRoomBillingHistory,
+  generateBulkMonthlyBills,
 } from "../controllers/monthlyBillingController.js"
 
 const router = Router()
@@ -16,6 +19,9 @@ const router = Router()
 // Admin routes - temporarily removed middleware for debugging 404
 router.post("/", createMonthlyBill)
 router.get("/admin/all", protect, adminOnly, getAllMonthlyBills)
+router.get("/admin/stats", protect, adminOnly, getAdminBillingStats)
+router.get("/admin/room-history/:roomId", protect, adminOnly, getRoomBillingHistory)
+router.post("/admin/generate-bulk", protect, adminOnly, generateBulkMonthlyBills)
 
 // Renter routes - specific paths
 router.get("/renter/dashboard", protect, getRenterDashboardData)

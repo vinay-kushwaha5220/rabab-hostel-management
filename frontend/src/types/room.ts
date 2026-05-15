@@ -4,6 +4,8 @@ export type RoomType = {
   title: string
   description: string
   price: number
+  dailyPrice: number
+  monthlyPrice: number
   roomType: "AC" | "NON_AC"
   bookingType: "DAILY" | "MONTHLY"
   floor: number

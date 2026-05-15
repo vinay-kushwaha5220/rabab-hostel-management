@@ -24,6 +24,7 @@ export const createBooking = async (
       checkInDate,
       checkOutDate,
       numberOfGuests,
+      bookingType, // DAILY or MONTHLY
     } = req.body
 
     // 1. Check required fields
@@ -95,8 +96,31 @@ export const createBooking = async (
       return res.status(400).json({ message: "Check-out date must be after check-in date" })
     }
 
-    const totalAmount = room.price * totalDays
-    console.log(`   - Calculation: ${totalDays} days @ ₹${room.price} = ₹${totalAmount}`)
+    const selectedBookingType = bookingType || room.bookingType
+    let totalAmount = 0
+    const SECURITY_DEPOSIT = 2500
+    
+    if (selectedBookingType === BookingType.MONTHLY) {
+      // Calculate total months (approximate to 2 decimals)
+      const totalMonths = Number((totalDays / 30).toFixed(2))
+      // Use monthlyPrice if available, otherwise fallback to daily price * 30
+      const pricePerMonth = room.monthlyPrice || (room.dailyPrice * 30) || (room.price * 30)
+      
+      // Monthly Total = (Monthly Rate * Months) + Security Deposit
+      totalAmount = Math.round(pricePerMonth * totalMonths) + SECURITY_DEPOSIT
+      
+      console.log(`   - Monthly Calculation: ${totalDays} days (~${totalMonths} months) @ ₹${pricePerMonth}/mo + ₹${SECURITY_DEPOSIT} Deposit = ₹${totalAmount}`)
+    } else {
+      // Use dailyPrice if available, otherwise fallback to price
+      const pricePerDay = room.dailyPrice || room.price
+      totalAmount = pricePerDay * totalDays
+      console.log(`   - Daily Calculation: ${totalDays} days @ ₹${pricePerDay}/day = ₹${totalAmount}`)
+    }
+
+    // If frontend passed a validated totalAmount, and it matches our calculation within a small margin, we use it
+    if (req.body.totalAmount && Math.abs(req.body.totalAmount - totalAmount) < 10) {
+      totalAmount = req.body.totalAmount
+    }
 
     // 5. Create booking
     const bookingCount = await prisma.booking.count()
@@ -111,6 +135,7 @@ export const createBooking = async (
         customerPhone,
         customerAadhaar: customerAadhaar || null,
         roomId: Number(roomId),
+        bookingType: selectedBookingType,
         checkInDate: checkIn,
         checkOutDate: checkOut,
         numberOfGuests: Number(numberOfGuests),
@@ -288,6 +313,40 @@ export const getAllBookings = async (
   res: Response
 ) => {
   try {
+    // AUTO-CHECKOUT LOGIC: Mark bookings as completed if checkout date is passed
+    const now = new Date()
+    const overdueBookings = await prisma.booking.findMany({
+      where: {
+        status: BookingStatus.CONFIRMED,
+        stayStatus: { in: [StayStatus.BOOKED, StayStatus.CHECKED_IN, StayStatus.STAYING] },
+        checkOutDate: { lt: now },
+        isDeleted: false
+      },
+      include: { room: true }
+    })
+
+    if (overdueBookings.length > 0) {
+      console.log(`🧹 AUTO-CHECKOUT: Found ${overdueBookings.length} overdue stays. Processing...`)
+      for (const b of overdueBookings) {
+        await prisma.$transaction([
+          prisma.booking.update({
+            where: { id: b.id },
+            data: { 
+              status: BookingStatus.COMPLETED,
+              stayStatus: StayStatus.CHECKED_OUT 
+            }
+          }),
+          prisma.room.update({
+            where: { id: b.roomId },
+            data: { 
+              currentOccupancy: { decrement: 1 },
+              isAvailable: true 
+            }
+          })
+        ])
+      }
+    }
+
     const bookings = await prisma.booking.findMany({
       include: {
         room: true,
@@ -311,6 +370,142 @@ export const getAllBookings = async (
       message: "Server error",
       error: error instanceof Error ? error.message : "Unknown error",
     })
+  }
+}
+
+// ==========================================
+// CHECK IN (ADMIN)
+// ==========================================
+export const checkInBooking = async (req: AuthRequest, res: Response) => {
+  const { id } = req.params
+  try {
+    const booking = await prisma.booking.findUnique({ where: { id: Number(id) } })
+    if (!booking) return res.status(404).json({ message: "Booking not found" })
+    
+    await prisma.booking.update({
+      where: { id: Number(id) },
+      data: { stayStatus: StayStatus.CHECKED_IN }
+    })
+    
+    res.status(200).json({ message: "Guest checked in successfully" })
+  } catch (error: any) {
+    res.status(500).json({ message: error.message })
+  }
+}
+
+// ==========================================
+// CHECK OUT / END STAY (ADMIN)
+// ==========================================
+export const checkOutBooking = async (req: AuthRequest, res: Response) => {
+  const { id } = req.params
+  try {
+    const booking = await prisma.booking.findUnique({ 
+      where: { id: Number(id) },
+      include: { room: true }
+    })
+    if (!booking) return res.status(404).json({ message: "Booking not found" })
+    
+    // Only process if not already checked out
+    if (booking.stayStatus !== StayStatus.CHECKED_OUT) {
+      await prisma.$transaction([
+        prisma.booking.update({
+          where: { id: Number(id) },
+          data: { 
+            stayStatus: StayStatus.CHECKED_OUT,
+            status: BookingStatus.COMPLETED 
+          }
+        }),
+        prisma.room.update({
+          where: { id: booking.roomId },
+          data: { 
+            currentOccupancy: { decrement: 1 },
+            isAvailable: true 
+          }
+        })
+      ])
+    }
+    
+    res.status(200).json({ message: "Checkout completed. Room is now available." })
+  } catch (error: any) {
+    res.status(500).json({ message: error.message })
+  }
+}
+
+// ==========================================
+// REFUND (ADMIN)
+// ==========================================
+export const refundBooking = async (req: AuthRequest, res: Response) => {
+  const { id } = req.params
+  try {
+    const booking = await prisma.booking.findUnique({ where: { id: Number(id) } })
+    if (!booking) return res.status(404).json({ message: "Booking not found" })
+    
+    await prisma.booking.update({
+      where: { id: Number(id) },
+      data: { paymentStatus: PaymentStatus.REFUNDED }
+    })
+    
+    res.status(200).json({ message: "Refund processed successfully" })
+  } catch (error: any) {
+    res.status(500).json({ message: error.message })
+  }
+}
+
+// ==========================================
+// UNDO CHECKOUT / RESTORE STAY (ADMIN)
+// ==========================================
+export const undoCheckOutBooking = async (req: AuthRequest, res: Response) => {
+  const { id } = req.params
+  try {
+    const booking = await prisma.booking.findUnique({ 
+      where: { id: Number(id) },
+      include: { room: true }
+    })
+
+    if (!booking) return res.status(404).json({ message: "Booking not found" })
+
+    if (booking.stayStatus !== StayStatus.CHECKED_OUT) {
+      return res.status(400).json({ message: "Only checked out stays can be restored" })
+    }
+
+    // Safety: Check if checkout happened within last 24 hours
+    const now = new Date()
+    const checkoutTime = new Date(booking.updatedAt)
+    const hoursSinceCheckout = (now.getTime() - checkoutTime.getTime()) / (1000 * 60 * 60)
+
+    if (hoursSinceCheckout > 24) {
+      return res.status(400).json({ 
+        message: "Restore failed: Safety window (24h) has passed. Please create a new booking if needed." 
+      })
+    }
+
+    // Check if room has capacity to take them back
+    if (booking.room.currentOccupancy >= booking.room.capacity) {
+      return res.status(400).json({ 
+        message: "Restore failed: Room is already full. Cannot restore stay." 
+      })
+    }
+
+    await prisma.$transaction([
+      prisma.booking.update({
+        where: { id: Number(id) },
+        data: { 
+          stayStatus: StayStatus.CHECKED_IN,
+          status: BookingStatus.CONFIRMED 
+        }
+      }),
+      prisma.room.update({
+        where: { id: booking.roomId },
+        data: { 
+          currentOccupancy: { increment: 1 },
+          isAvailable: booking.room.currentOccupancy + 1 >= booking.room.capacity ? false : true
+        }
+      })
+    ])
+
+    res.status(200).json({ message: "Stay restored successfully. Room occupancy updated." })
+  } catch (error: any) {
+    res.status(500).json({ message: error.message })
   }
 }
 
@@ -362,6 +557,56 @@ export const getMonthlyActiveBookings = async (
       message: "Server error",
       error: error instanceof Error ? error.message : "Unknown error",
     })
+  }
+}
+
+// ==========================================
+// RENEW STAY / EXTEND MONTHLY (ADMIN)
+// ==========================================
+export const renewMonthlyStay = async (req: AuthRequest, res: Response) => {
+  const { id } = req.params
+  try {
+    const booking = await prisma.booking.findUnique({ 
+      where: { id: Number(id) },
+      include: { room: true }
+    })
+
+    if (!booking) return res.status(404).json({ message: "Booking not found" })
+
+    if (booking.room.bookingType !== 'MONTHLY') {
+      return res.status(400).json({ message: "Only monthly bookings can be renewed" })
+    }
+
+    // Extend checkOutDate by 30 days
+    const currentCheckOut = new Date(booking.checkOutDate)
+    const newCheckOut = new Date(currentCheckOut)
+    newCheckOut.setDate(newCheckOut.getDate() + 30)
+
+    await prisma.booking.update({
+      where: { id: Number(id) },
+      data: { 
+        checkOutDate: newCheckOut,
+        status: BookingStatus.CONFIRMED 
+      }
+    })
+
+    // Notify Renter
+    await prisma.notification.create({
+      data: {
+        bookingId: booking.id,
+        title: "Stay Renewed",
+        message: `Your stay has been extended by 30 days. New checkout: ${newCheckOut.toLocaleDateString()}`,
+        type: NotificationType.INFO,
+        priority: NotificationPriority.MEDIUM
+      }
+    })
+
+    res.status(200).json({ 
+      message: "Stay renewed successfully for another month",
+      newCheckOutDate: newCheckOut 
+    })
+  } catch (error: any) {
+    res.status(500).json({ message: error.message })
   }
 }
 

@@ -12,7 +12,14 @@ const MonthlyBillingManagement = () => {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>("")
   const [monthFilter, setMonthFilter] = useState<string>("")
+  const [yearFilter, setYearFilter] = useState<string>("")
+  const [roomFilter, setRoomFilter] = useState<string>("")
   const [showForm, setShowForm] = useState(false)
+  const [showVerifyModal, setShowVerifyModal] = useState(false)
+  const [selectedBill, setSelectedBill] = useState<MonthlyBill | null>(null)
+  const [verifyAmount, setVerifyAmount] = useState("")
+  const [verifyMethod, setVerifyMethod] = useState("CASH")
+  const [stats, setStats] = useState<any>(null)
   const [editingBill, setEditingBill] = useState<MonthlyBill | null>(null)
   const [formData, setFormData] = useState({
     bookingId: "",
@@ -31,8 +38,18 @@ const MonthlyBillingManagement = () => {
 
   useEffect(() => {
     fetchBills()
+    fetchStats()
     fetchAvailableBookings()
-  }, [statusFilter, monthFilter])
+  }, [statusFilter, monthFilter, yearFilter, roomFilter])
+
+  const fetchStats = async () => {
+    try {
+      const data = await billingService.getBillingStats(monthFilter || undefined, yearFilter || undefined)
+      setStats(data)
+    } catch (err) {
+      console.error("Failed to fetch billing stats:", err)
+    }
+  }
 
   const fetchAvailableBookings = async () => {
     try {
@@ -51,7 +68,12 @@ const MonthlyBillingManagement = () => {
   const fetchBills = async () => {
     try {
       setLoading(true)
-      const data = await billingService.getAllBills(statusFilter || undefined, monthFilter || undefined)
+      const data = await billingService.getAllBills({
+        status: statusFilter || undefined,
+        month: monthFilter || undefined,
+        year: yearFilter || undefined,
+        roomNumber: roomFilter || undefined
+      })
       setBills(data)
       setError("")
     } catch (err) {
@@ -136,14 +158,26 @@ const MonthlyBillingManagement = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleVerify = async (id: number) => {
-    if (!window.confirm("Verify that you have received the cash payment for this bill?")) return
+  const handleVerifyClick = (bill: MonthlyBill) => {
+    setSelectedBill(bill)
+    setVerifyAmount(bill.remainingAmount.toString())
+    setShowVerifyModal(true)
+  }
 
+  const handleVerifySubmit = async () => {
+    if (!selectedBill) return
+    
     try {
       setLoading(true)
-      await api.put(`/monthly-bills/${id}/verify`)
+      await api.put(`/monthly-bills/${selectedBill.id}/verify`, {
+        amount: parseFloat(verifyAmount),
+        paymentMethod: verifyMethod
+      })
       setSuccess("Payment verified successfully!")
+      setShowVerifyModal(false)
+      setSelectedBill(null)
       fetchBills()
+      fetchStats()
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to verify payment")
     } finally {
@@ -161,6 +195,30 @@ const MonthlyBillingManagement = () => {
     } catch (err) {
       setError("Failed to delete bill")
       console.error(err)
+    }
+  }
+
+  const handleGenerateBulk = async () => {
+    if (!monthFilter || !yearFilter) {
+      alert("Please select a Month and Year in the filters first.")
+      return
+    }
+
+    if (!window.confirm(`Generate bills for ALL active monthly renters for ${monthFilter} ${yearFilter}?`)) return
+
+    try {
+      setLoading(true)
+      const response = await api.post("/monthly-bills/admin/generate-bulk", {
+        month: monthFilter,
+        year: yearFilter
+      })
+      alert(response.data.message)
+      fetchBills()
+      fetchStats()
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to generate bulk bills")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -192,111 +250,93 @@ const MonthlyBillingManagement = () => {
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50/50 py-6 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
-        <div className="mb-10">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">Monthly Billing Management</h1>
-              <p className="text-gray-600 font-light">Manage and track all monthly bills and payments</p>
+              <h1 className="text-xl font-bold text-gray-900 tracking-tight">Monthly Billing</h1>
+              <p className="text-xs text-gray-400 font-medium mt-0.5">Track and manage renter invoices & payments</p>
             </div>
-            <Button
-              onClick={() => setShowForm(!showForm)}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all"
-            >
-              <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              {showForm ? "Cancel" : "Add New Bill"}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleGenerateBulk}
+                variant="outline"
+                size="sm"
+                className="shadow-sm border-blue-200 text-blue-600 hover:bg-blue-50"
+                disabled={!monthFilter || !yearFilter}
+                title={!monthFilter || !yearFilter ? "Select month/year to enable bulk generation" : ""}
+              >
+                <svg className="w-4 h-4 mr-1.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                Bulk Generate
+              </Button>
+              <Button
+                onClick={() => setShowForm(!showForm)}
+                size="sm"
+                className="shadow-sm"
+              >
+                <svg className="w-4 h-4 mr-1.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                {showForm ? "Close Form" : "New Bill"}
+              </Button>
+            </div>
           </div>
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
-          <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-600">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <Card className="p-4 bg-white border-l-2 border-blue-600 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Total Bills</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{totalBills}</p>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Expected</p>
+                <p className="text-lg font-black text-gray-900 mt-0.5">₹{stats?.totalExpected?.toLocaleString() || "0"}</p>
               </div>
-              <div className="bg-blue-200 p-3 rounded-full">
-                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+              <div className="bg-blue-50 p-2 rounded-lg text-blue-600">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               </div>
             </div>
           </Card>
 
-          <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-600">
+          <Card className="p-4 bg-white border-l-2 border-green-600 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Paid Bills</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{paidBills}</p>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Received</p>
+                <p className="text-lg font-black text-green-600 mt-0.5">₹{stats?.totalReceived?.toLocaleString() || "0"}</p>
               </div>
-              <div className="bg-green-200 p-3 rounded-full">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+              <div className="bg-green-50 p-2 rounded-lg text-green-600">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               </div>
             </div>
           </Card>
 
-          <Card className="p-6 bg-gradient-to-br from-orange-50 to-orange-100 border-l-4 border-orange-600">
+          <Card className="p-4 bg-white border-l-2 border-red-600 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Pending Bills</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{pendingBills}</p>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Remaining</p>
+                <p className="text-lg font-black text-red-600 mt-0.5">₹{stats?.remainingDues?.toLocaleString() || "0"}</p>
               </div>
-              <div className="bg-orange-200 p-3 rounded-full">
-                <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+              <div className="bg-red-50 p-2 rounded-lg text-red-600">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 0v2m0-6v-2m0 0V7a2 2 0 012-2h2.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2h-2.586a1 1 0 01-.707-.293l-5.414-5.414a1 1 0 01-.293-.707V9z" /></svg>
               </div>
             </div>
           </Card>
 
-          <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-100 border-l-4 border-indigo-600">
+          <Card className="p-4 bg-white border-l-2 border-indigo-600 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-indigo-700 font-bold uppercase tracking-wider">Cash Verification</p>
-                <p className="text-3xl font-black text-gray-900 mt-2">
-                  {bills.filter(b => !b.isPaid).length}
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Paid / Pending</p>
+                <p className="text-lg font-black text-gray-900 mt-0.5">
+                  <span className="text-green-600">{stats?.totalPaidRenters || "0"}</span>
+                  <span className="text-gray-300 mx-1.5 font-light">/</span>
+                  <span className="text-orange-600">{stats?.totalPendingRenters || "0"}</span>
                 </p>
               </div>
-              <div className="bg-indigo-200 p-3 rounded-2xl shadow-inner">
-                <svg className="w-8 h-8 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 bg-gradient-to-br from-purple-50 to-purple-100 border-l-4 border-purple-600">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">₹{totalRevenue.toLocaleString()}</p>
-              </div>
-              <div className="bg-purple-200 p-3 rounded-full">
-                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 bg-gradient-to-br from-red-50 to-red-100 border-l-4 border-red-600">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Pending Amount</p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">₹{pendingAmount.toLocaleString()}</p>
-              </div>
-              <div className="bg-red-200 p-3 rounded-full">
-                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 0v2m0-6v-2m0 0V7a2 2 0 012-2h2.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2h-2.586a1 1 0 01-.707-.293l-5.414-5.414a1 1 0 01-.293-.707V9z" />
-                </svg>
+              <div className="bg-indigo-50 p-2 rounded-lg text-indigo-600">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
               </div>
             </div>
           </Card>
@@ -304,173 +344,153 @@ const MonthlyBillingManagement = () => {
 
         {/* Alert Messages */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg flex items-start gap-3">
-            <svg className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+          <div className="mb-4 p-3 bg-red-50 border-l-2 border-red-500 rounded flex items-start gap-2.5">
+            <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             <div>
-              <p className="font-semibold text-red-800">Error</p>
-              <p className="text-red-700 text-sm">{error}</p>
+              <p className="text-[10px] font-bold text-red-800 uppercase tracking-widest">Error</p>
+              <p className="text-red-700 text-xs mt-0.5">{error}</p>
             </div>
           </div>
         )}
 
         {success && (
-          <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded-lg flex items-start gap-3">
-            <svg className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+          <div className="mb-4 p-3 bg-green-50 border-l-2 border-green-500 rounded flex items-start gap-2.5">
+            <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             <div>
-              <p className="font-semibold text-green-800">Success</p>
-              <p className="text-green-700 text-sm">{success}</p>
+              <p className="text-[10px] font-bold text-green-800 uppercase tracking-widest">Success</p>
+              <p className="text-green-700 text-xs mt-0.5">{success}</p>
             </div>
           </div>
         )}
 
         {/* Form Section */}
         {showForm && (
-          <Card className="mb-10 p-8 shadow-xl">
-            <h2 className="text-2xl font-bold text-gray-900 mb-8">
-              {editingBill ? "Edit Monthly Bill" : "Create New Monthly Bill"}
+          <Card className="mb-6 p-6 shadow-sm border border-gray-100">
+            <h2 className="text-base font-bold text-gray-900 mb-6 tracking-tight">
+              {editingBill ? "Edit Bill" : "Generate Bill"}
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Select Renter <span className="text-red-600">*</span>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">
+                    Renter <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formData.bookingId}
                     onChange={(e) => setFormData({ ...formData, bookingId: e.target.value })}
                     disabled={!!editingBill}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
+                    className="w-full px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 disabled:opacity-50 font-medium"
                   >
-                    <option value="">{loadingBookings ? "Loading..." : "-- Select a Monthly Renter --"}</option>
+                    <option value="">{loadingBookings ? "Loading..." : "Select Renter"}</option>
                     {!loadingBookings && availableBookings.length === 0 ? (
-                      <option value="" disabled>No active monthly renters found</option>
+                      <option value="" disabled>No active monthly renters</option>
                     ) : (
                       availableBookings.map((b) => (
                         <option key={b.id} value={b.id}>
-                          {b.bookingId} - {b.customerName} (Room {b.room?.roomNumber || 'N/A'})
+                          {b.customerName} (Room {b.room?.roomNumber || 'N/A'})
                         </option>
                       ))
                     )}
                   </select>
-                  {loadingBookings && <p className="text-xs text-blue-600 mt-1 animate-pulse">Fetching active monthly renters...</p>}
-                  {!loadingBookings && availableBookings.length === 0 && (
-                    <p className="text-xs text-orange-600 mt-1">Note: Only confirmed 'Monthly' bookings will appear here.</p>
-                  )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Month <span className="text-red-600">*</span>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">
+                    Month <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="month"
                     value={formData.month}
                     onChange={(e) => setFormData({ ...formData, month: e.target.value })}
                     disabled={!!editingBill}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
+                    className="w-full px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 disabled:opacity-50 font-medium"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Rent Amount (₹) <span className="text-red-600">*</span>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">
+                    Rent (₹) <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     value={formData.rentAmount}
                     onChange={(e) => setFormData({ ...formData, rentAmount: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    className="w-full px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 font-medium"
                     placeholder="0.00"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Electricity Amount (₹)
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">
+                    Electricity (₹)
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     value={formData.electricityAmount}
                     onChange={(e) => setFormData({ ...formData, electricityAmount: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    className="w-full px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 font-medium"
                     placeholder="0.00"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Extra Charges (₹)
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">
+                    Extras (₹)
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     value={formData.extraCharges}
                     onChange={(e) => setFormData({ ...formData, extraCharges: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    className="w-full px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 font-medium"
                     placeholder="0.00"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Due Date <span className="text-red-600">*</span>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">
+                    Due Date <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
                     value={formData.dueDate}
                     onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    className="w-full px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 font-medium"
                   />
                 </div>
 
                 {editingBill && (
-                  <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+                  <div className="flex items-center gap-2 p-2 px-3 bg-gray-50 border border-gray-200 rounded-lg">
                     <input
                       type="checkbox"
                       id="isPaid"
                       checked={formData.isPaid}
                       onChange={(e) => setFormData({ ...formData, isPaid: e.target.checked })}
-                      className="w-6 h-6 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     />
-                    <label htmlFor="isPaid" className="text-lg font-bold text-gray-900 cursor-pointer">
+                    <label htmlFor="isPaid" className="text-xs font-bold text-gray-700 cursor-pointer">
                       Mark as Paid
                     </label>
                   </div>
                 )}
               </div>
 
-              <div className="flex gap-4 pt-4">
+              <div className="flex gap-3 pt-2">
                 <Button
                   type="submit"
+                  size="sm"
                   disabled={submitting}
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-8 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  isLoading={submitting}
                 >
-                  {submitting ? (
-                    <>
-                      <svg className="w-5 h-5 mr-2 inline animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      {editingBill ? "Updating..." : "Creating..."}
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      {editingBill ? "Update Bill" : "Create Bill"}
-                    </>
-                  )}
+                  {editingBill ? "Update Bill" : "Create Bill"}
                 </Button>
                 <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={handleCancel}
-                  className="bg-gray-200 hover:bg-gray-300 text-gray-900 font-semibold px-8 py-3 rounded-lg transition-all"
                 >
                   Cancel
                 </Button>
@@ -480,121 +500,150 @@ const MonthlyBillingManagement = () => {
         )}
 
         {/* Filters Section */}
-        <Card className="mb-10 p-8 shadow-lg">
-          <h3 className="text-xl font-bold text-gray-900 mb-6">Filters & Search</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="mb-6 p-4 shadow-sm bg-white border border-gray-100">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">Payment Status</label>
+              <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Month</label>
               <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                value={monthFilter}
+                onChange={(e) => setMonthFilter(e.target.value)}
+                className="w-full px-3 py-1.5 text-xs bg-gray-50 border border-gray-100 rounded focus:ring-1 focus:ring-blue-500 transition-all font-medium"
               >
-                <option value="">All Bills</option>
-                <option value="paid">Paid Only</option>
-                <option value="pending">Pending Only</option>
+                <option value="">All Months</option>
+                {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">Month</label>
+              <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Year</label>
+              <select
+                value={yearFilter}
+                onChange={(e) => setYearFilter(e.target.value)}
+                className="w-full px-3 py-1.5 text-xs bg-gray-50 border border-gray-100 rounded focus:ring-1 focus:ring-blue-500 transition-all font-medium"
+              >
+                <option value="">All Years</option>
+                {[2024, 2025, 2026, 2027].map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Room</label>
               <input
-                type="month"
-                value={monthFilter}
-                onChange={(e) => setMonthFilter(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                type="text"
+                value={roomFilter}
+                onChange={(e) => setRoomFilter(e.target.value)}
+                placeholder="Ex: 101"
+                className="w-full px-3 py-1.5 text-xs bg-gray-50 border border-gray-100 rounded focus:ring-1 focus:ring-blue-500 transition-all font-medium placeholder:text-gray-300"
               />
+            </div>
+            <div>
+              <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full px-3 py-1.5 text-xs bg-gray-50 border border-gray-100 rounded focus:ring-1 focus:ring-blue-500 transition-all font-medium"
+              >
+                <option value="">All Status</option>
+                <option value="PAID">Paid</option>
+                <option value="PARTIAL">Partial</option>
+                <option value="PENDING">Pending</option>
+                <option value="OVERDUE">Overdue</option>
+              </select>
             </div>
           </div>
         </Card>
 
         {/* Bills Table */}
         {loading ? (
-          <div className="flex justify-center py-16">
-            <LoadingSpinner size="lg" text="Loading bills..." />
+          <div className="flex justify-center py-12">
+            <LoadingSpinner size="md" text="Fetching bills..." />
           </div>
         ) : filteredBills.length === 0 ? (
-          <Card className="p-16 text-center shadow-lg">
-            <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <p className="text-gray-600 text-lg font-medium">No bills found</p>
-            <p className="text-gray-500 text-sm mt-2">Create a new bill to get started</p>
+          <Card className="p-12 text-center shadow-sm border-gray-100">
+            <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            <p className="text-gray-400 text-sm font-medium">No billing records found</p>
           </Card>
         ) : (
-          <Card className="overflow-hidden shadow-xl">
+          <Card className="overflow-hidden shadow-sm border border-gray-100">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-gray-100 to-gray-50 border-b-2 border-gray-200">
+                <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-900">Renter</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-900">Month</th>
-                    <th className="px-6 py-4 text-right text-sm font-bold text-gray-900">Rent</th>
-                    <th className="px-6 py-4 text-right text-sm font-bold text-gray-900">Electricity</th>
-                    <th className="px-6 py-4 text-right text-sm font-bold text-gray-900">Extra</th>
-                    <th className="px-6 py-4 text-right text-sm font-bold text-gray-900">Total</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-900">Due Date</th>
-                    <th className="px-6 py-4 text-center text-sm font-bold text-gray-900">Status</th>
-                    <th className="px-6 py-4 text-center text-sm font-bold text-gray-900">Actions</th>
+                    <th className="px-4 py-3 text-left text-[9px] font-bold text-gray-400 uppercase tracking-widest">Renter</th>
+                    <th className="px-4 py-3 text-left text-[9px] font-bold text-gray-400 uppercase tracking-widest">Month</th>
+                    <th className="px-4 py-3 text-right text-[9px] font-bold text-gray-400 uppercase tracking-widest">Prev Due</th>
+                    <th className="px-4 py-3 text-right text-[9px] font-bold text-gray-400 uppercase tracking-widest">Rent + Elec</th>
+                    <th className="px-4 py-3 text-right text-[9px] font-bold text-gray-400 uppercase tracking-widest">Total Due</th>
+                    <th className="px-4 py-3 text-right text-[9px] font-bold text-gray-400 uppercase tracking-widest">Paid</th>
+                    <th className="px-4 py-3 text-right text-[9px] font-bold text-gray-400 uppercase tracking-widest">Remaining</th>
+                    <th className="px-4 py-3 text-center text-[9px] font-bold text-gray-400 uppercase tracking-widest">Status</th>
+                    <th className="px-4 py-3 text-right text-[9px] font-bold text-gray-400 uppercase tracking-widest">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-100">
                   {filteredBills.map((bill) => (
-                    <tr key={bill.id} className="hover:bg-blue-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-bold text-gray-900">
+                    <tr key={bill.id} className="hover:bg-blue-50/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="text-xs font-bold text-gray-900 leading-tight">
                           {bill.booking?.customerName || "Unknown"}
                         </div>
-                        <div className="text-xs text-gray-600">
-                          Room {bill.booking?.room?.roomNumber || "N/A"} (#{bill.booking?.bookingId || bill.bookingId})
+                        <div className="text-[10px] text-gray-400 font-medium mt-0.5">
+                          Room {bill.booking?.room?.roomNumber || "N/A"}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
-                        {new Date(bill.month + "-01").toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                        })}
+                      <td className="px-4 py-3 text-xs font-medium text-gray-600">
+                        {bill.month}
                       </td>
-                      <td className="px-6 py-4 text-sm text-right font-medium text-gray-900">₹{bill.rentAmount.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-sm text-right font-medium text-gray-900">₹{bill.electricityAmount.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-sm text-right font-medium text-gray-900">₹{bill.extraCharges.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-sm text-right font-bold text-blue-600">₹{bill.totalAmount.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-sm text-gray-700">{new Date(bill.dueDate).toLocaleDateString()}</td>
-                      <td className="px-6 py-4 text-center">
-                        <Badge variant={bill.isPaid ? "success" : "warning"} size="sm">
-                          {bill.isPaid ? "✓ Paid" : "⏳ Pending"}
+                      <td className="px-4 py-3 text-xs text-right font-medium text-red-400">
+                        ₹{bill.previousDue?.toLocaleString() || "0"}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-right font-medium text-gray-700">
+                        ₹{bill.totalAmount?.toLocaleString() || "0"}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-right font-bold text-gray-900">
+                        ₹{bill.totalDue?.toLocaleString() || "0"}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-right font-medium text-green-600">
+                        ₹{bill.paidAmount?.toLocaleString() || "0"}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-right font-bold text-red-600">
+                        ₹{bill.remainingAmount?.toLocaleString() || "0"}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <Badge 
+                          variant={
+                            bill.status === "PAID_CASH" || bill.status === "PAID_ONLINE" ? "success" : 
+                            bill.status === "PARTIAL" ? "warning" : "error"
+                          } 
+                          size="sm"
+                          className="text-[9px] px-1.5"
+                        >
+                          {bill.status.replace("_", " ")}
                         </Badge>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-3 justify-end">
-                          {!bill.isPaid && (
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2 justify-end">
+                          {bill.remainingAmount > 0 && (
                             <button
-                              onClick={() => handleVerify(bill.id)}
-                              className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md transition-all active:scale-95"
-                              title="Verify Cash Payment"
+                              onClick={() => handleVerifyClick(bill)}
+                              className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-[9px] font-bold uppercase tracking-wider shadow-sm transition-all active:scale-95"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
                               Verify
                             </button>
                           )}
                           <button
                             onClick={() => handleEdit(bill)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Edit Bill"
+                            className="p-1.5 text-blue-400 hover:bg-blue-50 rounded transition-colors"
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                           </button>
                           <button
                             onClick={() => handleDelete(bill.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete Bill"
+                            className="p-1.5 text-red-300 hover:bg-red-50 hover:text-red-500 rounded transition-colors"
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                           </button>
                         </div>
                       </td>
@@ -604,6 +653,64 @@ const MonthlyBillingManagement = () => {
               </table>
             </div>
           </Card>
+        )}
+        {/* Payment Verification Modal */}
+        {showVerifyModal && selectedBill && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <Card className="w-full max-w-sm p-6 shadow-2xl animate-in zoom-in duration-200">
+              <h3 className="text-lg font-bold text-gray-900 mb-1 tracking-tight">Record Payment</h3>
+              <p className="text-xs text-gray-400 font-medium mb-6">
+                Recording for {selectedBill.booking?.customerName}
+              </p>
+              
+              <div className="space-y-4">
+                <div className="p-3 bg-red-50/50 rounded-lg border border-red-100 flex justify-between items-center">
+                  <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Due Amount</span>
+                  <span className="text-base font-black text-red-600">₹{selectedBill.remainingAmount.toLocaleString()}</span>
+                </div>
+                
+                <div>
+                  <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Payment Amount (₹)</label>
+                  <input
+                    type="number"
+                    value={verifyAmount}
+                    onChange={(e) => setVerifyAmount(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 font-bold text-sm"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Method</label>
+                  <select
+                    value={verifyMethod}
+                    onChange={(e) => setVerifyMethod(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 font-bold text-xs"
+                  >
+                    <option value="CASH">Cash</option>
+                    <option value="ONLINE">Online (UPI/Bank)</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex gap-3 mt-6">
+                <Button
+                  onClick={handleVerifySubmit}
+                  size="sm"
+                  disabled={loading || !verifyAmount}
+                  className="flex-1 font-bold"
+                >
+                  {loading ? "Processing..." : "Verify Payment"}
+                </Button>
+                <Button
+                  onClick={() => setShowVerifyModal(false)}
+                  variant="outline"
+                  size="sm"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </Card>
+          </div>
         )}
       </div>
     </div>

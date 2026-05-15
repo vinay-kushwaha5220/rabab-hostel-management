@@ -5,6 +5,7 @@ import type { BookingType } from "../types/booking"
 import LoadingSpinner from "../components/ui/LoadingSpinner"
 import Card from "../components/ui/Card"
 import Badge from "../components/ui/Badge"
+import Button from "../components/ui/Button"
 
 const MyBookingsPage = () => {
   const navigate = useNavigate()
@@ -39,55 +40,59 @@ const MyBookingsPage = () => {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">My Bookings</h1>
-        <p className="text-gray-600 mt-2">View and manage all your room bookings</p>
+    <div className="p-4 sm:p-6">
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-gray-900 tracking-tight">My Bookings</h1>
+        <p className="text-xs text-gray-400 font-medium mt-1">Manage your room reservations</p>
       </div>
 
       {/* Active Bookings */}
       {activeBookings.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Active Bookings</h2>
-          <div className="space-y-4">
+          <h2 className="text-base font-bold text-gray-900 mb-3 tracking-tight">Active Bookings</h2>
+          <div className="space-y-3">
             {activeBookings.map((booking) => (
-              <Card key={booking.id} className="p-6">
+              <Card key={booking.id} className="p-4 border-gray-100 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Badge variant={booking.status === "CONFIRMED" ? "success" : "warning"}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant={booking.status === "CONFIRMED" ? "success" : "warning"} size="sm">
                         {booking.status}
                       </Badge>
-                      <span className="text-gray-600 text-sm">ID: {booking.bookingId}</span>
+                      <Badge variant={booking.bookingType === "MONTHLY" ? "primary" : "info"} size="sm">
+                        {booking.bookingType}
+                      </Badge>
+                      <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">ID: {booking.bookingId}</span>
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    <h3 className="text-base font-bold text-gray-900 mb-3">
                       {booking.room?.title || "Room"}
                     </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                       <div>
-                        <p className="text-gray-600">Check-in</p>
-                        <p className="font-semibold">{new Date(booking.checkInDate).toLocaleDateString()}</p>
+                        <p className="text-gray-400 font-bold uppercase text-[9px]">Check-in</p>
+                        <p className="font-bold text-gray-700">{new Date(booking.checkInDate).toLocaleDateString()}</p>
                       </div>
                       <div>
-                        <p className="text-gray-600">Check-out</p>
-                        <p className="font-semibold">{new Date(booking.checkOutDate).toLocaleDateString()}</p>
+                        <p className="text-gray-400 font-bold uppercase text-[9px]">Check-out</p>
+                        <p className="font-bold text-gray-700">{new Date(booking.checkOutDate).toLocaleDateString()}</p>
                       </div>
                       <div>
-                        <p className="text-gray-600">Duration</p>
-                        <p className="font-semibold">{booking.totalDays} nights</p>
+                        <p className="text-gray-400 font-bold uppercase text-[9px]">Duration</p>
+                        <p className="font-bold text-gray-700">{booking.totalDays} {booking.bookingType === 'MONTHLY' ? 'Days' : 'Nights'}</p>
                       </div>
                       <div>
-                        <p className="text-gray-600">Total</p>
-                        <p className="font-semibold">₹{booking.totalAmount.toLocaleString()}</p>
+                        <p className="text-gray-400 font-bold uppercase text-[9px]">Total</p>
+                        <p className="font-bold text-gray-900">₹{booking.totalAmount.toLocaleString()}</p>
                       </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => navigate("/contact")}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  <Button
+                    onClick={() => navigate(`/booking-confirmation/${booking.id}`)}
+                    size="sm"
+                    className="md:w-auto"
                   >
-                    Contact Support
-                  </button>
+                    View Details
+                  </Button>
                 </div>
               </Card>
             ))}
@@ -98,40 +103,50 @@ const MyBookingsPage = () => {
       {/* Past Bookings */}
       {pastBookings.length > 0 && (
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Past Bookings</h2>
-          <div className="space-y-4">
+          <h2 className="text-base font-bold text-gray-900 mb-3 tracking-tight">Past Bookings</h2>
+          <div className="space-y-3">
             {pastBookings.map((booking) => (
-              <Card key={booking.id} className="p-6 opacity-75">
+              <Card key={booking.id} className="p-4 opacity-75 hover:opacity-100 transition-all border-gray-100 shadow-sm">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Badge variant={booking.status === "completed" ? "secondary" : "warning"}>
-                        {booking.status.toUpperCase()}
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant={booking.status === "COMPLETED" ? "secondary" : "danger"} size="sm">
+                        {booking.status}
                       </Badge>
-                      <span className="text-gray-600 text-sm">ID: {booking.bookingId}</span>
+                      <Badge variant={booking.bookingType === "MONTHLY" ? "primary" : "info"} size="sm">
+                        {booking.bookingType}
+                      </Badge>
+                      <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">ID: {booking.bookingId}</span>
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    <h3 className="text-base font-bold text-gray-900 mb-3">
                       {booking.room?.title || "Room"}
                     </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                       <div>
-                        <p className="text-gray-600">Check-in</p>
-                        <p className="font-semibold">{new Date(booking.checkInDate).toLocaleDateString()}</p>
+                        <p className="text-gray-400 font-bold uppercase text-[9px]">Check-in</p>
+                        <p className="font-bold text-gray-700">{new Date(booking.checkInDate).toLocaleDateString()}</p>
                       </div>
                       <div>
-                        <p className="text-gray-600">Check-out</p>
-                        <p className="font-semibold">{new Date(booking.checkOutDate).toLocaleDateString()}</p>
+                        <p className="text-gray-400 font-bold uppercase text-[9px]">Check-out</p>
+                        <p className="font-bold text-gray-700">{new Date(booking.checkOutDate).toLocaleDateString()}</p>
                       </div>
                       <div>
-                        <p className="text-gray-600">Duration</p>
-                        <p className="font-semibold">{booking.totalDays} nights</p>
+                        <p className="text-gray-400 font-bold uppercase text-[9px]">Duration</p>
+                        <p className="font-bold text-gray-700">{booking.totalDays} Nights</p>
                       </div>
                       <div>
-                        <p className="text-gray-600">Total</p>
-                        <p className="font-semibold">₹{booking.totalAmount.toLocaleString()}</p>
+                        <p className="text-gray-400 font-bold uppercase text-[9px]">Total</p>
+                        <p className="font-bold text-gray-900">₹{booking.totalAmount.toLocaleString()}</p>
                       </div>
                     </div>
                   </div>
+                  <Button
+                    onClick={() => navigate(`/booking-confirmation/${booking.id}`)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Details
+                  </Button>
                 </div>
               </Card>
             ))}

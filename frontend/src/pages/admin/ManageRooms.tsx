@@ -13,6 +13,10 @@ const ManageRooms = () => {
   const [rooms, setRooms] = useState<RoomType[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>("all")
+  const [showTimeline, setShowTimeline] = useState(false)
+  const [selectedRoom, setSelectedRoom] = useState<RoomType | null>(null)
+  const [timelineData, setTimelineData] = useState<any[]>([])
+  const [loadingTimeline, setLoadingTimeline] = useState(false)
 
   useEffect(() => {
     fetchRooms()
@@ -55,6 +59,20 @@ const ManageRooms = () => {
     } catch (error: any) {
       console.error('Error updating room:', error)
       alert(error.response?.data?.message || 'Failed to update room')
+    }
+  }
+
+  const fetchRoomTimeline = async (room: RoomType) => {
+    try {
+      setLoadingTimeline(true)
+      setSelectedRoom(room)
+      setShowTimeline(true)
+      const response = await api.get(`/monthly-bills/admin/room-history/${room.id}`)
+      setTimelineData(response.data)
+    } catch (error) {
+      console.error('Error fetching room timeline:', error)
+    } finally {
+      setLoadingTimeline(false)
     }
   }
 
@@ -210,8 +228,15 @@ const ManageRooms = () => {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => navigate(`/rooms/${room.id}`)}
+                      onClick={() => fetchRoomTimeline(room)}
                       className="flex-1"
+                    >
+                      Timeline
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(`/rooms/${room.id}`)}
                     >
                       View
                     </Button>
@@ -234,6 +259,59 @@ const ManageRooms = () => {
                 </div>
               </Card>
             ))}
+          </div>
+        )}
+        {/* Room Timeline Modal */}
+        {showTimeline && selectedRoom && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+            <Card className="w-full max-w-2xl p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-2xl font-black text-gray-900">Room {selectedRoom.roomNumber} History</h3>
+                  <p className="text-gray-500 font-medium">Complete billing and payment timeline</p>
+                </div>
+                <button onClick={() => setShowTimeline(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l18 18" /></svg>
+                </button>
+              </div>
+
+              {loadingTimeline ? (
+                <div className="py-12 flex justify-center"><LoadingSpinner text="Fetching timeline..." /></div>
+              ) : timelineData.length === 0 ? (
+                <div className="py-12 text-center text-gray-500 font-medium">No billing history found for this room.</div>
+              ) : (
+                <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
+                  {timelineData.map((bill, index) => (
+                    <div key={bill.id} className="relative pl-8 pb-6 border-l-2 border-gray-100 last:border-0 last:pb-0">
+                      <div className={`absolute left-[-9px] top-0 w-4 h-4 rounded-full border-2 border-white shadow-sm ${bill.isPaid ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                      <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <p className="text-lg font-black text-gray-900">{bill.month}</p>
+                            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">
+                              Renter: {bill.booking?.customerName || 'N/A'}
+                            </p>
+                          </div>
+                          <Badge variant={bill.status === "PAID_CASH" || bill.status === "PAID_ONLINE" ? "success" : bill.status === "PARTIAL" ? "warning" : "error"}>
+                            {bill.status}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                          <div><p className="text-[10px] text-gray-400 font-bold uppercase">Total Due</p><p className="font-bold text-gray-900">₹{bill.totalDue.toLocaleString()}</p></div>
+                          <div><p className="text-[10px] text-gray-400 font-bold uppercase">Paid</p><p className="font-bold text-green-600">₹{bill.paidAmount.toLocaleString()}</p></div>
+                          <div><p className="text-[10px] text-gray-400 font-bold uppercase">Remaining</p><p className="font-bold text-red-600">₹{bill.remainingAmount.toLocaleString()}</p></div>
+                          <div><p className="text-[10px] text-gray-400 font-bold uppercase">Due Date</p><p className="font-bold text-gray-700">{new Date(bill.dueDate).toLocaleDateString()}</p></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <div className="mt-8 flex justify-end">
+                <Button onClick={() => setShowTimeline(false)} className="px-8 font-bold">Close</Button>
+              </div>
+            </Card>
           </div>
         )}
       </div>

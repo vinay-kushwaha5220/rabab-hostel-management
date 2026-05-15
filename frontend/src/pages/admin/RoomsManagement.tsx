@@ -49,7 +49,7 @@ const RoomsManagement = () => {
     if (filter === "available") return room.isAvailable
     if (filter === "booked") return !room.isAvailable
     if (filter === "ac") return room.roomType === "AC"
-    if (filter === "non-ac") return room.roomType === "Non-AC"
+    if (filter === "non-ac") return room.roomType === "NON_AC"
     return true
   })
 
@@ -59,89 +59,86 @@ const RoomsManagement = () => {
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6 flex justify-between items-center">
+        <div className="mb-4 flex justify-between items-center">
           <div>
             <button
               onClick={() => navigate('/admin/dashboard')}
-              className="text-blue-600 hover:underline mb-2 text-sm"
+              className="text-blue-600 hover:underline mb-1 text-[10px] font-bold uppercase tracking-widest"
             >
-              ← Back to Dashboard
+              ← Back
             </button>
-            <h1 className="text-3xl font-bold text-gray-900">Rooms Management</h1>
-            <p className="text-gray-600">Manage all 25 hostel rooms</p>
+            <h1 className="text-xl font-black text-gray-900 tracking-tight">Units Management</h1>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Global inventory control</p>
           </div>
           <button
             onClick={() => alert('Add Room feature coming soon')}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-blue-700 shadow-sm"
           >
-            + Add Room
+            + New Unit
           </button>
         </div>
 
         {/* Filters */}
-        <div className="bg-white p-4 rounded border border-gray-200 mb-6">
-          <div className="flex gap-2 flex-wrap">
+        <div className="bg-white p-2 rounded-xl border border-gray-100 mb-4 shadow-sm">
+          <div className="flex gap-1.5 flex-wrap">
             <button
               onClick={() => setFilter("all")}
-              className={`px-4 py-2 rounded text-sm font-semibold ${
-                filter === "all" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                filter === "all" ? "bg-slate-900 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
               }`}
             >
               All ({rooms.length})
             </button>
             <button
               onClick={() => setFilter("available")}
-              className={`px-4 py-2 rounded text-sm font-semibold ${
-                filter === "available" ? "bg-green-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                filter === "available" ? "bg-green-600 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
               }`}
             >
-              Available ({rooms.filter(r => r.isAvailable).length})
+              Live ({rooms.filter(r => r.isAvailable).length})
             </button>
             <button
               onClick={() => setFilter("booked")}
-              className={`px-4 py-2 rounded text-sm font-semibold ${
-                filter === "booked" ? "bg-red-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                filter === "booked" ? "bg-red-600 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
               }`}
             >
-              Booked ({rooms.filter(r => !r.isAvailable).length})
+              Full ({rooms.filter(r => !r.isAvailable).length})
             </button>
             <button
               onClick={() => setFilter("ac")}
-              className={`px-4 py-2 rounded text-sm font-semibold ${
-                filter === "ac" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                filter === "ac" ? "bg-blue-600 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
               }`}
             >
               AC ({rooms.filter(r => r.roomType === "AC").length})
             </button>
             <button
               onClick={() => setFilter("non-ac")}
-              className={`px-4 py-2 rounded text-sm font-semibold ${
-                filter === "non-ac" ? "bg-gray-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                filter === "non-ac" ? "bg-gray-600 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
               }`}
             >
-              Non-AC ({rooms.filter(r => r.roomType === "Non-AC").length})
+              Non-AC ({rooms.filter(r => r.roomType === "NON_AC").length})
             </button>
           </div>
         </div>
 
         {/* Rooms Table */}
-        <div className="bg-white rounded border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Room No</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Title</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Booking</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Floor</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Capacity</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Price</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
+                  <th className="px-3 py-2 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest"># Unit</th>
+                  <th className="px-3 py-2 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest">Descriptor</th>
+                  <th className="px-3 py-2 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest">Class</th>
+                  <th className="px-3 py-2 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest">Base Rate</th>
+                  <th className="px-3 py-2 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest">Live Status</th>
+                  <th className="px-3 py-2 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-50">
                 {filteredRooms.map((room) => (
                   <tr key={room.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm font-bold text-gray-900">
@@ -154,19 +151,8 @@ const RoomsManagement = () => {
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${
                         room.roomType === "AC" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"
                       }`}>
-                        {room.roomType}
+                        {room.roomType === "NON_AC" ? "Non-AC" : room.roomType}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <span className="px-2 py-1 rounded text-xs font-semibold bg-purple-100 text-purple-800">
-                        {room.bookingType}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {room.floor}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {room.capacity}
                     </td>
                     <td className="px-4 py-3 text-sm font-semibold text-gray-900">
                       ₹{room.price.toLocaleString()}

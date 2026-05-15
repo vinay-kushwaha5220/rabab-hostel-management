@@ -34,8 +34,12 @@ const LoginPage = () => {
 
       alert("Login successful")
 
-      // Redirect based on user role
-      if (response.data.user.role === "admin") {
+      const params = new URLSearchParams(window.location.search)
+      const redirectPath = params.get('redirect')
+
+      if (redirectPath) {
+        navigate(redirectPath)
+      } else if (response.data.user.role === "admin") {
         navigate("/admin/dashboard")
       } else {
         navigate("/dashboard") // User dashboard

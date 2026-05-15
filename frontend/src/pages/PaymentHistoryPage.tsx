@@ -44,29 +44,29 @@ const PaymentHistoryPage = () => {
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Payment History</h1>
-        <p className="text-gray-600 mt-2">View all your past payments and transactions</p>
+    <div className="p-4 sm:p-6">
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-gray-900 tracking-tight">Payment History</h1>
+        <p className="text-xs text-gray-400 font-medium mt-1">View all your past transactions</p>
       </div>
 
       {/* Summary Card */}
-      <Card className="p-6 mb-8 bg-gradient-to-br from-blue-50 to-indigo-50">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <Card className="p-4 mb-6 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 border-none shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <p className="text-sm text-gray-600 font-medium">Total Paid</p>
-            <p className="text-3xl font-bold text-gray-900 mt-2">₹{totalPaid.toLocaleString()}</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Paid</p>
+            <p className="text-2xl font-black text-gray-900 mt-1">₹{totalPaid.toLocaleString()}</p>
           </div>
           <div>
-            <p className="text-sm text-gray-600 font-medium">Total Transactions</p>
-            <p className="text-3xl font-bold text-gray-900 mt-2">{payments.length}</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Transactions</p>
+            <p className="text-2xl font-black text-gray-900 mt-1">{payments.length}</p>
           </div>
           <div>
-            <p className="text-sm text-gray-600 font-medium">Last Payment</p>
-            <p className="text-lg font-semibold text-gray-900 mt-2">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Last Activity</p>
+            <p className="text-base font-bold text-gray-700 mt-1">
               {payments.length > 0
                 ? new Date(payments[0].createdAt).toLocaleDateString()
-                : "No payments"}
+                : "None"}
             </p>
           </div>
         </div>
@@ -74,35 +74,35 @@ const PaymentHistoryPage = () => {
 
       {/* Payments Table */}
       {payments.length > 0 ? (
-        <Card className="overflow-hidden">
+        <Card className="overflow-hidden border-gray-100 shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-100 border-b border-gray-200">
+              <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Date</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Amount</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Method</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Transaction ID</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Date</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Amount</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Method</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ref ID</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-100">
                 {payments.map((payment) => (
-                  <tr key={payment.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-900">
+                  <tr key={payment.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-4 py-3 text-xs font-medium text-gray-600">
                       {new Date(payment.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900">
+                    <td className="px-4 py-3 text-xs font-bold text-gray-900">
                       ₹{payment.amount.toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-700 capitalize">
-                      {payment.paymentMethod}
+                    <td className="px-4 py-3 text-xs text-gray-500 capitalize">
+                      {payment.paymentMethod?.toLowerCase()}
                     </td>
-                    <td className="px-6 py-4 text-sm font-mono text-gray-600">
+                    <td className="px-4 py-3 text-[10px] font-mono text-gray-400">
                       {payment.transactionId || "N/A"}
                     </td>
-                    <td className="px-6 py-4 text-sm">
-                      <Badge variant={payment.paymentStatus === "SUCCESS" ? "success" : "warning"}>
+                    <td className="px-4 py-3 text-xs">
+                      <Badge variant={payment.paymentStatus === "SUCCESS" ? "success" : "warning"} size="sm">
                         {payment.paymentStatus}
                       </Badge>
                     </td>

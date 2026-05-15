@@ -4,6 +4,7 @@ import type { RoomType } from '../../types/room'
 import Card from '../ui/Card'
 import Badge from '../ui/Badge'
 import Button from '../ui/Button'
+import ImageSlider from '../ui/ImageSlider'
 
 interface RoomCardProps {
   room: RoomType
@@ -12,112 +13,95 @@ interface RoomCardProps {
 const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
   const navigate = useNavigate()
   
-  const handleViewDetails = () => {
+  const handleViewDetails = (e: React.MouseEvent) => {
+    e.stopPropagation()
     navigate(`/rooms/${room.id}`)
   }
   
-  const handleBookNow = () => {
+  const handleBookNow = (e: React.MouseEvent) => {
+    e.stopPropagation()
     navigate(`/booking/${room.id}`)
   }
+
+  const isFull = room.currentOccupancy >= room.capacity
+  const isAvailable = room.isAvailable && !isFull
   
   return (
-    <Card hover className="group flex flex-col h-full">
-      {/* Room Image */}
-      <div className="relative h-80 overflow-hidden flex-shrink-0">
-        <img
-          src={room.images && room.images.length > 0 ? room.images[0] : 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800'}
-          alt={room.title}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-        />
+    <Card 
+      onClick={() => navigate(`/rooms/${room.id}`)}
+      className="group relative overflow-hidden border border-gray-100 shadow-sm hover:shadow-lg bg-white rounded-xl flex flex-col h-full cursor-pointer transition-all duration-300"
+    >
+      {/* Room Image Section */}
+      <div className="relative h-[180px] overflow-hidden flex-shrink-0">
+        <ImageSlider images={room.images} alt={room.title} />
         
-        {/* Availability Badge */}
-        <div className="absolute top-4 right-4">
-          <Badge variant={room.isAvailable ? 'success' : 'danger'}>
-            {room.isAvailable ? 'Available' : 'Booked'}
+        {/* Quick Badges */}
+        <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
+          <div className="px-2 py-0.5 bg-black/60 backdrop-blur-md rounded text-[9px] font-black text-white uppercase tracking-wider shadow-sm">
+            #{room.roomNumber}
+          </div>
+          <Badge variant={room.roomType === 'AC' ? 'info' : 'secondary'} size="sm" className="border-none shadow-md">
+            {room.roomType === 'AC' ? 'AC' : 'Non AC'}
           </Badge>
         </div>
-        
-        {/* Room Type & Booking Type Badges */}
-        <div className="absolute bottom-4 left-4 flex gap-2">
-          <Badge variant={room.roomType === 'AC' ? 'info' : 'secondary'}>
-            {room.roomType}
+
+        <div className="absolute top-3 right-3 z-10">
+          <Badge variant={isAvailable ? 'success' : 'danger'} size="sm" className="shadow-md">
+            {isAvailable ? 'Available' : isFull ? 'Full' : 'Maintenance'}
           </Badge>
-          <Badge variant="primary">
-            {room.bookingType}
-          </Badge>
+        </div>
+
+        {/* Pricing Overlay */}
+        <div className="absolute bottom-3 left-3 right-3 z-10 flex flex-col gap-1">
+          <div className="px-2 py-1 bg-white/95 backdrop-blur-md rounded-lg shadow-md inline-flex items-baseline gap-1 self-start">
+            <span className="text-[8px] font-bold text-gray-500 uppercase">Day:</span>
+            <span className="text-xs font-black text-gray-900">₹{(room.dailyPrice || room.price).toLocaleString()}</span>
+          </div>
+          <div className="px-2 py-1 bg-blue-600 rounded-lg shadow-md inline-flex items-baseline gap-1 self-start">
+            <span className="text-[8px] font-bold text-white/80 uppercase">Month:</span>
+            <span className="text-sm font-black text-white">₹{(room.monthlyPrice || room.price).toLocaleString()}</span>
+          </div>
         </div>
       </div>
       
-      {/* Room Details */}
-      <div className="p-6 flex flex-col flex-grow">
-        {/* Title & Room Number */}
-        <div className="mb-4">
-          <h3 className="text-2xl font-bold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors">
+      {/* Room Content */}
+      <div className="p-4 flex flex-col flex-grow">
+        <div className="mb-2">
+          <h3 className="text-base font-bold text-gray-900 group-hover:text-blue-600 transition-colors tracking-tight line-clamp-1">
             {room.title}
           </h3>
-          <p className="text-base text-gray-500">Room {room.roomNumber} • Floor {room.floor}</p>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+            {room.capacity} Sharing • Floor {room.floor}
+          </p>
         </div>
         
-        {/* Description */}
-        <p className="text-gray-600 text-base mb-4 line-clamp-2 flex-grow">
-          {room.description}
-        </p>
-        
-        {/* Amenities Preview */}
-        {room.amenities && room.amenities.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {room.amenities.slice(0, 3).map((amenity, index) => (
-              <span 
-                key={index}
-                className="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full"
-              >
-                {amenity}
-              </span>
-            ))}
-            {room.amenities.length > 3 && (
-              <span className="text-sm text-gray-500 px-3 py-1">
-                +{room.amenities.length - 3} more
-              </span>
-            )}
-          </div>
-        )}
-        
-        {/* Capacity */}
-        <div className="flex items-center text-base text-gray-600 mb-5">
-          <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          Capacity: {room.capacity} {room.capacity === 1 ? 'person' : 'people'}
+        {/* Simplified Amenities */}
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {room.amenities.slice(0, 3).map((amenity, idx) => (
+            <span key={idx} className="text-[8px] font-bold uppercase tracking-wider bg-gray-50 px-1.5 py-0.5 rounded text-gray-500 border border-gray-100">
+              {amenity}
+            </span>
+          ))}
         </div>
         
-        {/* Price & Actions */}
-        <div className="flex flex-col gap-4 pt-5 border-t border-gray-200 mt-auto">
-          <div>
-            <p className="text-4xl font-bold text-blue-600">
-              ₹{room.price.toLocaleString()}
-            </p>
-            <p className="text-sm text-gray-500">per {room.bookingType.toLowerCase()}</p>
-          </div>
-          
-          <div className="flex gap-3 w-full">
-            <Button 
-              variant="outline" 
-              size="md"
-              onClick={handleViewDetails}
-              className="flex-1"
-            >
-              View Details
-            </Button>
-            {room.isAvailable && (
-              <Button 
-                size="md"
-                onClick={handleBookNow}
-                className="flex-1"
-              >
-                Book Now
-              </Button>
-            )}
-          </div>
+        {/* Actions */}
+        <div className="flex gap-2 mt-auto pt-2">
+          <Button 
+            variant="outline"
+            size="sm"
+            className="flex-1 text-[9px] uppercase tracking-wider"
+            onClick={handleViewDetails}
+          >
+            Details
+          </Button>
+          <Button 
+            size="sm"
+            className="flex-1 text-[9px] uppercase tracking-wider"
+            onClick={handleBookNow}
+            disabled={isFull}
+          >
+            {isFull ? 'Full' : 'Book'}
+          </Button>
         </div>
       </div>
     </Card>

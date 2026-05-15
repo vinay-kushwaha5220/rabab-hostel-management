@@ -16,6 +16,7 @@ export type BookingType = {
   room?: RoomType
   
   // Booking details
+  bookingType: "DAILY" | "MONTHLY"
   checkInDate: string
   checkOutDate: string
   numberOfGuests: number
@@ -56,4 +57,5 @@ export type CreateBookingData = {
   checkInDate: string
   checkOutDate: string
   numberOfGuests: number
+  bookingType: "DAILY" | "MONTHLY"
 }

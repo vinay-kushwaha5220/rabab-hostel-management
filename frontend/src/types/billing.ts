@@ -6,10 +6,14 @@ export interface MonthlyBill {
   electricityAmount: number
   extraCharges: number
   totalAmount: number
+  paidAmount: number
+  remainingAmount: number
+  previousDue: number
+  totalDue: number
   dueDate: string
   isPaid: boolean
   paidDate?: string
-  status: "PENDING" | "PAID_ONLINE" | "PAID_CASH" | "OVERDUE" | "VERIFICATION_PENDING"
+  status: "PENDING" | "PARTIAL" | "PAID_ONLINE" | "PAID_CASH" | "OVERDUE" | "VERIFICATION_PENDING"
   verificationStatus: "PENDING" | "VERIFIED" | "REJECTED"
   createdAt: string
   updatedAt: string

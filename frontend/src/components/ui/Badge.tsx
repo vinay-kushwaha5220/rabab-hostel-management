@@ -21,9 +21,9 @@ const Badge: React.FC<BadgeProps> = ({
   }
   
   const sizes = {
-    sm: 'px-2 py-0.5 text-xs',
-    md: 'px-3 py-1 text-sm',
-    lg: 'px-4 py-1.5 text-base',
+    sm: 'px-2 py-0.5 text-[10px] uppercase tracking-wider',
+    md: 'px-2.5 py-0.5 text-xs font-bold',
+    lg: 'px-3 py-1 text-sm font-bold',
   }
   
   return (
