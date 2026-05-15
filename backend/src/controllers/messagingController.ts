@@ -1,6 +1,7 @@
 import type { Request, Response } from "express"
 import prisma from "../config/prisma.js"
 import type { AuthRequest } from "../middleware/authMiddleware.js"
+import { NotificationType, UserRole, BookingStatus } from "@prisma/client"
 
 // ==========================================
 // SEND MESSAGE
@@ -32,7 +33,7 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
       const sender = await prisma.user.findUnique({
         where: { id: senderId },
       })
-      if (sender?.role !== "admin") {
+      if (sender?.role !== UserRole.ADMIN) {
         return res.status(403).json({
           message: "Unauthorized",
         })
@@ -53,7 +54,17 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
       },
     })
 
-    console.log(`✅ Message sent from ${senderId} to ${receiverId}`)
+    // Create notification for the receiver
+    await prisma.notification.create({
+      data: {
+        bookingId,
+        title: message.sender.role === UserRole.ADMIN ? "New Message from Admin" : `New Message from ${message.sender.name}`,
+        message: content.length > 50 ? content.substring(0, 47) + "..." : content,
+        type: NotificationType.MESSAGE,
+      },
+    })
+
+    console.log(`✅ Message sent and notification created for ${receiverId}`)
 
     res.status(201).json({
       message: "Message sent successfully",
@@ -72,50 +83,54 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
 // GET CONVERSATION
 // ==========================================
 export const getConversation = async (req: AuthRequest, res: Response) => {
+  console.log("🔍 getConversation Params:", req.params)
   try {
     const { bookingId } = req.params
     const userId = req.userId
 
-    // Check authorization
-    const booking = await prisma.booking.findUnique({
-      where: { id: parseInt(bookingId) },
+    // Handle both numeric ID and string Booking Code (e.g., RBS-2026-0001)
+    const isNumeric = !isNaN(Number(bookingId))
+    
+    console.log(`🔍 Fetching conversation for: ${bookingId} (Type: ${isNumeric ? 'Numeric' : 'Code'})`)
+
+    const conversation = await prisma.booking.findFirst({
+      where: isNumeric 
+        ? { id: Number(bookingId) }
+        : { bookingId: String(bookingId) },
+      include: {
+        messages: {
+          include: {
+            sender: {
+              select: { name: true },
+            },
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+      },
     })
 
-    if (!booking) {
-      return res.status(404).json({
-        message: "Booking not found",
-      })
+    if (!conversation) {
+      return res.status(404).json({ message: "Conversation not found" })
     }
 
-    if (booking.userId !== userId) {
+    // Check authorization
+    if (conversation.userId !== userId) {
       const user = await prisma.user.findUnique({
         where: { id: userId },
       })
-      if (user?.role !== "admin") {
+      if (user?.role !== UserRole.ADMIN) {
         return res.status(403).json({
           message: "Unauthorized",
         })
       }
     }
 
-    // Get all messages for this booking
-    const messages = await prisma.message.findMany({
-      where: {
-        bookingId: parseInt(bookingId),
-      },
-      include: {
-        sender: true,
-        receiver: true,
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
-    })
-
-    // Mark messages as read
+    // Mark messages as read for THIS specific conversation
     await prisma.message.updateMany({
       where: {
-        bookingId: parseInt(bookingId),
+        bookingId: conversation.id,
         receiverId: userId,
         isRead: false,
       },
@@ -125,7 +140,7 @@ export const getConversation = async (req: AuthRequest, res: Response) => {
       },
     })
 
-    res.status(200).json(messages)
+    res.status(200).json(conversation.messages)
   } catch (error) {
     console.error("Get conversation error:", error)
     res.status(500).json({
@@ -168,7 +183,7 @@ export const getAllConversations = async (req: AuthRequest, res: Response) => {
   try {
     const conversations = await prisma.booking.findMany({
       where: {
-        status: "confirmed",
+        status: BookingStatus.CONFIRMED,
       },
       include: {
         user: true,
@@ -185,7 +200,21 @@ export const getAllConversations = async (req: AuthRequest, res: Response) => {
       },
     })
 
-    res.status(200).json(conversations)
+    const formattedConversations = conversations.map((convo) => {
+      const latestMsg = convo.messages[0]
+
+      return {
+        bookingId: convo.id, // Numeric ID for API calls
+        bookingCode: convo.bookingId, // String code for display
+        renterName: convo.user.name,
+        renterId: convo.userId,
+        latestMessage: latestMsg ? latestMsg.content : "No messages yet",
+        latestMessageTime: latestMsg ? latestMsg.createdAt : convo.createdAt,
+        unreadCount: 0, // Simplified for now
+      }
+    })
+
+    res.status(200).json(formattedConversations)
   } catch (error) {
     console.error("Get all conversations error:", error)
     res.status(500).json({

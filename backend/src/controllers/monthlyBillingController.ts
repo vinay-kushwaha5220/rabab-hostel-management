@@ -1,40 +1,63 @@
 import type { Request, Response } from "express"
 import prisma from "../config/prisma.js"
 import type { AuthRequest } from "../middleware/authMiddleware.js"
+import { MonthlyBillStatus, VerificationStatus, PaymentStatus, PaymentMethod, NotificationType, NotificationPriority, UserRole } from "@prisma/client"
 
 // ==========================================
 // CREATE MONTHLY BILL (Admin)
 // ==========================================
 export const createMonthlyBill = async (req: AuthRequest, res: Response) => {
+  console.log("🚀 createMonthlyBill controller HIT with body:", req.body)
   try {
-    const { bookingId, month, rentAmount, electricityAmount, extraCharges, dueDate } = req.body
+    let { bookingId, month, rentAmount, electricityAmount, extraCharges, dueDate } = req.body
 
-    if (!bookingId || !month || !rentAmount || !dueDate) {
+    // Ensure numeric values are numbers
+    bookingId = parseInt(String(bookingId))
+    rentAmount = parseFloat(String(rentAmount))
+    electricityAmount = parseFloat(String(electricityAmount || 0))
+    extraCharges = parseFloat(String(extraCharges || 0))
+
+    if (isNaN(bookingId) || !month || isNaN(rentAmount) || !dueDate) {
       return res.status(400).json({
-        message: "bookingId, month, rentAmount, and dueDate are required",
+        message: "Valid bookingId, month, rentAmount, and dueDate are required",
       })
     }
 
-    // Check if booking exists
-    const booking = await prisma.booking.findUnique({
+    // Try to find booking by numeric ID or by the bookingId string
+    let booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: { user: true },
     })
 
+    // If not found by numeric ID, try searching by the bookingId string (e.g., "RBS-2026-001")
     if (!booking) {
-      return res.status(404).json({
-        message: "Booking not found",
+      booking = await prisma.booking.findUnique({
+        where: { bookingId: String(req.body.bookingId) },
+        include: { user: true },
       })
     }
 
+    if (!booking) {
+      return res.status(422).json({
+        message: `Booking not found for ID or Code: ${req.body.bookingId}. Please check your database for this ID.`,
+      })
+    }
+
+    // Ensure we use the correct numeric ID for the rest of the operation
+    const actualBookingId = booking.id;
+    bookingId = actualBookingId;
+
     // Check if bill already exists for this month
-    const existingBill = await prisma.monthlyBill.findUnique({
-      where: { bookingId },
+    const existingBill = await prisma.monthlyBill.findFirst({
+      where: {
+        bookingId,
+        month,
+      },
     })
 
-    if (existingBill && existingBill.month === month) {
+    if (existingBill) {
       return res.status(400).json({
-        message: "Bill already exists for this month",
+        message: "A bill already exists for this booking in the selected month",
       })
     }
 
@@ -43,13 +66,15 @@ export const createMonthlyBill = async (req: AuthRequest, res: Response) => {
     // Create monthly bill
     const bill = await prisma.monthlyBill.create({
       data: {
-        bookingId,
+        bookingId: actualBookingId,
         month,
         rentAmount,
         electricityAmount: electricityAmount || 0,
         extraCharges: extraCharges || 0,
         totalAmount,
         dueDate: new Date(dueDate),
+        status: MonthlyBillStatus.PENDING,
+        verificationStatus: VerificationStatus.PENDING,
       },
       include: {
         booking: {
@@ -64,10 +89,11 @@ export const createMonthlyBill = async (req: AuthRequest, res: Response) => {
     // Create notification for renter
     await prisma.notification.create({
       data: {
-        bookingId,
+        bookingId: actualBookingId,
         title: "Monthly Bill Added",
         message: `Your monthly bill for ${month} has been added. Total due: ₹${totalAmount}`,
-        type: "billing",
+        type: NotificationType.BILL,
+        priority: NotificationPriority.MEDIUM,
       },
     })
 
@@ -118,7 +144,7 @@ export const getMonthlyBill = async (req: AuthRequest, res: Response) => {
       const user = await prisma.user.findUnique({
         where: { id: userId },
       })
-      if (user?.role !== "admin") {
+      if (user?.role !== UserRole.ADMIN) {
         return res.status(403).json({
           message: "Unauthorized",
         })
@@ -175,15 +201,16 @@ export const getRenterMonthlyBills = async (req: AuthRequest, res: Response) => 
 // GET ALL MONTHLY BILLS (Admin)
 // ==========================================
 export const getAllMonthlyBills = async (req: AuthRequest, res: Response) => {
+  console.log("🔍 DEBUG: getAllMonthlyBills Request - User ID:", req.userId)
   try {
     const { status, month } = req.query
 
     const where: any = {}
 
     if (status === "paid") {
-      where.isPaid = true
+      where.status = MonthlyBillStatus.PAID_ONLINE // or PAID_CASH
     } else if (status === "pending") {
-      where.isPaid = false
+      where.status = MonthlyBillStatus.PENDING
     }
 
     if (month) {
@@ -312,6 +339,68 @@ export const deleteMonthlyBill = async (req: AuthRequest, res: Response) => {
 // ==========================================
 // GET RENTER DASHBOARD DATA
 // ==========================================
+// VERIFY MONTHLY PAYMENT (ADMIN)
+// ==========================================
+export const verifyMonthlyPayment = async (req: AuthRequest, res: Response) => {
+  try {
+    const { billId } = req.params
+    const numericBillId = Number(billId)
+
+    if (isNaN(numericBillId)) {
+      return res.status(400).json({ message: "Invalid bill ID" })
+    }
+
+    const bill = await prisma.monthlyBill.findUnique({
+      where: { id: numericBillId },
+      include: { booking: true }
+    })
+
+    if (!bill) {
+      return res.status(404).json({ message: "Bill not found" })
+    }
+
+    // Update bill
+    await prisma.monthlyBill.update({
+      where: { id: numericBillId },
+      data: {
+        isPaid: true,
+        paidDate: new Date(),
+        status: MonthlyBillStatus.PAID_CASH,
+        verificationStatus: VerificationStatus.VERIFIED,
+      },
+    })
+
+    // Create payment record
+    await prisma.payment.create({
+      data: {
+        bookingId: bill.bookingId,
+        monthlyBillId: numericBillId,
+        amount: bill.totalAmount,
+        paymentMethod: PaymentMethod.CASH,
+        paymentStatus: PaymentStatus.SUCCESS,
+        verificationStatus: VerificationStatus.VERIFIED,
+        transactionId: `ADMIN-VERIFIED-${Date.now()}`,
+      },
+    })
+
+    // Notify Renter
+    await prisma.notification.create({
+      data: {
+        bookingId: bill.bookingId,
+        title: "Payment Verified",
+        message: `Your payment of ₹${bill.totalAmount} for ${bill.month} has been verified by admin.`,
+        type: NotificationType.PAYMENT,
+        priority: NotificationPriority.MEDIUM,
+      },
+    })
+
+    res.status(200).json({ message: "Payment verified successfully" })
+  } catch (error) {
+    console.error("Verify payment error:", error)
+    res.status(500).json({ message: "Server error", error: error instanceof Error ? error.message : "Unknown error" })
+  }
+}
+
 export const getRenterDashboardData = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId
@@ -324,11 +413,6 @@ export const getRenterDashboardData = async (req: AuthRequest, res: Response) =>
       },
       include: {
         room: true,
-        monthlyBill: {
-          include: {
-            payments: true,
-          },
-        },
       },
     })
 
@@ -341,7 +425,33 @@ export const getRenterDashboardData = async (req: AuthRequest, res: Response) =>
       })
     }
 
-    // Get messages
+    // Get the most recent monthly bill for this booking
+    const monthlyBill = await prisma.monthlyBill.findFirst({
+      where: {
+        bookingId: activeBooking.id,
+      },
+      include: {
+        payments: true,
+      },
+      orderBy: {
+        month: "desc",
+      },
+    })
+
+    // Mark messages as read for the renter
+    await prisma.message.updateMany({
+      where: {
+        bookingId: activeBooking.id,
+        receiverId: userId,
+        isRead: false,
+      },
+      data: {
+        isRead: true,
+        readAt: new Date(),
+      },
+    })
+
+    // Get messages (Re-fetch to get updated isRead status)
     const messages = await prisma.message.findMany({
       where: {
         bookingId: activeBooking.id,
@@ -367,9 +477,16 @@ export const getRenterDashboardData = async (req: AuthRequest, res: Response) =>
       take: 20,
     })
 
+    console.log("✅ Dashboard data retrieved:", {
+      bookingId: activeBooking.id,
+      hasMonthlyBill: !!monthlyBill,
+      messageCount: messages.length,
+      notificationCount: notifications.length,
+    })
+
     res.status(200).json({
       activeBooking,
-      monthlyBill: activeBooking.monthlyBill,
+      monthlyBill,
       messages,
       notifications,
     })

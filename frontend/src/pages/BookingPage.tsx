@@ -139,21 +139,35 @@ const BookingPage = () => {
     
     try {
       setSubmitting(true)
+      setErrors({}) // Clear previous errors
       
       // Create booking
-      const response = await api.post("/bookings", {
+      const bookingData = {
         roomId: Number(roomId),
         ...formData,
         numberOfGuests: Number(formData.numberOfGuests),
-      })
+      }
       
-      console.log('Booking created:', response.data)
+      console.log('🔍 DEBUG: Sending booking data:', bookingData)
+      
+      const response = await api.post("/bookings", bookingData)
+      
+      console.log('✅ SUCCESS: Booking created:', response.data)
       
       // Navigate to payment page
       navigate(`/payment/${response.data.booking.id}`)
     } catch (error: any) {
       console.error('Error creating booking:', error)
-      alert(error.response?.data?.message || 'Failed to create booking')
+      const errorMessage = error.response?.data?.message || 'Failed to create booking'
+      
+      // Handle specific error messages from backend
+      if (errorMessage.includes("capacity")) {
+        setErrors(prev => ({ ...prev, numberOfGuests: errorMessage }))
+      } else if (errorMessage.includes("active booking")) {
+        alert(errorMessage)
+      } else {
+        alert(errorMessage)
+      }
     } finally {
       setSubmitting(false)
     }

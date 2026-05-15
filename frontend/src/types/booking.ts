@@ -23,24 +23,26 @@ export type BookingType = {
   totalAmount: number
   
   // Status
-  status: "pending" | "confirmed" | "cancelled" | "completed"
-  paymentStatus: "pending" | "paid" | "failed" | "refunded"
+  status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED"
+  paymentStatus: "PENDING" | "SUCCESS" | "FAILED" | "REFUNDED" | "VERIFICATION_PENDING"
+  stayStatus?: "BOOKED" | "CHECKED_IN" | "STAYING" | "CHECKED_OUT"
   
   // Timestamps
   createdAt: string
   updatedAt: string
   
   // Relations
-  payment?: PaymentType
+  payment?: PaymentType[]
 }
 
 export type PaymentType = {
   id: number
   bookingId: number
   amount: number
-  paymentMethod: string
+  paymentMethod: "CASH" | "UPI" | "CARD" | "BANK_TRANSFER" | "ONLINE"
   transactionId?: string
-  paymentStatus: "pending" | "success" | "failed"
+  paymentStatus: "PENDING" | "SUCCESS" | "FAILED" | "REFUNDED" | "VERIFICATION_PENDING"
+  verificationStatus?: "PENDING" | "VERIFIED" | "REJECTED"
   createdAt: string
   updatedAt: string
 }

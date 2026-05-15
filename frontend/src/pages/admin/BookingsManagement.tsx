@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import api from "../../services/api"
+import api from "../../services/apiV2"
 import type { BookingType } from "../../types/booking"
 
 const BookingsManagement = () => {
@@ -33,6 +33,17 @@ const BookingsManagement = () => {
       fetchBookings()
     } catch (error: any) {
       alert(error.response?.data?.message || 'Failed to cancel')
+    }
+  }
+
+  const confirmBooking = async (bookingId: number) => {
+    if (!confirm('Mark this booking as paid and confirmed?')) return
+    try {
+      await api.put(`/bookings/${bookingId}/confirm`)
+      alert('Booking confirmed successfully')
+      fetchBookings()
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Failed to confirm')
     }
   }
 
@@ -91,28 +102,28 @@ const BookingsManagement = () => {
               All ({bookings.length})
             </button>
             <button
-              onClick={() => setFilter("pending")}
+              onClick={() => setFilter("PENDING")}
               className={`px-4 py-2 rounded text-sm font-semibold ${
-                filter === "pending" ? "bg-yellow-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                filter === "PENDING" ? "bg-yellow-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Pending ({bookings.filter(b => b.status === "pending").length})
+              Pending ({bookings.filter(b => b.status === "PENDING").length})
             </button>
             <button
-              onClick={() => setFilter("confirmed")}
+              onClick={() => setFilter("CONFIRMED")}
               className={`px-4 py-2 rounded text-sm font-semibold ${
-                filter === "confirmed" ? "bg-green-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                filter === "CONFIRMED" ? "bg-green-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Confirmed ({bookings.filter(b => b.status === "confirmed").length})
+              Confirmed ({bookings.filter(b => b.status === "CONFIRMED").length})
             </button>
             <button
-              onClick={() => setFilter("cancelled")}
+              onClick={() => setFilter("CANCELLED")}
               className={`px-4 py-2 rounded text-sm font-semibold ${
-                filter === "cancelled" ? "bg-red-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                filter === "CANCELLED" ? "bg-red-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Cancelled ({bookings.filter(b => b.status === "cancelled").length})
+              Cancelled ({bookings.filter(b => b.status === "CANCELLED").length})
             </button>
           </div>
         </div>
@@ -178,9 +189,9 @@ const BookingsManagement = () => {
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                          booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          booking.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                          booking.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' :
+                          booking.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                          booking.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
                           {booking.status.toUpperCase()}
@@ -188,8 +199,8 @@ const BookingsManagement = () => {
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          booking.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' :
-                          booking.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          booking.paymentStatus === 'SUCCESS' ? 'bg-green-100 text-green-800' :
+                          booking.paymentStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
                           'bg-red-100 text-red-800'
                         }`}>
                           {booking.paymentStatus.toUpperCase()}
@@ -199,14 +210,22 @@ const BookingsManagement = () => {
                         <div className="flex gap-2">
                           <button
                             onClick={() => navigate(`/booking-confirmation/${booking.id}`)}
-                            className="text-blue-600 hover:underline text-xs"
+                            className="text-blue-600 hover:underline text-xs font-semibold"
                           >
                             View
                           </button>
-                          {booking.status !== 'cancelled' && (
+                          {booking.status === 'PENDING' && (
+                            <button
+                              onClick={() => confirmBooking(booking.id)}
+                              className="text-green-600 hover:underline text-xs font-semibold"
+                            >
+                              Confirm
+                            </button>
+                          )}
+                          {booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED' && (
                             <button
                               onClick={() => cancelBooking(booking.id)}
-                              className="text-red-600 hover:underline text-xs"
+                              className="text-red-600 hover:underline text-xs font-semibold"
                             >
                               Cancel
                             </button>

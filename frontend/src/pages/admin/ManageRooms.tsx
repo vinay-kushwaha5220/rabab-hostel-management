@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import api from "../../services/api"
+import api from "../../services/apiV2"
 import type { RoomType } from "../../types/room"
 import Card from "../../components/ui/Card"
 import Badge from "../../components/ui/Badge"

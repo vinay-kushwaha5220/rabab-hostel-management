@@ -1,3 +1,4 @@
+import "dotenv/config"
 import express from "express"
 import cors from "cors"
 import cookieParser from "cookie-parser"
@@ -10,6 +11,7 @@ import electricityRoutes from "./routes/electricityRoutes.js"
 import monthlyBillingRoutes from "./routes/monthlyBillingRoutes.js"
 import messagingRoutes from "./routes/messagingRoutes.js"
 import monthlyPaymentRoutes from "./routes/monthlyPaymentRoutes.js"
+import contactRoutes from "./routes/contactRoutes.js"
 
 const app = express()
 
@@ -17,7 +19,7 @@ const app = express()
 app.use(cors({
   origin: (origin, callback) => {
     // Allow all localhost origins in development
-    if (process.env.NODE_ENV === "development" && origin?.includes("localhost")) {
+    if (origin?.includes("localhost") || origin?.includes("127.0.0.1")) {
       callback(null, true)
     } else if (origin === "http://localhost:5173" || origin === "http://localhost:5174" || origin === "http://localhost:5175" || origin === "http://localhost:3000") {
       callback(null, true)
@@ -35,15 +37,16 @@ app.use(express.json())
 app.use(cookieParser()) // Parse cookies
 
 // Routes
+app.use("/api/monthly-bills", monthlyBillingRoutes)
 app.use("/api/rooms", roomRoutes)
-app.use("/api/auth", authRoutes) // Old auth routes (for backward compatibility)
-app.use("/api/v2/auth", authRoutesV2) // New auth routes with refresh token
+app.use("/api/auth", authRoutes)
+app.use("/api/v2/auth", authRoutesV2)
 app.use("/api/bookings", bookingRoutes)
 app.use("/api/dashboard", dashboardRoutes)
 app.use("/api/electricity", electricityRoutes)
-app.use("/api/monthly-bills", monthlyBillingRoutes)
 app.use("/api/messages", messagingRoutes)
 app.use("/api/monthly-payments", monthlyPaymentRoutes)
+app.use("/api/contact", contactRoutes)
 
 app.get("/", (req, res) => {
   res.send("Rabab Stay Backend Running 🏨")

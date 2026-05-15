@@ -4,11 +4,12 @@ import type {
   NextFunction,
 } from "express"
 
-import jwt from "jsonwebtoken"
+import { verifyAccessToken } from "../utils/jwt.js"
 
 export interface AuthRequest
   extends Request {
   userId?: number
+  role?: string
 }
 
 export const protect = (
@@ -29,19 +30,21 @@ export const protect = (
     const token =
       authHeader.split(" ")[1]
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "secret"
-    ) as {
-      userId: number
+    if (!token) {
+      return res.status(401).json({
+        message: "Invalid token format",
+      })
     }
 
+    const decoded = verifyAccessToken(token)
     req.userId = decoded.userId
+    req.role = decoded.role
 
     next()
-  } catch (error) {
+  } catch (error: any) {
     return res.status(401).json({
-      message: "Invalid token",
+      message: error.message || "Invalid token",
+      code: error.message?.includes("expired") ? "TOKEN_EXPIRED" : "INVALID_TOKEN"
     })
   }
 }

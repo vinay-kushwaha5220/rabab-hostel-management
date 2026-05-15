@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import api from "../../services/api"
+import api from "../../services/apiV2"
 import type { DashboardStats } from "../../types/dashboard"
 
 const AdminDashboardPractical = () => {
@@ -141,6 +141,14 @@ const AdminDashboardPractical = () => {
               {stats.unreadNotifications === 0 && "View all"}
             </div>
           </button>
+
+          <button
+            onClick={() => navigate('/admin/monthly-billing')}
+            className="bg-white p-4 rounded border border-gray-200 hover:border-blue-500 hover:shadow text-left"
+          >
+            <div className="font-bold text-gray-900">Monthly Billing</div>
+            <div className="text-sm text-gray-600">Create & manage bills</div>
+          </button>
         </div>
 
         {/* Recent Bookings Table */}
@@ -199,8 +207,8 @@ const AdminDashboardPractical = () => {
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                          booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          booking.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' :
+                          booking.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
                           {booking.status.toUpperCase()}

@@ -1,6 +1,7 @@
 import type { Response } from "express"
 import prisma from "../config/prisma.js"
 import type { AuthRequest } from "../middleware/authMiddleware.js"
+import { RoomType, BookingStatus, PaymentStatus } from "@prisma/client"
 
 // ==========================================
 // GET DASHBOARD STATS
@@ -9,6 +10,7 @@ export const getDashboardStats = async (
   req: AuthRequest,
   res: Response
 ) => {
+  console.log("🔍 DEBUG: getDashboardStats Request Received")
   try {
     // Total rooms
     const totalRooms = await prisma.room.count()
@@ -23,17 +25,17 @@ export const getDashboardStats = async (
 
     // AC rooms
     const acRooms = await prisma.room.count({
-      where: { roomType: "AC" },
+      where: { roomType: RoomType.AC },
     })
-
+    
     // Non-AC rooms
     const nonAcRooms = await prisma.room.count({
-      where: { roomType: "Non-AC" },
+      where: { roomType: RoomType.NON_AC },
     })
 
     // Total earnings (all paid bookings)
     const totalEarningsData = await prisma.payment.aggregate({
-      where: { paymentStatus: "success" },
+      where: { paymentStatus: PaymentStatus.SUCCESS },
       _sum: { amount: true },
     })
     const totalEarnings = totalEarningsData._sum.amount || 0
@@ -45,7 +47,7 @@ export const getDashboardStats = async (
 
     const monthlyEarningsData = await prisma.payment.aggregate({
       where: {
-        paymentStatus: "success",
+        paymentStatus: PaymentStatus.SUCCESS,
         createdAt: { gte: currentMonth },
       },
       _sum: { amount: true },
@@ -57,12 +59,12 @@ export const getDashboardStats = async (
 
     // Pending bookings
     const pendingBookings = await prisma.booking.count({
-      where: { status: "pending" },
+      where: { status: BookingStatus.PENDING },
     })
 
     // Confirmed bookings
     const confirmedBookings = await prisma.booking.count({
-      where: { status: "confirmed" },
+      where: { status: BookingStatus.CONFIRMED },
     })
 
     // Recent bookings (last 10)
@@ -112,12 +114,14 @@ export const getDashboardStats = async (
       unreadNotifications,
     }
 
+    console.log("✅ DEBUG: Dashboard Stats compiled successfully")
     res.status(200).json(stats)
-  } catch (error) {
-    console.error("Get dashboard stats error:", error)
+  } catch (error: any) {
+    console.error("❌ ERROR in getDashboardStats:", error)
     res.status(500).json({
       message: "Server error",
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined
     })
   }
 }

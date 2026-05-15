@@ -125,7 +125,7 @@ const Navbar = () => {
               <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center text-white text-sm font-bold">
                 {user?.name?.charAt(0).toUpperCase()}
               </div>
-              <button 
+              <button
                 onClick={handleLogout}
                 className="text-gray-700 hover:text-red-600 text-sm font-semibold"
               >

@@ -28,7 +28,7 @@ const ProtectedRoute = ({ children, adminOnly = false }: ProtectedRouteProps) =>
   }
 
   // If admin-only route and user is not admin, redirect to dashboard
-  if (adminOnly && user?.role !== "admin") {
+  if (adminOnly && user?.role !== "ADMIN") {
     return <Navigate to="/dashboard" replace />
   }
 

@@ -7,12 +7,13 @@ import type { AuthRequest } from "../middleware/authMiddleware.js"
 // ==========================================
 export const processMonthlyPayment = async (req: AuthRequest, res: Response) => {
   try {
-    const { billId, paymentMethod } = req.body
+    const { billId: rawBillId, paymentMethod } = req.body
     const userId = req.userId
+    const billId = Number(rawBillId)
 
-    if (!billId || !paymentMethod) {
+    if (!billId || isNaN(billId) || !paymentMethod) {
       return res.status(400).json({
-        message: "billId and paymentMethod are required",
+        message: "Valid billId and paymentMethod are required",
       })
     }
 
@@ -34,12 +35,22 @@ export const processMonthlyPayment = async (req: AuthRequest, res: Response) => 
       })
     }
 
-    // Check authorization
-    if (bill.booking.user.id !== userId) {
-      return res.status(403).json({
-        message: "Unauthorized",
+    if (!bill.booking || !bill.booking.user) {
+      return res.status(422).json({
+        message: "Bill is not properly linked to a renter or booking",
       })
     }
+
+    // Check authorization
+    if (bill.booking.userId !== userId && bill.booking.user.id !== userId) {
+      return res.status(403).json({
+        message: "Unauthorized to pay this bill",
+      })
+    }
+
+    // SIMULATE DELAY FOR DEMO REALISM
+    await new Promise(resolve => setTimeout(resolve, 2000))
+
 
     // Create payment
     const payment = await prisma.payment.create({
@@ -48,19 +59,26 @@ export const processMonthlyPayment = async (req: AuthRequest, res: Response) => 
         monthlyBillId: billId,
         amount: bill.totalAmount,
         paymentMethod,
-        paymentStatus: "success",
-        transactionId: `TXN-${Date.now()}`,
+        paymentStatus: paymentMethod === 'cash' ? "pending" : "success",
+        transactionId: paymentMethod === 'cash' ? `CASH-REQ-${Date.now()}` : `DEMO-MONTHLY-${Date.now()}`,
       },
     })
 
-    // Update bill as paid
-    await prisma.monthlyBill.update({
-      where: { id: billId },
-      data: {
-        isPaid: true,
-        paidDate: new Date(),
-      },
-    })
+    console.log(`💳 Payment record created: ${payment.id}. Method: ${paymentMethod}`)
+
+    // ONLY Update bill as paid if NOT cash (Online payment is instant success in demo)
+    if (paymentMethod !== 'cash') {
+      const updatedBill = await prisma.monthlyBill.update({
+        where: { id: billId },
+        data: {
+          isPaid: true,
+          paidDate: new Date(),
+        },
+      })
+      console.log(`✅ Bill ${billId} status updated to Paid (Online)`)
+    } else {
+      console.log(`⏳ Bill ${billId} awaiting cash verification`)
+    }
 
     // Create notification
     await prisma.notification.create({

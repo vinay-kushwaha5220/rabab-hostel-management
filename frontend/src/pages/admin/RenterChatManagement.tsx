@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { messagingService } from "../../services/billingService"
 import type { Message } from "../../types/billing"
 import LoadingSpinner from "../../components/ui/LoadingSpinner"
@@ -7,6 +7,7 @@ import Button from "../../components/ui/Button"
 
 interface Conversation {
   bookingId: number
+  bookingCode?: string
   renterName: string
   renterId: number
   latestMessage: string
@@ -23,6 +24,27 @@ const RenterChatManagement = () => {
   const [sendingMessage, setSendingMessage] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [selectedConversation?.messages])
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "No date"
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return "Recently"
+    return date.toLocaleString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      month: 'short',
+      day: 'numeric'
+    })
+  }
 
   useEffect(() => {
     fetchConversations()
@@ -69,6 +91,8 @@ const RenterChatManagement = () => {
       setSuccess("Message sent successfully")
       await handleSelectConversation(selectedConversation)
       await fetchConversations()
+      // Auto-scroll after sending
+      setTimeout(scrollToBottom, 100)
       setTimeout(() => setSuccess(""), 3000)
     } catch (err) {
       setError("Failed to send message")
@@ -126,9 +150,9 @@ const RenterChatManagement = () => {
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 truncate">{conversation.latestMessage}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(conversation.latestMessageTime).toLocaleString()}
+                      <p className="text-sm text-gray-600 truncate">{conversation.latestMessage || "No messages"}</p>
+                      <p className="text-xs text-gray-500 mt-1 font-medium">
+                        {formatDate(conversation.latestMessageTime)}
                       </p>
                     </button>
                   ))}
@@ -145,11 +169,11 @@ const RenterChatManagement = () => {
                   <h2 className="text-2xl font-bold text-gray-900">
                     {selectedConversation.renterName}
                   </h2>
-                  <p className="text-sm text-gray-600">Booking ID: {selectedConversation.bookingId}</p>
+                  <p className="text-sm text-gray-600 font-mono">#{selectedConversation.bookingCode || selectedConversation.bookingId}</p>
                 </div>
 
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto mb-6 space-y-4 max-h-96">
+                {/* Messages Container */}
+                <div className="flex-1 overflow-y-auto min-h-[400px] max-h-[600px] mb-6 space-y-4 pr-2 custom-scrollbar scroll-smooth">
                   {selectedConversation.messages.length === 0 ? (
                     <p className="text-center text-gray-600 py-8">No messages yet</p>
                   ) : (
@@ -157,30 +181,43 @@ const RenterChatManagement = () => {
                       <div
                         key={message.id}
                         className={`flex ${
-                          message.senderId === 1 ? "justify-end" : "justify-start"
+                          message.senderId !== selectedConversation.renterId ? "justify-end" : "justify-start"
                         }`}
                       >
                         <div
-                          className={`max-w-xs px-4 py-2 rounded-lg ${
-                            message.senderId === 1
-                              ? "bg-blue-600 text-white"
-                              : "bg-gray-200 text-gray-900"
+                          className={`max-w-[80%] px-4 py-3 rounded-2xl shadow-sm ${
+                            message.senderId !== selectedConversation.renterId
+                              ? "bg-blue-600 text-white rounded-tr-none"
+                              : "bg-white text-gray-900 border border-gray-200 rounded-tl-none"
                           }`}
                         >
-                          <p className="text-sm">{message.content}</p>
-                          <p
-                            className={`text-xs mt-1 ${
-                              message.senderId === 1
-                                ? "text-blue-100"
-                                : "text-gray-600"
-                            }`}
-                          >
-                            {new Date(message.createdAt).toLocaleTimeString()}
-                          </p>
+                          <p className="text-sm leading-relaxed font-medium">{message.content}</p>
+                          <div className="flex items-center justify-end gap-1 mt-1.5 opacity-70">
+                            <p className={`text-[10px] font-bold uppercase tracking-wider ${
+                              message.senderId !== selectedConversation.renterId ? "text-blue-100" : "text-gray-400"
+                            }`}>
+                              {formatDate(message.createdAt)}
+                            </p>
+                            {message.senderId !== selectedConversation.renterId && (
+                              <span className="flex items-center">
+                                {message.isRead ? (
+                                  <svg className="w-3.5 h-3.5 text-blue-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12" />
+                                    <polyline points="15 6 9 12 12 15" className="translate-x-3 -translate-y-3" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-3.5 h-3.5 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                )}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))
                   )}
+                  <div ref={messagesEndRef} />
                 </div>
 
                 {/* Message Input */}

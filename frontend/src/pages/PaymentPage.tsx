@@ -13,6 +13,7 @@ const PaymentPage = () => {
   const [booking, setBooking] = useState<BookingType | null>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success'>('idle')
   const [paymentMethod, setPaymentMethod] = useState<string>("")
 
   useEffect(() => {
@@ -39,11 +40,12 @@ const PaymentPage = () => {
 
     try {
       setProcessing(true)
+      setPaymentStatus('processing')
       
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Simulate payment processing delay for demo realism
+      await new Promise(resolve => setTimeout(resolve, 2500))
       
-      // Process payment
+      // Process payment in backend
       const response = await api.post("/bookings/payment", {
         bookingId: Number(bookingId),
         paymentMethod,
@@ -51,9 +53,14 @@ const PaymentPage = () => {
       
       console.log('Payment processed:', response.data)
       
+      // Show success state
+      setPaymentStatus('success')
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
       // Navigate to confirmation page
       navigate(`/booking-confirmation/${bookingId}`)
     } catch (error: any) {
+      setPaymentStatus('idle')
       console.error('Error processing payment:', error)
       alert(error.response?.data?.message || 'Payment failed. Please try again.')
     } finally {
@@ -84,7 +91,32 @@ const PaymentPage = () => {
   const finalAmount = booking.totalAmount + taxAmount
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 relative">
+      {/* Payment Processing Overlay */}
+      {(paymentStatus === 'processing' || paymentStatus === 'success') && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75 backdrop-blur-sm">
+          <Card className="p-10 text-center max-w-sm w-full shadow-2xl transform scale-110">
+            {paymentStatus === 'processing' ? (
+              <div className="space-y-6">
+                <div className="w-20 h-20 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <h3 className="text-2xl font-bold text-gray-900">Processing Payment...</h3>
+                <p className="text-gray-600">Please do not refresh the page or close your browser.</p>
+              </div>
+            ) : (
+              <div className="space-y-6 animate-bounce">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                  <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-green-600">Demo Payment Successful!</h3>
+                <p className="text-gray-900 font-medium">Confirming your booking...</p>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Payment Methods */}
@@ -102,18 +134,18 @@ const PaymentPage = () => {
                 
                 {/* Card Payment */}
                 <button
-                  onClick={() => setPaymentMethod('card')}
+                  onClick={() => setPaymentMethod('CARD')}
                   className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
-                    paymentMethod === 'card'
+                    paymentMethod === 'CARD'
                       ? 'border-blue-600 bg-blue-50'
                       : 'border-gray-200 hover:border-blue-300'
                   }`}
                 >
                   <div className="flex items-center">
                     <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center ${
-                      paymentMethod === 'card' ? 'border-blue-600' : 'border-gray-300'
+                      paymentMethod === 'CARD' ? 'border-blue-600' : 'border-gray-300'
                     }`}>
-                      {paymentMethod === 'card' && (
+                      {paymentMethod === 'CARD' && (
                         <div className="w-3 h-3 rounded-full bg-blue-600"></div>
                       )}
                     </div>
@@ -133,18 +165,18 @@ const PaymentPage = () => {
                 
                 {/* UPI Payment */}
                 <button
-                  onClick={() => setPaymentMethod('upi')}
+                  onClick={() => setPaymentMethod('UPI')}
                   className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
-                    paymentMethod === 'upi'
+                    paymentMethod === 'UPI'
                       ? 'border-blue-600 bg-blue-50'
                       : 'border-gray-200 hover:border-blue-300'
                   }`}
                 >
                   <div className="flex items-center">
                     <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center ${
-                      paymentMethod === 'upi' ? 'border-blue-600' : 'border-gray-300'
+                      paymentMethod === 'UPI' ? 'border-blue-600' : 'border-gray-300'
                     }`}>
-                      {paymentMethod === 'upi' && (
+                      {paymentMethod === 'UPI' && (
                         <div className="w-3 h-3 rounded-full bg-blue-600"></div>
                       )}
                     </div>
@@ -164,18 +196,18 @@ const PaymentPage = () => {
                 
                 {/* Online Banking */}
                 <button
-                  onClick={() => setPaymentMethod('online')}
+                  onClick={() => setPaymentMethod('ONLINE')}
                   className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
-                    paymentMethod === 'online'
+                    paymentMethod === 'ONLINE'
                       ? 'border-blue-600 bg-blue-50'
                       : 'border-gray-200 hover:border-blue-300'
                   }`}
                 >
                   <div className="flex items-center">
                     <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center ${
-                      paymentMethod === 'online' ? 'border-blue-600' : 'border-gray-300'
+                      paymentMethod === 'ONLINE' ? 'border-blue-600' : 'border-gray-300'
                     }`}>
-                      {paymentMethod === 'online' && (
+                      {paymentMethod === 'ONLINE' && (
                         <div className="w-3 h-3 rounded-full bg-blue-600"></div>
                       )}
                     </div>
@@ -195,18 +227,18 @@ const PaymentPage = () => {
                 
                 {/* Pay at Hotel */}
                 <button
-                  onClick={() => setPaymentMethod('cash')}
+                  onClick={() => setPaymentMethod('CASH')}
                   className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
-                    paymentMethod === 'cash'
+                    paymentMethod === 'CASH'
                       ? 'border-blue-600 bg-blue-50'
                       : 'border-gray-200 hover:border-blue-300'
                   }`}
                 >
                   <div className="flex items-center">
                     <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center ${
-                      paymentMethod === 'cash' ? 'border-blue-600' : 'border-gray-300'
+                      paymentMethod === 'CASH' ? 'border-blue-600' : 'border-gray-300'
                     }`}>
-                      {paymentMethod === 'cash' && (
+                      {paymentMethod === 'CASH' && (
                         <div className="w-3 h-3 rounded-full bg-blue-600"></div>
                       )}
                     </div>
@@ -257,14 +289,44 @@ const PaymentPage = () => {
               {/* Room Image */}
               {booking.room && (
                 <>
-                  <div className="mb-4 rounded-lg overflow-hidden">
-                    <img
-                      src={booking.room.images && booking.room.images.length > 0 
-                        ? booking.room.images[0] 
-                        : 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800'}
-                      alt={booking.room.title}
-                      className="w-full h-40 object-cover"
-                    />
+                  <div className="mb-4 rounded-lg overflow-hidden border border-gray-200 shadow-inner bg-gray-100">
+                    {(() => {
+                      let imageUrl = 'https://images.unsplash.com/photo-1555854817-5b2738f751a1?w=800'; // Default Modern Hostel
+                      
+                      try {
+                        if (booking.room.images) {
+                          const images = typeof booking.room.images === 'string' 
+                            ? JSON.parse(booking.room.images) 
+                            : booking.room.images;
+                          
+                          if (Array.isArray(images) && images.length > 0) {
+                            imageUrl = images[0];
+                          }
+                        }
+                      } catch (e) {
+                        console.warn("Failed to parse room images:", e);
+                      }
+
+                      // Room specific fallbacks for demo realism
+                      if (imageUrl.includes('unsplash') || !imageUrl) {
+                        if (booking.room.title.toLowerCase().includes('ac')) {
+                          imageUrl = 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800'; // Luxury AC Room
+                        } else if (booking.room.title.toLowerCase().includes('suite')) {
+                          imageUrl = 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800'; // Suite
+                        }
+                      }
+
+                      return (
+                        <img
+                          src={imageUrl}
+                          alt={booking.room.title}
+                          className="w-full h-44 object-cover transition-transform duration-500 hover:scale-105"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1555854817-5b2738f751a1?w=800';
+                          }}
+                        />
+                      );
+                    })()}
                   </div>
                   
                   {/* Room Details */}

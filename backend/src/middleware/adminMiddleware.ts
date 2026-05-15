@@ -25,7 +25,7 @@ export const adminOnly = async (
       })
     }
 
-    if (user.role !== "admin") {
+    if (user.role !== "ADMIN") {
       return res.status(403).json({
         message: "Admin access only",
       })

@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router-dom"
 import RootLayout from "../layouts/RootLayout"
 import MainLayout from "../layouts/MainLayout"
+import DashboardLayout from "../layouts/DashboardLayout"
 import ProtectedRoute from "./ProtectedRoute"
 import HomePage from "../pages/HomePage"
 import RoomsPage from "../pages/RoomsPage"
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       {
+        // Public Layout with Footer
         path: "/",
         element: <MainLayout />,
         children: [
@@ -39,6 +41,13 @@ export const router = createBrowserRouter([
           { path: "/contact", element: <ContactPage /> },
           { path: "/login", element: <LoginPageV2 /> },
           { path: "/register", element: <RegisterPageV2 /> },
+        ]
+      },
+      {
+        // Dashboard Layout WITHOUT Footer
+        path: "/",
+        element: <DashboardLayout />,
+        children: [
           {
             path: "/dashboard",
             element: (

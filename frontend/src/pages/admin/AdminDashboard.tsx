@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import api from "../../services/api"
+import api from "../../services/apiV2"
 import type { DashboardStats } from "../../types/dashboard"
 import Card from "../../components/ui/Card"
 import Badge from "../../components/ui/Badge"
@@ -283,9 +283,9 @@ const AdminDashboard = () => {
                       <td className="py-3 px-4">
                         <Badge 
                           variant={
-                            booking.status === 'confirmed' ? 'success' :
-                            booking.status === 'pending' ? 'warning' :
-                            booking.status === 'cancelled' ? 'danger' : 'secondary'
+                            booking.status === 'CONFIRMED' ? 'success' :
+                            booking.status === 'PENDING' ? 'warning' :
+                            booking.status === 'CANCELLED' ? 'danger' : 'secondary'
                           }
                           size="sm"
                         >

@@ -8,6 +8,7 @@ import {
   getRefreshTokenExpiry,
 } from "../utils/jwt.js"
 import type { AuthRequest } from "../middleware/authMiddleware.js"
+import { UserRole } from "@prisma/client"
 
 // ==========================================
 // REGISTER USER
@@ -35,7 +36,7 @@ export const register = async (req: Request, res: Response) => {
     }
 
     // Always register as user (not admin)
-    const userRole = "user"
+    const userRole = UserRole.USER
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10)

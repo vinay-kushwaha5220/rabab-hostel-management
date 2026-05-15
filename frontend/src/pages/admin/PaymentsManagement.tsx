@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import api from "../../services/api"
+import api from "../../services/apiV2"
 import type { BookingType } from "../../types/booking"
 
 const PaymentsManagement = () => {

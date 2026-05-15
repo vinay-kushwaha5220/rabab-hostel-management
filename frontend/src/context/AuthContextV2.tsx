@@ -149,7 +149,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const redirectUrl = searchParams.get("redirect")
 
       // Redirect based on role and redirect URL
-      if (userData.role === "admin") {
+      if (userData.role === "ADMIN") {
         navigate("/admin/dashboard")
       } else if (redirectUrl) {
         // Redirect to the page user was trying to access (e.g., booking page)

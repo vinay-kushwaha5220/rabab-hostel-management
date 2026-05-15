@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { useAuth } from "../context/AuthContext"
-import api from "../services/api"
+import { useAuth } from "../context/AuthContextV2"
+import api from "../services/apiV2"
 import type { BookingType } from "../types/booking"
 
 const UserDashboard = () => {
@@ -25,8 +25,8 @@ const UserDashboard = () => {
     }
   }
 
-  const activeBookings = bookings.filter(b => b.status === "confirmed")
-  const pastBookings = bookings.filter(b => b.status === "completed" || b.status === "cancelled")
+  const activeBookings = bookings.filter(b => b.status === "CONFIRMED" || b.status === "PENDING")
+  const pastBookings = bookings.filter(b => b.status === "COMPLETED" || b.status === "CANCELLED")
 
   if (loading) {
     return (
@@ -95,7 +95,7 @@ const UserDashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <button
             onClick={() => navigate("/rooms")}
             className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow text-left group"
@@ -126,23 +126,6 @@ const UserDashboard = () => {
               <div>
                 <h3 className="font-semibold text-gray-900">Contact Admin</h3>
                 <p className="text-sm text-gray-600">Get help & support</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => navigate("/profile")}
-            className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow text-left group"
-          >
-            <div className="flex items-center gap-4">
-              <div className="bg-purple-100 p-3 rounded-full group-hover:bg-purple-200 transition-colors">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">My Profile</h3>
-                <p className="text-sm text-gray-600">Update your details</p>
               </div>
             </div>
           </button>
@@ -220,11 +203,10 @@ const UserDashboard = () => {
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                          booking.status === "completed" 
-                            ? "bg-gray-100 text-gray-800" 
+                        <span className={`text-xs font-semibold px-3 py-1 rounded-full ${booking.status === "COMPLETED"
+                            ? "bg-gray-100 text-gray-800"
                             : "bg-red-100 text-red-800"
-                        }`}>
+                          }`}>
                           {booking.status.toUpperCase()}
                         </span>
                         <span className="text-gray-600 text-sm">Booking ID: {booking.bookingId}</span>

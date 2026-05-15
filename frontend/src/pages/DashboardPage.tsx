@@ -9,13 +9,13 @@ const DashboardPage = () => {
 
   // Redirect admin users to admin dashboard
   useEffect(() => {
-    if (user?.role === "admin") {
+    if (user?.role === "ADMIN") {
       navigate("/admin/dashboard")
     }
   }, [user, navigate])
 
   // Show user dashboard for regular users
-  if (user?.role === "user") {
+  if (user?.role === "USER") {
     return <UserDashboard />
   }
 

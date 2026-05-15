@@ -37,6 +37,7 @@ export const protect = async (
     // Verify access token
     try {
       const decoded = verifyAccessToken(token)
+      console.log("🔍 DEBUG: Decoded token:", decoded)
 
       // Attach user info to request
       req.userId = decoded.userId
@@ -44,6 +45,7 @@ export const protect = async (
 
       next()
     } catch (error) {
+      console.error("❌ Token verification failed:", error)
       return res.status(401).json({
         message: "Invalid or expired token. Please refresh your token.",
         code: "TOKEN_EXPIRED",
@@ -65,7 +67,8 @@ export const adminOnly = (
   res: Response,
   next: NextFunction
 ) => {
-  if (req.userRole !== "admin") {
+  console.log("🔍 DEBUG adminOnly - Role:", req.userRole)
+  if (req.userRole !== "ADMIN") {
     return res.status(403).json({
       message: "Access denied. Admin only.",
     })
@@ -81,7 +84,8 @@ export const renterOnly = (
   res: Response,
   next: NextFunction
 ) => {
-  if (req.userRole !== "user") {
+  console.log("🔍 DEBUG renterOnly - Role:", req.userRole)
+  if (req.userRole !== "USER") {
     return res.status(403).json({
       message: "Access denied. Renter/User only.",
     })
@@ -96,9 +100,10 @@ export const renterOnly = (
 export const adminOrOwner = (resourceUserIdParam: string = "id") => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     const resourceUserId = parseInt(req.params[resourceUserIdParam])
+    console.log(`🔍 DEBUG adminOrOwner - User: ${req.userId}, Role: ${req.userRole}, Target: ${resourceUserId}`)
     
     // Allow if admin
-    if (req.userRole === "admin") {
+    if (req.userRole === "ADMIN") {
       return next()
     }
 

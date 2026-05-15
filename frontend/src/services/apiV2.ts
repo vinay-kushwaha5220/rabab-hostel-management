@@ -130,6 +130,15 @@ api.interceptors.response.use(
       }
     }
 
+    // NEW: Handle generic 401 errors (e.g., Invalid Token)
+    if (error.response?.status === 401) {
+      localStorage.removeItem("accessToken")
+      localStorage.removeItem("user")
+      if (!window.location.pathname.includes("/login")) {
+        window.location.href = "/login"
+      }
+    }
+
     // For other errors, reject
     return Promise.reject(error)
   }

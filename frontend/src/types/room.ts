@@ -4,10 +4,11 @@ export type RoomType = {
   title: string
   description: string
   price: number
-  roomType: "AC" | "Non-AC"
-  bookingType: "Daily" | "Monthly"
+  roomType: "AC" | "NON_AC"
+  bookingType: "DAILY" | "MONTHLY"
   floor: number
   capacity: number
+  currentOccupancy: number
   isAvailable: boolean
   images: string[]
   amenities: string[]

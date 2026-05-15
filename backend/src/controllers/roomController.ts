@@ -5,6 +5,7 @@ import type {
 
 import prisma from "../config/prisma.js"
 import type { AuthRequest } from "../middleware/authMiddleware.js"
+import { RoomType, BookingType } from "@prisma/client"
 
 
 
@@ -48,8 +49,8 @@ export const createRoom = async (
         title,
         description,
         price: Number(price),
-        roomType,
-        bookingType,
+        roomType: roomType as RoomType,
+        bookingType: bookingType as BookingType,
         floor: Number(floor),
         capacity: Number(capacity),
         isAvailable: true,
@@ -207,8 +208,8 @@ export const updateRoom = async (
         title: title || room.title,
         description: description || room.description,
         price: price ? Number(price) : room.price,
-        roomType: roomType || room.roomType,
-        bookingType: bookingType || room.bookingType,
+        roomType: (roomType as RoomType) || room.roomType,
+        bookingType: (bookingType as BookingType) || room.bookingType,
         floor: floor ? Number(floor) : room.floor,
         capacity: capacity ? Number(capacity) : room.capacity,
         isAvailable: isAvailable !== undefined ? isAvailable : room.isAvailable,

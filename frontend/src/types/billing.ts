@@ -9,8 +9,22 @@ export interface MonthlyBill {
   dueDate: string
   isPaid: boolean
   paidDate?: string
+  status: "PENDING" | "PAID_ONLINE" | "PAID_CASH" | "OVERDUE" | "VERIFICATION_PENDING"
+  verificationStatus: "PENDING" | "VERIFIED" | "REJECTED"
   createdAt: string
   updatedAt: string
+  booking?: {
+    id: number
+    bookingId: string
+    customerName: string
+    room: {
+      roomNumber: string
+    }
+    user: {
+      name: string
+      email: string
+    }
+  }
 }
 
 export interface Message {
@@ -39,9 +53,10 @@ export interface Payment {
   bookingId: number
   monthlyBillId?: number
   amount: number
-  paymentMethod: string
+  paymentMethod: "CASH" | "UPI" | "CARD" | "BANK_TRANSFER" | "ONLINE"
   transactionId?: string
-  paymentStatus: string
+  paymentStatus: "PENDING" | "SUCCESS" | "FAILED" | "REFUNDED" | "VERIFICATION_PENDING"
+  verificationStatus?: "PENDING" | "VERIFIED" | "REJECTED"
   createdAt: string
   updatedAt: string
 }
