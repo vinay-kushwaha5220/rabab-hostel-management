@@ -20,7 +20,7 @@ const RentersManagement = () => {
       const response = await api.get("/bookings")
       // Filter only confirmed bookings (active renters)
       const activeRenters = response.data.filter(
-        (booking: BookingType) => booking.status === "confirmed"
+        (booking: BookingType) => booking.status === "CONFIRMED"
       )
       setRenters(activeRenters)
     } catch (error) {
@@ -33,14 +33,14 @@ const RentersManagement = () => {
   const calculateDueAmount = (booking: BookingType) => {
     // For now, assuming full amount is paid on booking
     // In real scenario, you'd track advance and remaining separately
-    return booking.paymentStatus === "paid" ? 0 : booking.totalAmount
+    return booking.paymentStatus === "SUCCESS" ? 0 : booking.totalAmount
   }
 
   const filteredRenters = renters.filter(renter => {
     // Filter by booking type
-    if (filter === "daily" && renter.room?.bookingType !== "Daily") return false
-    if (filter === "monthly" && renter.room?.bookingType !== "Monthly") return false
-    if (filter === "pending-payment" && renter.paymentStatus === "paid") return false
+    if (filter === "daily" && renter.room?.bookingType !== "DAILY") return false
+    if (filter === "monthly" && renter.room?.bookingType !== "MONTHLY") return false
+    if (filter === "pending-payment" && renter.paymentStatus === "SUCCESS") return false
     
     // Search
     if (search) {
@@ -81,19 +81,19 @@ const RentersManagement = () => {
           </div>
           <div className="bg-white p-4 rounded border border-gray-200">
             <div className="text-2xl font-bold text-blue-600">
-              {renters.filter(r => r.room?.bookingType === "Daily").length}
+              {renters.filter(r => r.room?.bookingType === "DAILY").length}
             </div>
             <div className="text-sm text-gray-600">Daily Renters</div>
           </div>
           <div className="bg-white p-4 rounded border border-gray-200">
             <div className="text-2xl font-bold text-purple-600">
-              {renters.filter(r => r.room?.bookingType === "Monthly").length}
+              {renters.filter(r => r.room?.bookingType === "MONTHLY").length}
             </div>
             <div className="text-sm text-gray-600">Monthly Renters</div>
           </div>
           <div className="bg-white p-4 rounded border border-gray-200">
             <div className="text-2xl font-bold text-red-600">
-              {renters.filter(r => r.paymentStatus !== "paid").length}
+              {renters.filter(r => r.paymentStatus !== "SUCCESS").length}
             </div>
             <div className="text-sm text-gray-600">Pending Payments</div>
           </div>
@@ -125,7 +125,7 @@ const RentersManagement = () => {
                 filter === "daily" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Daily ({renters.filter(r => r.room?.bookingType === "Daily").length})
+              Daily ({renters.filter(r => r.room?.bookingType === "DAILY").length})
             </button>
             <button
               onClick={() => setFilter("monthly")}
@@ -133,7 +133,7 @@ const RentersManagement = () => {
                 filter === "monthly" ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Monthly ({renters.filter(r => r.room?.bookingType === "Monthly").length})
+              Monthly ({renters.filter(r => r.room?.bookingType === "MONTHLY").length})
             </button>
             <button
               onClick={() => setFilter("pending-payment")}
@@ -141,7 +141,7 @@ const RentersManagement = () => {
                 filter === "pending-payment" ? "bg-red-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Pending Payment ({renters.filter(r => r.paymentStatus !== "paid").length})
+              Pending Payment ({renters.filter(r => r.paymentStatus !== "SUCCESS").length})
             </button>
           </div>
         </div>
@@ -195,7 +195,7 @@ const RentersManagement = () => {
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          renter.room?.bookingType === "Daily" 
+                          renter.room?.bookingType === "DAILY" 
                             ? "bg-blue-100 text-blue-800" 
                             : "bg-purple-100 text-purple-800"
                         }`}>
@@ -213,7 +213,7 @@ const RentersManagement = () => {
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          renter.paymentStatus === 'paid' 
+                          renter.paymentStatus === 'SUCCESS' 
                             ? 'bg-green-100 text-green-800' 
                             : 'bg-red-100 text-red-800'
                         }`}>

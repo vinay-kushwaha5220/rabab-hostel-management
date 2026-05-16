@@ -1,7 +1,7 @@
 import type { Request, Response } from "express"
 import prisma from "../config/prisma.js"
 import type { AuthRequest } from "../middleware/authMiddleware.js"
-import { MonthlyBillStatus, VerificationStatus, PaymentStatus, PaymentMethod, NotificationType, NotificationPriority, UserRole, BookingStatus } from "@prisma/client"
+import { MonthlyBillStatus, VerificationStatus, PaymentStatus, PaymentMethod, NotificationType, NotificationPriority, UserRole, BookingStatus, StayStatus } from "@prisma/client"
 
 // ==========================================
 // CREATE MONTHLY BILL (Admin)
@@ -110,7 +110,7 @@ export const createMonthlyBill = async (req: AuthRequest, res: Response) => {
       data: {
         bookingId: actualBookingId,
         title: "Monthly Bill Added",
-        message: `Your monthly bill for ${month} has been added. Total due: ₹${totalAmount}`,
+        message: `Your monthly bill for ${month} has been added. Total due: ₹${totalDue}`,
         type: NotificationType.BILL,
         priority: NotificationPriority.MEDIUM,
       },
@@ -237,10 +237,10 @@ export const generateBulkMonthlyBills = async (req: AuthRequest, res: Response) 
 export const getMonthlyBill = async (req: AuthRequest, res: Response) => {
   try {
     const { billId } = req.params
-    const userId = req.userId
+    const userId = Number(req.userId)
 
     const bill = await prisma.monthlyBill.findUnique({
-      where: { id: parseInt(billId) },
+      where: { id: parseInt(String(billId)) },
       include: {
         booking: {
           include: {
@@ -285,7 +285,7 @@ export const getMonthlyBill = async (req: AuthRequest, res: Response) => {
 // ==========================================
 export const getRenterMonthlyBills = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.userId
+    const userId = Number(req.userId)
 
     const bills = await prisma.monthlyBill.findMany({
       where: {
@@ -402,7 +402,7 @@ export const updateMonthlyBill = async (req: AuthRequest, res: Response) => {
     const { rentAmount, electricityAmount, extraCharges, dueDate } = req.body
 
     const bill = await prisma.monthlyBill.findUnique({
-      where: { id: parseInt(billId) },
+      where: { id: parseInt(String(billId)) },
     })
 
     if (!bill) {
@@ -417,7 +417,7 @@ export const updateMonthlyBill = async (req: AuthRequest, res: Response) => {
       (extraCharges || bill.extraCharges)
 
     const updatedBill = await prisma.monthlyBill.update({
-      where: { id: parseInt(billId) },
+      where: { id: parseInt(String(billId)) },
       data: {
         rentAmount: rentAmount || bill.rentAmount,
         electricityAmount: electricityAmount || bill.electricityAmount,
@@ -459,7 +459,7 @@ export const deleteMonthlyBill = async (req: AuthRequest, res: Response) => {
     const { billId } = req.params
 
     const bill = await prisma.monthlyBill.findUnique({
-      where: { id: parseInt(billId) },
+      where: { id: parseInt(String(billId)) },
     })
 
     if (!bill) {
@@ -469,7 +469,7 @@ export const deleteMonthlyBill = async (req: AuthRequest, res: Response) => {
     }
 
     await prisma.monthlyBill.delete({
-      where: { id: parseInt(billId) },
+      where: { id: parseInt(String(billId)) },
     })
 
     console.log(`✅ Monthly bill deleted: ${billId}`)
@@ -569,7 +569,7 @@ export const verifyMonthlyPayment = async (req: AuthRequest, res: Response) => {
 
 export const getRenterDashboardData = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.userId
+    const userId = Number(req.userId)
 
     // Get active booking
     const activeBooking = await prisma.booking.findFirst({

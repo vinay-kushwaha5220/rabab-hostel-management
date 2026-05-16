@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContextV2"
 import api from "../services/apiV2"
@@ -279,7 +279,7 @@ const BookingPage = () => {
                           <h3 className="text-xs font-bold">Best for Long Stay: Monthly Discount Applied</h3>
                         </div>
                       </div>
-                      <Badge variant="white" size="sm" className="bg-white/20 border-none text-white">SAVE 25%</Badge>
+                      <Badge variant="secondary" size="sm" className="bg-white/20 border-none text-white">SAVE 25%</Badge>
                     </div>
                   )}
                 </section>

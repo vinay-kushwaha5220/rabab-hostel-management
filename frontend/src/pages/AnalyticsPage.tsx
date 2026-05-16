@@ -1,12 +1,12 @@
 import { useEffect, useState, useMemo } from "react"
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   AreaChart, Area, PieChart, Pie, Cell
 } from 'recharts'
 import { 
   IndianRupee, Home, Users, LayoutDashboard, Clock, 
-  CreditCard, Banknote, ShieldCheck, Zap, Building2,
-  TrendingUp, ArrowUpRight, ArrowDownRight
+  Banknote, ShieldCheck, Zap, Building2,
+  TrendingUp, ArrowUpRight
 } from 'lucide-react'
 import api from "../services/apiV2"
 import { billingService } from "../services/billingService"
@@ -17,7 +17,42 @@ import Card from "../components/ui/Card"
 import Badge from "../components/ui/Badge"
 import LoadingSpinner from "../components/ui/LoadingSpinner"
 
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
+const BookingStatus = {
+  PENDING: 'PENDING',
+  CONFIRMED: 'CONFIRMED',
+  CANCELLED: 'CANCELLED',
+  COMPLETED: 'COMPLETED'
+} as const;
+
+const PaymentStatus = {
+  PENDING: 'PENDING',
+  SUCCESS: 'SUCCESS',
+  FAILED: 'FAILED'
+} as const;
+
+const PaymentMethod = {
+  CASH: 'CASH',
+  ONLINE: 'ONLINE'
+} as const;
+
+const BookingTypeEnum = {
+  DAILY: 'DAILY',
+  MONTHLY: 'MONTHLY'
+} as const;
+
+const BillStatus = {
+  PENDING: 'PENDING',
+  PARTIAL: 'PARTIAL',
+  PAID_ONLINE: 'PAID_ONLINE',
+  PAID_CASH: 'PAID_CASH',
+  OVERDUE: 'OVERDUE',
+  VERIFICATION_PENDING: 'VERIFICATION_PENDING'
+} as const;
+
+const RoomTypeEnum = {
+  AC: 'AC',
+  NON_AC: 'NON_AC'
+} as const;
 
 const AnalyticsPage = () => {
   const [loading, setLoading] = useState(true)
@@ -55,34 +90,37 @@ const AnalyticsPage = () => {
     const bookedRooms = rooms.filter(r => !r.isAvailable).length
     const availableRooms = totalRooms - bookedRooms
 
-    const acBooked = rooms.filter(r => r.roomType === "AC" && !r.isAvailable).length
-    const nonAcBooked = rooms.filter(r => r.roomType === "NON_AC" && !r.isAvailable).length
+    const acBooked = rooms.filter(r => r.roomType === RoomTypeEnum.AC && !r.isAvailable).length
+    const nonAcBooked = rooms.filter(r => r.roomType === RoomTypeEnum.NON_AC && !r.isAvailable).length
 
     const floor1Booked = rooms.filter(r => r.floor === 1 && !r.isAvailable).length
     const floor2Booked = rooms.filter(r => r.floor === 2 && !r.isAvailable).length
 
-    const dailyBookings = bookings.filter(b => b.bookingType === "DAILY" && b.status === "CONFIRMED").length
-    const monthlyBookings = bookings.filter(b => b.bookingType === "MONTHLY" && b.status === "CONFIRMED").length
+    const dailyBookings = bookings.filter(b => b?.bookingType === BookingTypeEnum.DAILY && b?.status === BookingStatus.CONFIRMED).length
+    const monthlyBookings = bookings.filter(b => b?.bookingType === BookingTypeEnum.MONTHLY && b?.status === BookingStatus.CONFIRMED).length
 
     let onlinePay = 0
     let cashPay = 0
     bookings.forEach(b => {
-      if (b.paymentStatus === "SUCCESS" && b.payment?.[0]) {
-        if (b.payment[0].paymentMethod === "CASH") cashPay += b.totalAmount
-        else onlinePay += b.totalAmount
+      if (b?.paymentStatus === PaymentStatus.SUCCESS && b?.payment?.[0]) {
+        if (b.payment[0]?.paymentMethod === PaymentMethod.CASH) cashPay += (b?.totalAmount || 0)
+        else onlinePay += (b?.totalAmount || 0)
       }
     })
     const pendingPay = bookings
-      .filter(b => b.paymentStatus === "PENDING" && b.status !== "CANCELLED")
-      .reduce((sum, b) => sum + b.totalAmount, 0)
+      .filter(b => b?.paymentStatus === PaymentStatus.PENDING && b?.status !== BookingStatus.CANCELLED)
+      .reduce((sum, b) => sum + (b?.totalAmount || 0), 0)
 
-    const collectedBills = bills.filter(b => b.status === "PAID").reduce((s, b) => s + b.rentAmount, 0)
-    const pendingBills = bills.filter(b => b.status !== "PAID").reduce((s, b) => s + b.rentAmount, 0)
+    const isBillPaid = (status: string | undefined) => status === BillStatus.PAID_ONLINE || status === BillStatus.PAID_CASH
 
-    const monthData = bills.reduce((acc: any, bill) => {
+    const collectedBills = bills.filter(b => isBillPaid(b?.status)).reduce((s, b) => s + (b?.rentAmount || 0), 0)
+    const pendingBills = bills.filter(b => !isBillPaid(b?.status)).reduce((s, b) => s + (b?.rentAmount || 0), 0)
+
+    const monthData = bills.reduce<Record<string, { month: string; collected: number; total: number }>>((acc, bill) => {
+      if (!bill || !bill.month) return acc
       acc[bill.month] = acc[bill.month] || { month: bill.month, collected: 0, total: 0 }
-      acc[bill.month].total += bill.rentAmount
-      if (bill.status === "PAID") acc[bill.month].collected += bill.rentAmount
+      acc[bill.month].total += (bill.rentAmount || 0)
+      if (isBillPaid(bill.status)) acc[bill.month].collected += (bill.rentAmount || 0)
       return acc
     }, {})
     const collectionTrend = Object.values(monthData).sort((a: any, b: any) => a.month.localeCompare(b.month))
@@ -261,9 +299,9 @@ const AnalyticsPage = () => {
         <Card className="p-8 border-none shadow-xl shadow-slate-200/50 bg-white lg:col-span-1">
           <h2 className="text-lg font-black text-slate-900 tracking-tight mb-8">Stay Dynamics</h2>
           <div className="flex flex-col h-full justify-around py-2">
-            <StayRow label="Monthly Stays" count={stats.monthlyBookings} icon={<Building2 className="w-5 h-5 text-indigo-500" />} color="indigo" />
+            <StayRow label="Monthly Stays" count={stats.monthlyBookings} icon={<Building2 className="w-5 h-5 text-indigo-500" />} />
             <div className="h-px bg-slate-50 w-full my-4"></div>
-            <StayRow label="Daily Bookings" count={stats.dailyBookings} icon={<Clock className="w-5 h-5 text-emerald-500" />} color="emerald" />
+            <StayRow label="Daily Bookings" count={stats.dailyBookings} icon={<Clock className="w-5 h-5 text-emerald-500" />} />
           </div>
         </Card>
 
@@ -276,7 +314,17 @@ const AnalyticsPage = () => {
 // PREMIUM SUB-COMPONENTS
 // ==========================================
 
-const PremiumStatCard = ({ label, value, subValue, icon, progress, trend, color }: any) => {
+interface PremiumStatCardProps {
+  label: string;
+  value: string | number;
+  subValue: string;
+  icon: React.ReactNode;
+  progress?: number;
+  trend?: string;
+  color: 'indigo' | 'emerald' | 'blue' | 'purple' | 'orange';
+}
+
+const PremiumStatCard = ({ label, value, subValue, icon, progress, trend, color }: PremiumStatCardProps) => {
   const colorMap: any = {
     indigo: "bg-indigo-50 text-indigo-600",
     emerald: "bg-emerald-50 text-emerald-600",
@@ -313,7 +361,13 @@ const PremiumStatCard = ({ label, value, subValue, icon, progress, trend, color 
   )
 }
 
-const DensityRow = ({ label, count, color }: any) => (
+interface DensityRowProps {
+  label: string;
+  count: number;
+  color: string;
+}
+
+const DensityRow = ({ label, count, color }: DensityRowProps) => (
   <div className="flex items-center justify-between">
     <div className="flex items-center gap-3">
       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }}></div>
@@ -323,7 +377,14 @@ const DensityRow = ({ label, count, color }: any) => (
   </div>
 )
 
-const ChannelCard = ({ label, amount, icon, color }: any) => {
+interface ChannelCardProps {
+  label: string;
+  amount: number;
+  icon: React.ReactNode;
+  color: 'emerald' | 'blue' | 'orange';
+}
+
+const ChannelCard = ({ label, amount, icon, color }: ChannelCardProps) => {
   const colorMap: any = {
     emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
     blue: "bg-blue-50 text-blue-600 border-blue-100",
@@ -340,7 +401,14 @@ const ChannelCard = ({ label, amount, icon, color }: any) => {
   )
 }
 
-const FloorRow = ({ floor, booked, total, color }: any) => (
+interface FloorRowProps {
+  floor: string;
+  booked: number;
+  total: number;
+  color: 'indigo' | 'blue';
+}
+
+const FloorRow = ({ floor, booked, total, color }: FloorRowProps) => (
   <div className="group">
     <div className="flex justify-between items-end mb-2">
       <div className="flex items-center gap-2">
@@ -358,7 +426,13 @@ const FloorRow = ({ floor, booked, total, color }: any) => (
   </div>
 )
 
-const StayRow = ({ label, count, icon, color }: any) => (
+interface StayRowProps {
+  label: string;
+  count: number;
+  icon: React.ReactNode;
+}
+
+const StayRow = ({ label, count, icon }: StayRowProps) => (
   <div className="flex items-center justify-between group cursor-default">
     <div className="flex items-center gap-4">
       <div className={`p-3 rounded-2xl bg-white shadow-md border border-slate-50 group-hover:scale-110 transition-all duration-300`}>

@@ -6,6 +6,39 @@ import Badge from "../../components/ui/Badge"
 import Card from "../../components/ui/Card"
 import LoadingSpinner from "../../components/ui/LoadingSpinner"
 
+type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'primary' | 'secondary'
+
+const getStatusVariant = (status: string | undefined): BadgeVariant => {
+  switch (status) {
+    case 'CONFIRMED': return 'success'
+    case 'PENDING': return 'warning'
+    case 'CANCELLED': return 'danger'
+    case 'COMPLETED': return 'primary'
+    default: return 'secondary'
+  }
+}
+
+const getPaymentStatusVariant = (status: string | undefined): BadgeVariant => {
+  switch (status) {
+    case 'SUCCESS': return 'success'
+    case 'PENDING': return 'warning'
+    case 'FAILED': return 'danger'
+    case 'OVERDUE': return 'warning'
+    case 'REFUNDED': return 'info'
+    default: return 'secondary'
+  }
+}
+
+const getStayStatusVariant = (status: string | undefined): BadgeVariant => {
+  switch (status) {
+    case 'CHECKED_IN': return 'success'
+    case 'CHECKED_OUT': return 'secondary'
+    case 'NO_SHOW': return 'danger'
+    case 'BOOKED': return 'warning'
+    default: return 'warning'
+  }
+}
+
 const BookingsManagement = () => {
   const navigate = useNavigate()
   const [bookings, setBookings] = useState<BookingType[]>([])
@@ -59,15 +92,6 @@ const BookingsManagement = () => {
     }
   }
 
-  const confirmBooking = async (bookingId: number) => {
-    if (!confirm('Mark this booking as paid and confirmed?')) return
-    try {
-      await api.put(`/bookings/${bookingId}/confirm`)
-      fetchBookings()
-    } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to confirm')
-    }
-  }
 
   const checkInBooking = async (bookingId: number) => {
     try {
@@ -285,7 +309,7 @@ const BookingsManagement = () => {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <Badge 
-                          variant={booking.status === 'CONFIRMED' ? 'success' : (booking.status === 'PENDING' ? 'warning' : 'error')}
+                          variant={getStatusVariant(booking.status)}
                           size="sm"
                           className="text-[8px] px-1.5 font-black"
                         >
@@ -294,7 +318,7 @@ const BookingsManagement = () => {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <Badge 
-                          variant={booking.paymentStatus === 'SUCCESS' ? 'success' : (booking.paymentStatus === 'PENDING' ? 'warning' : 'error')}
+                          variant={getPaymentStatusVariant(booking.paymentStatus)}
                           size="sm"
                           className="text-[8px] px-1.5 font-black"
                         >
@@ -303,7 +327,7 @@ const BookingsManagement = () => {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <Badge 
-                          variant={booking.stayStatus === 'CHECKED_OUT' ? 'info' : (booking.stayStatus === 'CHECKED_IN' ? 'success' : 'warning')}
+                          variant={getStayStatusVariant(booking.stayStatus || 'BOOKED')}
                           size="sm"
                           className="text-[8px] px-1.5 font-black"
                         >

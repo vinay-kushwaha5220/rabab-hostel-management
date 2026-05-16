@@ -40,13 +40,13 @@ const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
           <div className="px-2 py-0.5 bg-black/60 backdrop-blur-md rounded text-[9px] font-black text-white uppercase tracking-wider shadow-sm">
             #{room.roomNumber}
           </div>
-          <Badge variant={room.roomType === 'AC' ? 'info' : 'secondary'} size="sm" className="border-none shadow-md">
+          <Badge variant={(room.roomType === 'AC' ? 'info' : 'secondary') as 'info' | 'secondary'} size="sm" className="border-none shadow-md">
             {room.roomType === 'AC' ? 'AC' : 'Non AC'}
           </Badge>
         </div>
 
         <div className="absolute top-3 right-3 z-10">
-          <Badge variant={isAvailable ? 'success' : 'danger'} size="sm" className="shadow-md">
+          <Badge variant={(isAvailable ? 'success' : 'danger') as 'success' | 'danger'} size="sm" className="shadow-md">
             {isAvailable ? 'Available' : isFull ? 'Full' : 'Maintenance'}
           </Badge>
         </div>

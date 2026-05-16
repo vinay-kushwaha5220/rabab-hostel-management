@@ -596,7 +596,7 @@ export const renewMonthlyStay = async (req: AuthRequest, res: Response) => {
         bookingId: booking.id,
         title: "Stay Renewed",
         message: `Your stay has been extended by 30 days. New checkout: ${newCheckOut.toLocaleDateString()}`,
-        type: NotificationType.INFO,
+        type: NotificationType.BOOKING,
         priority: NotificationPriority.MEDIUM
       }
     })
