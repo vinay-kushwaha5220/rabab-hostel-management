@@ -92,6 +92,17 @@ const BookingsManagement = () => {
     }
   }
 
+  const confirmBookingPayment = async (bookingId: number) => {
+    if (!confirm('Verify payment and confirm this booking?')) return
+    try {
+      await api.put(`/bookings/${bookingId}/confirm`)
+      alert('Payment verified and booking confirmed successfully!')
+      fetchBookings()
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Failed to verify payment')
+    }
+  }
+
 
   const checkInBooking = async (bookingId: number) => {
     try {
@@ -342,6 +353,14 @@ const BookingsManagement = () => {
                           >
                             View
                           </button>
+                          {booking.status === 'PENDING' && booking.paymentStatus === 'PENDING' && (
+                            <button
+                              onClick={() => confirmBookingPayment(booking.id)}
+                              className="bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
+                            >
+                              Verify Payment
+                            </button>
+                          )}
                           {booking.status === 'CONFIRMED' && booking.stayStatus !== 'CHECKED_IN' && booking.stayStatus !== 'CHECKED_OUT' && (
                             <button
                               onClick={() => checkInBooking(booking.id)}
@@ -375,7 +394,7 @@ const BookingsManagement = () => {
                               Restore Stay
                             </button>
                           )}
-                          {booking.status === 'CONFIRMED' && booking.stayStatus === 'CHECKED_IN' && booking.room?.bookingType === 'MONTHLY' && (
+                          {booking.status === 'CONFIRMED' && booking.stayStatus === 'CHECKED_IN' && booking.bookingType === 'MONTHLY' && (
                             <button
                               onClick={() => handleRenewStay(booking.id)}
                               className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-all"

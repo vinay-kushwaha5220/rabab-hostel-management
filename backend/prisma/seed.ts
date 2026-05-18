@@ -1,9 +1,30 @@
 import { PrismaClient, RoomType, BookingType } from '@prisma/client'
 const prisma = new PrismaClient()
 
+import bcrypt from 'bcryptjs'
+
 async function main() {
+  console.log('Seeding initial data...')
+
+  // Create Admin User
+  const hashedPassword = await bcrypt.hash('password123', 10)
+  const adminEmail = 'admin@rababstay.com'
+
+  await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: {},
+    create: {
+      name: 'Admin User',
+      email: adminEmail,
+      password: hashedPassword,
+      role: 'ADMIN',
+      isActive: true,
+    },
+  })
+  console.log('✅ Admin user created: admin@rababstay.com / password123')
+
   console.log('Seeding 26 professional rooms...')
-  
+
   const rooms = []
 
   // FLOOR 2 - 10 Luxury AC Rooms
@@ -21,7 +42,7 @@ async function main() {
       capacity: 2,
       amenities: JSON.stringify(['AC', 'TV', 'Locker', 'WiFi', 'Attached Bathroom', 'Premium Interior']),
       images: JSON.stringify([
-        'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800', 
+        'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800',
         'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800'
       ]),
       isAvailable: true,
@@ -43,7 +64,7 @@ async function main() {
       capacity: 2,
       amenities: JSON.stringify(['AC', 'Locker', 'WiFi', 'Attached Bathroom']),
       images: JSON.stringify([
-        'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800', 
+        'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800',
         'https://images.unsplash.com/photo-1582719478250-c89cae4df85b?w=800'
       ]),
       isAvailable: true,

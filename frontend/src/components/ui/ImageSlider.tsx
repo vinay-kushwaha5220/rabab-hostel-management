@@ -41,28 +41,28 @@ const ImageSlider: React.FC<ImageSliderProps> = ({ images, alt }) => {
           {/* Controls */}
           <button
             onClick={handlePrev}
-            className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/80 text-gray-800 opacity-0 group-hover/slider:opacity-100 transition-opacity hover:bg-white shadow-sm"
+            className="absolute left-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white/90 text-gray-800 opacity-0 group-hover/slider:opacity-100 transition-opacity hover:bg-white shadow-sm backdrop-blur-[2px]"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <button
             onClick={handleNext}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/80 text-gray-800 opacity-0 group-hover/slider:opacity-100 transition-opacity hover:bg-white shadow-sm"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white/90 text-gray-800 opacity-0 group-hover/slider:opacity-100 transition-opacity hover:bg-white shadow-sm backdrop-blur-[2px]"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
 
           {/* Indicators */}
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+          <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1">
             {images.map((_, i) => (
               <div
                 key={i}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  i === currentIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/50'
+                className={`h-1 rounded-full transition-all duration-300 ${
+                  i === currentIndex ? 'w-3 bg-white' : 'w-1 bg-white/50'
                 }`}
               />
             ))}

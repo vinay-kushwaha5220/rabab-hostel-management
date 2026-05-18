@@ -135,7 +135,7 @@ export const createElectricityBill = async (
             bookingId: Number(bookingId),
             title: "Electricity Bill Added",
             message: `Electricity bill of ₹${amount} for ${month} has been added to Room ${room.roomNumber}`,
-            type: "electricity",
+            type: "BILL",
           },
         })
       }

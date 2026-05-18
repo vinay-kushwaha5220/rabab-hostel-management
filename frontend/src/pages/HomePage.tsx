@@ -4,8 +4,8 @@ import api from "../services/apiV2"
 import type { RoomType } from "../types/room"
 import Button from "../components/ui/Button"
 import Card from "../components/ui/Card"
-import Badge from "../components/ui/Badge"
 import LoadingSpinner from "../components/ui/LoadingSpinner"
+import RoomCard from "../components/rooms/RoomCard"
 
 const HomePage = () => {
   const navigate = useNavigate()
@@ -29,222 +29,159 @@ const HomePage = () => {
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative h-screen flex items-center justify-center overflow-hidden">
-        {/* Background Image with Overlay */}
+    <div className="min-h-screen bg-gray-50/30">
+      {/* Hero Section - Compact Height and Crisp Hierarchy */}
+      <section className="relative h-[480px] sm:h-[540px] flex items-center justify-center overflow-hidden">
+        {/* Background Image with Premium Soft Gradient Overlay */}
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1920"
+            src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1600&q=80"
             alt="Rabab Stay"
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-900/90 to-purple-900/80"></div>
+          <div className="absolute inset-0 bg-gradient-to-tr from-blue-950/95 via-blue-900/85 to-purple-900/40"></div>
         </div>
 
         {/* Hero Content */}
-        <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 animate-fade-in">
-            Welcome to <span className="text-yellow-400">Rabab Stay</span>
+        <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-3 tracking-tight animate-fade-in leading-tight">
+            Welcome to <span className="text-yellow-400 bg-gradient-to-r from-yellow-300 to-yellow-500 bg-clip-text text-transparent">Rabab Stay</span>
           </h1>
-          <p className="text-xl md:text-2xl text-gray-200 mb-8 animate-fade-in-delay">
-            Your Home Away From Home - Experience Comfort, Luxury & Hospitality
+          <p className="text-sm sm:text-base text-gray-200/90 mb-6 max-w-xl mx-auto font-medium leading-relaxed animate-fade-in-delay">
+            Your Home Away From Home — Experience Comfort, Luxury & Hospitality at its finest.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-delay-2">
+          <div className="flex flex-row gap-3 justify-center items-center animate-fade-in-delay-2">
             <Button
-              size="lg"
+              size="sm"
               onClick={() => navigate('/rooms')}
-              className="text-lg px-8 py-4 transform hover:scale-105 transition-transform"
+              className="text-[10px] sm:text-xs px-5 py-2.5 font-bold uppercase tracking-wider shadow-lg transform hover:-translate-y-0.5 transition-transform"
             >
-              Explore Our Rooms
+              Explore Rooms
             </Button>
             <Button
-              size="lg"
+              size="sm"
               variant="outline"
               onClick={() => navigate('/contact')}
-              className="text-lg px-8 py-4 bg-white/10 backdrop-blur-sm border-white text-white hover:bg-white hover:text-blue-900 transform hover:scale-105 transition-all"
+              className="text-[10px] sm:text-xs px-5 py-2.5 font-bold uppercase tracking-wider bg-white/10 backdrop-blur-sm border-white/60 text-white hover:bg-white hover:text-blue-900 transform hover:-translate-y-0.5 transition-all"
             >
               Contact Us
             </Button>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-8 mt-16 max-w-3xl mx-auto">
+          {/* Compact Premium Stats Overlay */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-8 sm:mt-10 max-w-lg mx-auto border-t border-white/10 pt-6 sm:pt-8">
             <div className="text-center">
-              <p className="text-4xl font-bold text-yellow-400 mb-2">25+</p>
-              <p className="text-gray-200">Rooms</p>
+              <p className="text-xl sm:text-2xl md:text-3xl font-black text-yellow-400 tracking-tight mb-0.5">25+</p>
+              <p className="text-[9px] sm:text-[10px] text-gray-300/90 font-bold uppercase tracking-wider">Rooms</p>
             </div>
             <div className="text-center">
-              <p className="text-4xl font-bold text-yellow-400 mb-2">500+</p>
-              <p className="text-gray-200">Happy Guests</p>
+              <p className="text-xl sm:text-2xl md:text-3xl font-black text-yellow-400 tracking-tight mb-0.5">500+</p>
+              <p className="text-[9px] sm:text-[10px] text-gray-300/90 font-bold uppercase tracking-wider">Guests</p>
             </div>
             <div className="text-center">
-              <p className="text-4xl font-bold text-yellow-400 mb-2">4.8★</p>
-              <p className="text-gray-200">Rating</p>
+              <p className="text-xl sm:text-2xl md:text-3xl font-black text-yellow-400 tracking-tight mb-0.5">4.8★</p>
+              <p className="text-[9px] sm:text-[10px] text-gray-300/90 font-bold uppercase tracking-wider">Rating</p>
             </div>
           </div>
         </div>
 
-        {/* Scroll Indicator */}
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+        {/* Downward Scroll Indicator - Compact */}
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 animate-bounce opacity-80">
+          <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
           </svg>
         </div>
       </section>
 
-      {/* Why Choose Us Section */}
-      <section className="py-20 bg-gray-50">
+      {/* Why Choose Us Section - Compact, Sleek Grids */}
+      <section className="py-12 sm:py-16 bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-1.5 tracking-tight">
               Why Choose Rabab Stay?
             </h2>
-            <p className="text-xl text-gray-600">
-              Experience the perfect blend of comfort and convenience
+            <p className="text-xs sm:text-sm text-gray-400 font-medium max-w-md mx-auto">
+              Experience the perfect blend of premium home comfort and modern convenience.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {/* Feature 1 */}
-            <Card className="p-6 text-center hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <Card className="p-5 text-center border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl bg-gray-50/30">
+              <div className="w-11 h-11 bg-blue-50 border border-blue-100/50 rounded-xl flex items-center justify-center mx-auto mb-3 text-blue-600">
+                <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Prime Location</h3>
-              <p className="text-gray-600">Centrally located with easy access to major attractions</p>
+              <h3 className="text-sm sm:text-base font-extrabold text-gray-900 mb-1">Prime Location</h3>
+              <p className="text-[11px] sm:text-xs text-gray-500 font-medium leading-relaxed">Centrally located with direct access to top city locations.</p>
             </Card>
 
             {/* Feature 2 */}
-            <Card className="p-6 text-center hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <Card className="p-5 text-center border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl bg-gray-50/30">
+              <div className="w-11 h-11 bg-emerald-50 border border-emerald-100/50 rounded-xl flex items-center justify-center mx-auto mb-3 text-emerald-600">
+                <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Affordable Rates</h3>
-              <p className="text-gray-600">Best prices with no hidden charges</p>
+              <h3 className="text-sm sm:text-base font-extrabold text-gray-900 mb-1">Affordable Rates</h3>
+              <p className="text-[11px] sm:text-xs text-gray-500 font-medium leading-relaxed">Best value guarantee with completely transparent prices.</p>
             </Card>
 
             {/* Feature 3 */}
-            <Card className="p-6 text-center hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <Card className="p-5 text-center border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl bg-gray-50/30">
+              <div className="w-11 h-11 bg-purple-50 border border-purple-100/50 rounded-xl flex items-center justify-center mx-auto mb-3 text-purple-600">
+                <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">24/7 Security</h3>
-              <p className="text-gray-600">Your safety is our top priority</p>
+              <h3 className="text-sm sm:text-base font-extrabold text-gray-900 mb-1">24/7 Security</h3>
+              <p className="text-[11px] sm:text-xs text-gray-500 font-medium leading-relaxed">Biometric checks and constant surveillance security.</p>
             </Card>
 
             {/* Feature 4 */}
-            <Card className="p-6 text-center hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <Card className="p-5 text-center border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl bg-gray-50/30">
+              <div className="w-11 h-11 bg-amber-50 border border-amber-100/50 rounded-xl flex items-center justify-center mx-auto mb-3 text-amber-600">
+                <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Modern Amenities</h3>
-              <p className="text-gray-600">WiFi, AC, TV and more in every room</p>
+              <h3 className="text-sm sm:text-base font-extrabold text-gray-900 mb-1">Modern Amenities</h3>
+              <p className="text-[11px] sm:text-xs text-gray-500 font-medium leading-relaxed">High-speed WiFi, smart TVs, and robust cooling units.</p>
             </Card>
           </div>
         </div>
       </section>
 
-      {/* Featured Rooms Section */}
-      <section className="py-20 bg-white">
+      {/* Featured Rooms Section - Compact Grids */}
+      <section className="py-12 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-1.5 tracking-tight">
               Our Featured Rooms
             </h2>
-            <p className="text-xl text-gray-600">
-              Discover comfort and luxury in every corner
+            <p className="text-xs sm:text-sm text-gray-400 font-medium max-w-md mx-auto">
+              Comfort, space, and premium styling matched in every layout.
             </p>
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-12">
-              <LoadingSpinner size="lg" text="Loading rooms..." />
+            <div className="flex justify-center py-8">
+              <LoadingSpinner size="md" text="Loading catalog..." />
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-sm sm:max-w-none mx-auto">
               {featuredRooms.map((room) => (
-                <Card key={room.id} hover className="group overflow-hidden">
-                  {/* Room Image */}
-                  <div className="relative h-64 overflow-hidden">
-                    <img
-                      src={room.images && room.images.length > 0 ? room.images[0] : 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800'}
-                      alt={room.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                    <div className="absolute top-4 right-4">
-                      <Badge variant={room.isAvailable ? 'success' : 'danger'}>
-                        {room.isAvailable ? 'Available' : 'Booked'}
-                      </Badge>
-                    </div>
-                    <div className="absolute bottom-4 left-4 flex gap-2">
-                      <Badge variant={room.roomType === 'AC' ? 'info' : 'secondary'}>
-                        {room.roomType}
-                      </Badge>
-                      <Badge variant="primary">
-                        {room.bookingType}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Room Details */}
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
-                      {room.title}
-                    </h3>
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                      {room.description}
-                    </p>
-
-                    {/* Room Info */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center text-sm text-gray-600">
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                        {room.capacity} Guests
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Floor {room.floor}
-                      </div>
-                    </div>
-
-                    {/* Price & Book Button */}
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                      <div>
-                        <p className="text-2xl font-bold text-blue-600">
-                          ₹{room.price.toLocaleString()}
-                        </p>
-                        <p className="text-xs text-gray-500">per {room.bookingType.toLowerCase()}</p>
-                      </div>
-                      {room.isAvailable && (
-                        <Button
-                          onClick={() => navigate(`/booking/${room.id}`)}
-                          size="sm"
-                        >
-                          Book Now
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </Card>
+                <RoomCard key={room.id} room={room} />
               ))}
             </div>
           )}
 
-          <div className="text-center mt-12">
+          <div className="text-center mt-8">
             <Button
-              size="lg"
+              size="sm"
               onClick={() => navigate('/rooms')}
-              className="px-8"
+              className="px-6 py-2.5 font-bold uppercase tracking-wider shadow-sm transform hover:-translate-y-0.5 transition-transform text-[10px] sm:text-xs"
             >
               View All Rooms
             </Button>
@@ -252,19 +189,19 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Facilities Section */}
-      <section className="py-20 bg-gradient-to-br from-blue-50 to-purple-50">
+      {/* Facilities Section - Ultra Compact Badges */}
+      <section className="py-12 sm:py-16 bg-gradient-to-br from-blue-50/40 via-purple-50/30 to-blue-50/10 border-t border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-1.5 tracking-tight">
               World-Class Facilities
             </h2>
-            <p className="text-xl text-gray-600">
-              Everything you need for a comfortable stay
+            <p className="text-xs sm:text-sm text-gray-400 font-medium max-w-md mx-auto">
+              Everything hand-picked for an excellent residential residency.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {[
               { icon: '📶', name: 'Free WiFi' },
               { icon: '❄️', name: 'AC Rooms' },
@@ -279,89 +216,91 @@ const HomePage = () => {
               { icon: '🎮', name: 'Recreation' },
               { icon: '🏋️', name: 'Gym' },
             ].map((facility, index) => (
-              <Card key={index} className="p-6 text-center hover:shadow-lg transition-shadow">
-                <div className="text-4xl mb-3">{facility.icon}</div>
-                <p className="font-semibold text-gray-900">{facility.name}</p>
+              <Card key={index} className="p-4 text-center border border-gray-100/50 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl bg-white">
+                <div className="text-2xl mb-1.5">{facility.icon}</div>
+                <p className="text-[11px] sm:text-xs font-bold text-gray-800 tracking-tight">{facility.name}</p>
               </Card>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-20 bg-white">
+      {/* Testimonials Section - Compact Visual Balance */}
+      <section className="py-12 sm:py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-1.5 tracking-tight">
               What Our Guests Say
             </h2>
-            <p className="text-xl text-gray-600">
-              Real experiences from real people
+            <p className="text-xs sm:text-sm text-gray-400 font-medium max-w-md mx-auto">
+              Read real resident feedback detailing their stay.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {[
               {
                 name: 'Rahul Sharma',
                 rating: 5,
-                comment: 'Amazing experience! The rooms are clean, staff is friendly, and the location is perfect. Highly recommended!',
+                comment: 'Amazing experience! The rooms are exceptionally clean, staff is friendly, and the location is perfect. Highly recommended!',
                 avatar: '👨‍💼'
               },
               {
                 name: 'Priya Patel',
                 rating: 5,
-                comment: 'Best hostel in the city! Great amenities, comfortable beds, and excellent service. Will definitely come back!',
+                comment: 'Best stay in the city! Modern amenities, extremely comfortable beds, and premium response times. Will definitely stay again!',
                 avatar: '👩‍💼'
               },
               {
                 name: 'Amit Kumar',
                 rating: 5,
-                comment: 'Value for money! Clean rooms, good food, and helpful staff. Perfect for both short and long stays.',
+                comment: 'Absolute value for money! High-speed internet, smart laundry systems, and tidy desks. Perfect for students and workers alike.',
                 avatar: '👨‍🎓'
               }
             ].map((testimonial, index) => (
-              <Card key={index} className="p-6 hover:shadow-xl transition-shadow">
-                <div className="flex items-center mb-4">
-                  <div className="text-4xl mr-4">{testimonial.avatar}</div>
+              <Card key={index} className="p-5 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl bg-gray-50/10">
+                <div className="flex items-center mb-3">
+                  <div className="text-xl mr-3 bg-gray-50 border border-gray-100 rounded-full w-9 h-9 flex items-center justify-center shadow-inner">
+                    {testimonial.avatar}
+                  </div>
                   <div>
-                    <h4 className="font-bold text-gray-900">{testimonial.name}</h4>
-                    <div className="flex text-yellow-400">
+                    <h4 className="text-xs sm:text-sm font-bold text-gray-900 leading-tight">{testimonial.name}</h4>
+                    <div className="flex text-yellow-400 text-[10px] sm:text-[11px] mt-0.5">
                       {[...Array(testimonial.rating)].map((_, i) => (
                         <span key={i}>★</span>
                       ))}
                     </div>
                   </div>
                 </div>
-                <p className="text-gray-600 italic">"{testimonial.comment}"</p>
+                <p className="text-[11px] sm:text-xs text-gray-500 italic font-medium leading-relaxed">"{testimonial.comment}"</p>
               </Card>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+      {/* CTA Section - Elegant and Crisp */}
+      <section className="py-12 sm:py-14 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xl">
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-bold mb-6">
+          <h2 className="text-2xl sm:text-3xl font-black mb-2.5 tracking-tight">
             Ready to Book Your Stay?
           </h2>
-          <p className="text-xl mb-8 text-gray-100">
-            Experience comfort and hospitality at its finest. Book now and get the best rates!
+          <p className="text-xs sm:text-sm mb-6 text-white/90 max-w-lg mx-auto leading-relaxed font-medium">
+            Unlock premium living at unbeatable daily and monthly rates. Secure your room in just 3 clicks!
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-row gap-3 justify-center items-center">
             <Button
-              size="lg"
+              size="sm"
               onClick={() => navigate('/rooms')}
-              className="bg-white text-blue-600 hover:bg-gray-100 px-8"
+              className="bg-white text-blue-600 hover:bg-gray-100 hover:text-blue-700 px-5 py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md"
             >
               Book Now
             </Button>
             <Button
-              size="lg"
+              size="sm"
               variant="outline"
               onClick={() => navigate('/contact')}
-              className="border-white text-white hover:bg-white hover:text-blue-600 px-8"
+              className="border-white/80 text-white hover:bg-white hover:text-blue-600 px-5 py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs"
             >
               Contact Us
             </Button>
@@ -369,12 +308,12 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Custom Animations */}
+      {/* Custom Keyframes and Animations */}
       <style>{`
         @keyframes fade-in {
           from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(12px);
           }
           to {
             opacity: 1;
@@ -383,15 +322,15 @@ const HomePage = () => {
         }
 
         .animate-fade-in {
-          animation: fade-in 1s ease-out;
+          animation: fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
 
         .animate-fade-in-delay {
-          animation: fade-in 1s ease-out 0.3s both;
+          animation: fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
         }
 
         .animate-fade-in-delay-2 {
-          animation: fade-in 1s ease-out 0.6s both;
+          animation: fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
         }
       `}</style>
     </div>

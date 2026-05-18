@@ -99,7 +99,7 @@ export const renterOnly = (
 // ==========================================
 export const adminOrOwner = (resourceUserIdParam: string = "id") => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
-    const resourceUserId = parseInt(req.params[resourceUserIdParam])
+    const resourceUserId = parseInt(req.params[resourceUserIdParam] as string)
     console.log(`🔍 DEBUG adminOrOwner - User: ${req.userId}, Role: ${req.userRole}, Target: ${resourceUserId}`)
     
     // Allow if admin

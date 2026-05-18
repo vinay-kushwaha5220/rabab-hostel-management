@@ -106,17 +106,62 @@ export const getRooms = async (
 
     const rooms = await prisma.room.findMany({
       where,
+      include: {
+        monthlyRenters: {
+          where: {
+            status: "ACTIVE",
+          },
+          include: {
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        bookings: {
+          where: {
+            status: "CONFIRMED",
+          },
+          include: {
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: {
         createdAt: "desc",
       },
     })
 
     // Parse JSON fields
-    const roomsWithParsedData = rooms.map(room => ({
-      ...room,
-      images: room.images ? JSON.parse(room.images) : [],
-      amenities: room.amenities ? JSON.parse(room.amenities) : [],
-    }))
+    const roomsWithParsedData = rooms.map(room => {
+      let currentRenterName: string | undefined = undefined;
+
+      const activeMonthlyRenter = room.monthlyRenters?.find(r => r.status === "ACTIVE");
+      if (activeMonthlyRenter) {
+        currentRenterName = activeMonthlyRenter.user?.name;
+      }
+
+      if (!currentRenterName) {
+        const activeBooking = room.bookings?.find(b => b.status === "CONFIRMED");
+        if (activeBooking) {
+          currentRenterName = activeBooking.customerName || activeBooking.user?.name;
+        }
+      }
+
+      return {
+        ...room,
+        currentRenterName,
+        images: room.images ? JSON.parse(room.images) : [],
+        amenities: room.amenities ? JSON.parse(room.amenities) : [],
+        monthlyRenters: undefined,
+        bookings: undefined,
+      }
+    })
 
     console.log(`✅ Fetched ${rooms.length} rooms from database`)
     res.status(200).json(roomsWithParsedData)
@@ -143,6 +188,32 @@ export const getSingleRoom = async (
       where: {
         id: Number(id),
       },
+      include: {
+        monthlyRenters: {
+          where: {
+            status: "ACTIVE",
+          },
+          include: {
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        bookings: {
+          where: {
+            status: "CONFIRMED",
+          },
+          include: {
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
     })
 
     if (!room) {
@@ -151,11 +222,28 @@ export const getSingleRoom = async (
       })
     }
 
+    let currentRenterName: string | undefined = undefined;
+
+    const activeMonthlyRenter = room.monthlyRenters?.find(r => r.status === "ACTIVE");
+    if (activeMonthlyRenter) {
+      currentRenterName = activeMonthlyRenter.user?.name;
+    }
+
+    if (!currentRenterName) {
+      const activeBooking = room.bookings?.find(b => b.status === "CONFIRMED");
+      if (activeBooking) {
+        currentRenterName = activeBooking.customerName || activeBooking.user?.name;
+      }
+    }
+
     // Parse JSON fields
     const roomWithParsedData = {
       ...room,
+      currentRenterName,
       images: room.images ? JSON.parse(room.images) : [],
       amenities: room.amenities ? JSON.parse(room.amenities) : [],
+      monthlyRenters: undefined,
+      bookings: undefined,
     }
 
     res.status(200).json(roomWithParsedData)
@@ -255,13 +343,21 @@ export const deleteRoom = async (
     const activeBookings = await prisma.booking.count({
       where: {
         roomId: Number(id),
-        status: { in: ["pending", "confirmed"] },
+        status: { in: ["PENDING", "CONFIRMED"] },
       },
     })
 
-    if (activeBookings > 0) {
+    // Check if room has active monthly renters
+    const activeRenters = await prisma.monthlyRenter.count({
+      where: {
+        roomId: Number(id),
+        status: "ACTIVE",
+      },
+    })
+
+    if (activeBookings > 0 || activeRenters > 0) {
       return res.status(400).json({
-        message: "Cannot delete room with active bookings",
+        message: "Cannot delete room with active bookings or monthly renters",
       })
     }
 

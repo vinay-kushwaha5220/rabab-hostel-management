@@ -123,53 +123,82 @@ const RenterMonthlyDashboard = () => {
     )
   }
 
-  if (!data?.activeBooking) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <Card className="p-8 text-center max-w-md shadow-xl border-none">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4 tracking-tight">No Active Booking</h2>
-          <p className="text-gray-600 text-sm">You don't have any active monthly bookings.</p>
-        </Card>
-      </div>
-    )
-  }
+  // Allow the component to render even if there is no active booking,
+  // so users can still see their Bill History.
 
-  const { activeBooking, monthlyBill, messages, notifications } = data
+  const { activeBooking = null, monthlyBill = null, messages = [], notifications = [] } = data || {}
 
   return (
     <div className="min-h-screen bg-slate-50/50">
       <div className="p-4 sm:p-6 max-w-5xl mx-auto">
         {/* Dashboard Tab */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <div className="mb-2">
-              <h1 className="text-xl font-black text-gray-900 tracking-tight">Summary</h1>
-              <p className="text-xs text-gray-400 font-medium">Monthly billing overview for {activeBooking.customerName.split(' ')[0]}</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card className="p-4 border-none shadow-sm bg-white">
-                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Unit Details</h3>
-                <div className="grid grid-cols-2 gap-y-4 gap-x-2">
-                  <div><p className="text-[10px] text-gray-400 font-bold uppercase">Room No.</p><p className="text-lg font-black text-blue-600">{activeBooking.room.roomNumber}</p></div>
-                  <div><p className="text-[10px] text-gray-400 font-bold uppercase">Lvl</p><p className="text-lg font-black text-blue-600">Floor {activeBooking.room.floor}</p></div>
-                  <div><p className="text-[10px] text-gray-400 font-bold uppercase">Class</p><Badge variant="info" size="sm">{activeBooking.room.roomType}</Badge></div>
-                  <div><p className="text-[10px] text-gray-400 font-bold uppercase">Check-in</p><p className="text-xs font-bold text-gray-700">{new Date(activeBooking.checkInDate).toLocaleDateString()}</p></div>
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+            {activeBooking ? (
+              <div className="space-y-6">
+                <div className="mb-2">
+                  <h1 className="text-xl font-black text-gray-900 tracking-tight">Summary</h1>
+                  <p className="text-xs text-gray-400 font-medium">Monthly billing overview for {activeBooking.customerName.split(' ')[0]}</p>
                 </div>
-              </Card>
-              <Card className="p-4 border-none shadow-sm bg-slate-900 text-white">
-                <h3 className="text-[10px] font-bold opacity-50 uppercase tracking-widest mb-4">Financial Overview</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="opacity-50">Base Rent</span>
-                    <span className="font-bold">₹{monthlyBill?.rentAmount?.toLocaleString() || '0'}</span>
+
+                {activeBooking.paymentStatus === 'PENDING' && (
+                  <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl flex items-start gap-3">
+                    <svg className="w-5 h-5 text-orange-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <div>
+                      <h3 className="text-sm font-bold text-orange-800">Waiting for admin verification</h3>
+                      <p className="text-xs text-orange-700 mt-1">Your monthly rent booking has been recorded. The admin will verify your payment and confirm the booking shortly.</p>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs opacity-50">Pending Dues</span>
-                    <span className="text-xl font-black text-blue-400">₹{monthlyBill?.remainingAmount?.toLocaleString() || '0'}</span>
-                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Card className="p-4 border-none shadow-sm bg-white">
+                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Unit Details</h3>
+                    <div className="grid grid-cols-2 gap-y-4 gap-x-2">
+                      <div><p className="text-[10px] text-gray-400 font-bold uppercase">Room No.</p><p className="text-lg font-black text-blue-600">{activeBooking.room.roomNumber}</p></div>
+                      <div><p className="text-[10px] text-gray-400 font-bold uppercase">Lvl</p><p className="text-lg font-black text-blue-600">Floor {activeBooking.room.floor}</p></div>
+                      <div><p className="text-[10px] text-gray-400 font-bold uppercase">Class</p><Badge variant="info" size="sm">{activeBooking.room.roomType}</Badge></div>
+                      <div><p className="text-[10px] text-gray-400 font-bold uppercase">Check-in</p><p className="text-xs font-bold text-gray-700">{new Date(activeBooking.checkInDate).toLocaleDateString()}</p></div>
+                    </div>
+                  </Card>
+                  <Card className="p-4 border-none shadow-sm bg-white">
+                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Financial Overview</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-gray-500 font-medium">Monthly Rent</span>
+                        <span className="font-bold text-gray-900">₹{activeBooking.monthlyRenter?.rentAmount?.toLocaleString() || monthlyBill?.rentAmount?.toLocaleString() || '0'}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-gray-500 font-medium">Security Deposit</span>
+                        <span className="font-bold text-gray-900">₹{activeBooking.monthlyRenter?.securityAmount?.toLocaleString() || '0'}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-gray-500 font-medium">Next Due Date</span>
+                        <span className="font-bold text-gray-900">{activeBooking.monthlyRenter?.nextDueDate ? new Date(activeBooking.monthlyRenter.nextDueDate).toLocaleDateString() : 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-gray-500 font-medium">Payment Status</span>
+                        <Badge 
+                          variant={activeBooking.paymentStatus === 'SUCCESS' ? 'success' : activeBooking.paymentStatus === 'PENDING' ? 'warning' : 'danger'} 
+                          size="sm"
+                        >
+                          {activeBooking.paymentStatus}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between items-center pt-2 border-t border-gray-50">
+                        <span className="text-xs text-gray-500 font-medium">Pending Dues</span>
+                        <span className="text-xl font-black text-blue-600">₹{monthlyBill?.remainingAmount?.toLocaleString() || '0'}</span>
+                      </div>
+                    </div>
+                  </Card>
                 </div>
+              </div>
+            ) : (
+              <Card className="p-8 text-center max-w-md mx-auto shadow-sm border border-gray-100 bg-white mt-10">
+                <h2 className="text-xl font-bold text-gray-900 mb-2 tracking-tight">No Active Booking</h2>
+                <p className="text-gray-500 text-sm">You don't have any active monthly bookings to show a summary for.</p>
               </Card>
-            </div>
+            )}
           </div>
         )}
 
@@ -243,27 +272,34 @@ const RenterMonthlyDashboard = () => {
               <h1 className="text-xl font-black text-gray-900 tracking-tight">Support</h1>
               <p className="text-xs text-gray-400 font-medium">Direct communication with property management</p>
             </div>
-            <Card className="flex-1 flex flex-col overflow-hidden border-none shadow-sm p-0 bg-white">
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
-                {messages.length === 0 ? (<p className="text-center text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-10">No message history.</p>) : (
-                  messages.map((msg) => (
-                    <div key={msg.id} className={`flex ${msg.senderId === activeBooking.userId ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[80%] p-3 rounded-2xl shadow-sm ${msg.senderId === activeBooking.userId ? "bg-blue-600 text-white rounded-tr-none" : "bg-white text-gray-800 rounded-tl-none border border-gray-100"}`}>
-                        <p className="text-[11px] leading-relaxed font-medium">{msg.content}</p>
-                        <div className="flex items-center justify-end gap-1 mt-1 opacity-50">
-                          <span className="text-[9px] font-bold">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            {!activeBooking ? (
+              <Card className="p-8 text-center max-w-md mx-auto shadow-sm border border-gray-100 bg-white mt-10">
+                <h2 className="text-xl font-bold text-gray-900 mb-2 tracking-tight">No Active Booking</h2>
+                <p className="text-gray-500 text-sm">Messaging is only available for active monthly bookings.</p>
+              </Card>
+            ) : (
+              <Card className="flex-1 flex flex-col overflow-hidden border-none shadow-sm p-0 bg-white">
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
+                  {messages.length === 0 ? (<p className="text-center text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-10">No message history.</p>) : (
+                    messages.map((msg: any) => (
+                      <div key={msg.id} className={`flex ${msg.senderId === activeBooking.userId ? "justify-end" : "justify-start"}`}>
+                        <div className={`max-w-[80%] p-3 rounded-2xl shadow-sm ${msg.senderId === activeBooking.userId ? "bg-blue-600 text-white rounded-tr-none" : "bg-white text-gray-800 rounded-tl-none border border-gray-100"}`}>
+                          <p className="text-[11px] leading-relaxed font-medium">{msg.content}</p>
+                          <div className="flex items-center justify-end gap-1 mt-1 opacity-50">
+                            <span className="text-[9px] font-bold">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-              <div className="p-3 bg-white border-t flex gap-2">
-                <input value={messageContent} onChange={(e) => setMessageContent(e.target.value)} placeholder="Type your message..." className="flex-1 bg-slate-50 px-4 py-2 text-xs rounded-xl outline-none focus:ring-1 focus:ring-blue-600 font-medium" onKeyPress={e => e.key === 'Enter' && handleSendMessage()} />
-                <button onClick={handleSendMessage} disabled={!messageContent.trim() || sendingMessage} className="bg-blue-600 text-white p-2 rounded-xl shadow-md active:scale-95 transition-all"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg></button>
-              </div>
-            </Card>
+                    ))
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+                <div className="p-3 bg-white border-t flex gap-2">
+                  <input value={messageContent} onChange={(e) => setMessageContent(e.target.value)} placeholder="Type your message..." className="flex-1 bg-slate-50 px-4 py-2 text-xs rounded-xl outline-none focus:ring-1 focus:ring-blue-600 font-medium" onKeyPress={e => e.key === 'Enter' && handleSendMessage()} />
+                  <button onClick={handleSendMessage} disabled={!messageContent.trim() || sendingMessage} className="bg-blue-600 text-white p-2 rounded-xl shadow-md active:scale-95 transition-all"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg></button>
+                </div>
+              </Card>
+            )}
           </div>
         )}
 

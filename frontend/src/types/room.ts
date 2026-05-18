@@ -14,6 +14,7 @@ export type RoomType = {
   isAvailable: boolean
   images: string[]
   amenities: string[]
+  currentRenterName?: string
   createdAt: string
   updatedAt: string
 }

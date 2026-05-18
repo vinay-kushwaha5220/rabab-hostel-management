@@ -15,13 +15,17 @@ export const getDashboardStats = async (
     // Total rooms
     const totalRooms = await prisma.room.count()
 
-    // Available rooms
-    const availableRooms = await prisma.room.count({
-      where: { isAvailable: true },
-    })
+    // Get all rooms to calculate stats accurately
+    const rooms = await prisma.room.findMany()
+    
+    // Available rooms: Completely empty (currentOccupancy === 0) and isAvailable = true
+    const availableRooms = rooms.filter(r => r.isAvailable && r.currentOccupancy === 0).length
 
-    // Booked rooms
-    const bookedRooms = totalRooms - availableRooms
+    // Booked rooms: Occupancy > 0
+    const bookedRooms = rooms.filter(r => r.currentOccupancy > 0).length
+
+    // Maintenance rooms (optional, but good for internal tracking)
+    const maintenanceRooms = rooms.filter(r => !r.isAvailable).length
 
     // AC rooms
     const acRooms = await prisma.room.count({

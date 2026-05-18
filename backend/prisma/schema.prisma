@@ -101,76 +101,83 @@ enum VerificationStatus {
   REJECTED
 }
 
+enum MonthlyRenterStatus {
+  ACTIVE
+  CHECKED_OUT
+}
+
 model User {
-  id            Int            @id @default(autoincrement())
-  name          String
-  email         String         @unique
-  password      String
-  phone         String?
-  role          UserRole       @default(USER)
-  isActive      Boolean        @default(true)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @default(now()) @updatedAt
-  lastLoginAt   DateTime?
-  
-  bookings      Booking[]
-  refreshTokens RefreshToken[]
-  sentMessages  Message[]      @relation("MessageSender")
-  receivedMessages Message[]   @relation("MessageReceiver")
-  notifications Notification[]
-  activityLogs  ActivityLog[]
+  id          Int       @id @default(autoincrement())
+  name        String
+  email       String    @unique
+  password    String
+  phone       String?
+  role        UserRole  @default(USER)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+  lastLoginAt DateTime?
+
+  bookings            Booking[]
+  refreshTokens       RefreshToken[]
+  sentMessages        Message[]            @relation("MessageSender")
+  receivedMessages    Message[]            @relation("MessageReceiver")
+  notifications       Notification[]
+  activityLogs        ActivityLog[]
   maintenanceRequests MaintenanceRequest[] @relation("MaintenanceRequester")
   assignedMaintenance MaintenanceRequest[] @relation("MaintenanceAssigned")
-  
-  isDeleted     Boolean        @default(false)
-  deletedAt     DateTime?
-  
+  monthlyRenters      MonthlyRenter[]
+
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
   @@index([email])
   @@index([role])
   @@index([createdAt])
 }
 
 model RefreshToken {
-  id        Int      @id @default(autoincrement())
-  token     String   @unique
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  token      String   @unique
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
   deviceInfo String?
   ipAddress  String?
-  
+
   @@index([userId])
   @@index([expiresAt])
 }
 
 model Room {
-  id              Int                @id @default(autoincrement())
-  roomNumber      String             @unique
-  title           String
-  description     String
-  dailyPrice      Float              @default(0)
-  monthlyPrice    Float              @default(0)
-  price           Float              // Keep for backward compatibility (map to dailyPrice)
-  roomType        RoomType           @default(NON_AC)
-  bookingType     BookingType        @default(DAILY) // Default type, but room supports both
-  floor           Int
-  capacity        Int
-  isAvailable     Boolean            @default(true) // Keep for backward compatibility
-  images          String?            // Keep for backward compatibility
-  amenities       String?
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  
-  bookings        Booking[]
-  roomImages      RoomImage[]
-  electricityBills ElectricityBill[]
+  id           Int         @id @default(autoincrement())
+  roomNumber   String      @unique
+  title        String
+  description  String
+  dailyPrice   Float       @default(0)
+  monthlyPrice Float       @default(0)
+  price        Float // Keep for backward compatibility (map to dailyPrice)
+  roomType     RoomType    @default(NON_AC)
+  bookingType  BookingType @default(DAILY) // Default type, but room supports both
+  floor        Int
+  capacity     Int
+  isAvailable  Boolean     @default(true) // Keep for backward compatibility
+  images       String? // Keep for backward compatibility
+  amenities    String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  bookings            Booking[]
+  roomImages          RoomImage[]
+  electricityBills    ElectricityBill[]
   maintenanceRequests MaintenanceRequest[]
-  
-  currentOccupancy Int            @default(0)
-  isDeleted       Boolean        @default(false)
-  deletedAt       DateTime?
-  
+  monthlyRenters      MonthlyRenter[]
+
+  currentOccupancy Int       @default(0)
+  isDeleted        Boolean   @default(false)
+  deletedAt        DateTime?
+
   @@index([roomType])
   @@index([bookingType])
   @@index([floor])
@@ -184,47 +191,48 @@ model RoomImage {
   altText   String?
   order     Int      @default(0)
   createdAt DateTime @default(now())
-  
+
   @@index([roomId])
 }
 
 model Booking {
-  id              Int      @id @default(autoincrement())
-  bookingId       String   @unique
-  
-  userId          Int
-  user            User     @relation(fields: [userId], references: [id])
-  customerName    String
-  customerEmail   String
-  customerPhone   String
-  customerAadhaar String?  // Keep for backward compatibility
+  id        Int    @id @default(autoincrement())
+  bookingId String @unique
+
+  userId                Int
+  user                  User    @relation(fields: [userId], references: [id])
+  customerName          String
+  customerEmail         String
+  customerPhone         String
+  customerAadhaar       String? // Keep for backward compatibility
   customerAadhaarMasked String?
-  
-  roomId          Int
-  room            Room     @relation(fields: [roomId], references: [id])
-  
-  bookingType     BookingType @default(DAILY)
-  checkInDate     DateTime
-  checkOutDate    DateTime
-  numberOfGuests  Int
-  totalDays       Int
-  totalAmount     Float
-  
-  status          BookingStatus @default(PENDING)
-  paymentStatus   PaymentStatus @default(PENDING)
-  stayStatus      StayStatus @default(BOOKED)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  payments        Payment[]
-  notifications   Notification[]
-  monthlyBills    MonthlyBill[]
-  messages        Message[]
-  
-  isDeleted       Boolean        @default(false)
-  deletedAt       DateTime?
-  
+
+  roomId Int
+  room   Room @relation(fields: [roomId], references: [id])
+
+  bookingType    BookingType @default(DAILY)
+  checkInDate    DateTime
+  checkOutDate   DateTime
+  numberOfGuests Int
+  totalDays      Int
+  totalAmount    Float
+
+  status        BookingStatus @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+  stayStatus    StayStatus    @default(BOOKED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments      Payment[]
+  notifications Notification[]
+  monthlyBills  MonthlyBill[]
+  messages      Message[]
+  monthlyRenter MonthlyRenter?
+
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
   @@index([userId])
   @@index([roomId])
   @@index([status])
@@ -237,36 +245,36 @@ model Booking {
 }
 
 model Payment {
-  id                  Int      @id @default(autoincrement())
-  bookingId           Int
-  booking             Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  
-  monthlyBillId       Int?
-  monthlyBill         MonthlyBill? @relation(fields: [monthlyBillId], references: [id], onDelete: Cascade)
-  
-  amount              Float
-  paymentMethod       PaymentMethod @default(CASH)
-  transactionId       String?  @unique
-  paymentStatus       PaymentStatus @default(PENDING)
-  
-  receiptUrl          String?
-  invoiceNumber       String?
-  
-  refundAmount        Float?
-  refundReason        String?
-  refundedAt          DateTime?
-  
-  isDeleted           Boolean        @default(false)
-  deletedAt           DateTime?
-  
-  verificationStatus  VerificationStatus?
-  verifiedBy          Int?
-  verifiedAt          DateTime?
-  verificationNotes   String?
-  
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
+  id        Int     @id @default(autoincrement())
+  bookingId Int
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  monthlyBillId Int?
+  monthlyBill   MonthlyBill? @relation(fields: [monthlyBillId], references: [id], onDelete: Cascade)
+
+  amount        Float
+  paymentMethod PaymentMethod @default(CASH)
+  transactionId String?       @unique
+  paymentStatus PaymentStatus @default(PENDING)
+
+  receiptUrl    String?
+  invoiceNumber String?
+
+  refundAmount Float?
+  refundReason String?
+  refundedAt   DateTime?
+
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  verificationStatus VerificationStatus?
+  verifiedBy         Int?
+  verifiedAt         DateTime?
+  verificationNotes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([bookingId])
   @@index([paymentStatus])
   @@index([createdAt])
@@ -275,125 +283,125 @@ model Payment {
 }
 
 model Notification {
-  id          Int      @id @default(autoincrement())
-  userId      Int?     // Made optional for backward compatibility
-  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  bookingId   Int?
-  booking     Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  
-  title       String
-  message     String
-  type        NotificationType @default(SYSTEM)
-  priority    NotificationPriority @default(MEDIUM)
-  actionUrl   String?
-  isRead      Boolean  @default(false)
-  readAt      DateTime?
-  
-  isDeleted   Boolean  @default(false)
-  deletedAt   DateTime?
-  
-  createdAt   DateTime @default(now())
-  
+  id     Int   @id @default(autoincrement())
+  userId Int? // Made optional for backward compatibility
+  user   User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  bookingId Int?
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  title     String
+  message   String
+  type      NotificationType     @default(SYSTEM)
+  priority  NotificationPriority @default(MEDIUM)
+  actionUrl String?
+  isRead    Boolean              @default(false)
+  readAt    DateTime?
+
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+
   @@index([userId])
   @@index([isRead])
   @@index([createdAt])
 }
 
 model ElectricityBill {
-  id              Int      @id @default(autoincrement())
-  roomId          Int
-  room            Room     @relation(fields: [roomId], references: [id])
-  
-  month           String
-  units           Float
-  amount          Float
-  dueDate         DateTime
-  isPaid          Boolean  @default(false)
-  paidDate        DateTime?
-  
-  bookingId       Int?
-  notes           String?
-  
-  isDeleted       Boolean  @default(false)
-  deletedAt       DateTime?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  id     Int  @id @default(autoincrement())
+  roomId Int
+  room   Room @relation(fields: [roomId], references: [id])
+
+  month    String
+  units    Float
+  amount   Float
+  dueDate  DateTime
+  isPaid   Boolean   @default(false)
+  paidDate DateTime?
+
+  bookingId Int?
+  notes     String?
+
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roomId, month])
   @@index([roomId])
   @@index([month])
-  @@unique([roomId, month])
 }
 
 model MonthlyBill {
-  id              Int      @id @default(autoincrement())
-  bookingId       Int
-  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  
-  month           String
-  rentAmount      Float    @default(0)
+  id        Int     @id @default(autoincrement())
+  bookingId Int
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  month             String
+  rentAmount        Float  @default(0)
   electricityAmount Float  @default(0)
-  extraCharges    Float    @default(0)
-  
-  paidAmount      Float    @default(0)
-  remainingAmount Float    @default(0)
-  previousDue     Float    @default(0)
-  totalDue        Float    @default(0)
-  
-  totalAmount     Float    @default(0) // Keep for backward compatibility (represents rent + elec + extra)
-  
-  isPaid          Boolean  @default(false) // Keep for backward compatibility
-  status          MonthlyBillStatus @default(PENDING)
-  dueDate         DateTime
-  paidDate        DateTime?
-  
+  extraCharges      Float  @default(0)
+
+  paidAmount      Float @default(0)
+  remainingAmount Float @default(0)
+  previousDue     Float @default(0)
+  totalDue        Float @default(0)
+
+  totalAmount Float @default(0) // Keep for backward compatibility (represents rent + elec + extra)
+
+  isPaid   Boolean           @default(false) // Keep for backward compatibility
+  status   MonthlyBillStatus @default(PENDING)
+  dueDate  DateTime
+  paidDate DateTime?
+
   verificationStatus VerificationStatus?
-  verifiedBy      Int?
-  verifiedAt      DateTime?
-  
-  reminderSent    Boolean  @default(false)
-  lastReminderAt  DateTime?
-  
-  isDeleted       Boolean  @default(false)
-  deletedAt       DateTime?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  payments        Payment[]
-  
+  verifiedBy         Int?
+  verifiedAt         DateTime?
+
+  reminderSent   Boolean   @default(false)
+  lastReminderAt DateTime?
+
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments Payment[]
+
+  @@unique([bookingId, month])
   @@index([bookingId])
   @@index([month])
   @@index([status])
   @@index([createdAt])
   @@index([bookingId, month])
-  @@unique([bookingId, month])
 }
 
 model Message {
-  id              Int      @id @default(autoincrement())
-  bookingId       Int
-  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  
-  senderId        Int
-  sender          User     @relation("MessageSender", fields: [senderId], references: [id])
-  
-  receiverId      Int
-  receiver        User     @relation("MessageReceiver", fields: [receiverId], references: [id])
-  
-  content         String
-  messageType     MessageType @default(TEXT)
-  attachmentUrl   String?
-  
-  isRead          Boolean  @default(false)
-  readAt          DateTime?
-  
-  isDeleted       Boolean  @default(false)
-  deletedAt       DateTime?
-  
-  createdAt       DateTime @default(now())
-  
+  id        Int     @id @default(autoincrement())
+  bookingId Int
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  senderId Int
+  sender   User @relation("MessageSender", fields: [senderId], references: [id])
+
+  receiverId Int
+  receiver   User @relation("MessageReceiver", fields: [receiverId], references: [id])
+
+  content       String
+  messageType   MessageType @default(TEXT)
+  attachmentUrl String?
+
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+
   @@index([bookingId])
   @@index([senderId])
   @@index([receiverId])
@@ -402,43 +410,71 @@ model Message {
 }
 
 model ActivityLog {
-  id         Int      @id @default(autoincrement())
+  id         Int    @id @default(autoincrement())
   userId     Int
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   action     String
   entityType String
   entityId   Int
-  
-  oldValue   String?
-  newValue   String?
-  ipAddress  String?
-  
-  createdAt  DateTime @default(now())
-  
+
+  oldValue  String?
+  newValue  String?
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
   @@index([userId])
   @@index([entityType, entityId])
 }
 
 model MaintenanceRequest {
-  id        Int      @id @default(autoincrement())
-  roomId    Int
-  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  userId    Int
-  user      User     @relation("MaintenanceRequester", fields: [userId], references: [id], onDelete: Cascade)
-  issue     String
-  status    MaintenanceStatus @default(PENDING)
-  priority  String?
-  imageUrl  String?
-  
+  id       Int               @id @default(autoincrement())
+  roomId   Int
+  room     Room              @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId   Int
+  user     User              @relation("MaintenanceRequester", fields: [userId], references: [id], onDelete: Cascade)
+  issue    String
+  status   MaintenanceStatus @default(PENDING)
+  priority String?
+  imageUrl String?
+
   assignedToId Int?
-  assignedTo User? @relation("MaintenanceAssigned", fields: [assignedToId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  isDeleted Boolean  @default(false)
+  assignedTo   User?    @relation("MaintenanceAssigned", fields: [assignedToId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  isDeleted Boolean   @default(false)
   deletedAt DateTime?
-  
+
   @@index([roomId])
   @@index([userId])
   @@index([status])
+}
+
+model MonthlyRenter {
+  id        Int     @id @default(autoincrement())
+  userId    Int
+  user      User    @relation(fields: [userId], references: [id])
+  bookingId Int     @unique
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  roomId    Int
+  room      Room    @relation(fields: [roomId], references: [id])
+
+  joinDate     DateTime
+  lastPaidDate DateTime?
+  nextDueDate  DateTime
+  stayStatus   StayStatus @default(CHECKED_IN)
+
+  rentAmount     Float
+  securityAmount Float @default(2500)
+
+  status MonthlyRenterStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([roomId])
+  @@index([status])
+  @@index([nextDueDate])
 }

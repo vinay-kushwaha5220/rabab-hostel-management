@@ -11,12 +11,12 @@ interface FilterSidebarProps {
   isMobile?: boolean
 }
 
-const FilterSidebar: React.FC<FilterSidebarProps> = ({ 
-  filters, 
-  onFilterChange, 
-  onReset, 
+const FilterSidebar: React.FC<FilterSidebarProps> = ({
+  filters,
+  onFilterChange,
+  onReset,
   onClose,
-  isMobile = false 
+  isMobile = false
 }) => {
   const content = (
     <div className={`flex flex-col h-full bg-white transition-all duration-300 ${isMobile ? '' : 'w-[240px] border-r border-gray-100 overflow-hidden'}`}>

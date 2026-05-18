@@ -11,7 +11,8 @@ import Card from "../components/ui/Card"
 const RoomDetailsPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
+  const isAdmin = user?.role === "ADMIN"
   const [room, setRoom] = useState<RoomType | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState(0)
@@ -240,9 +241,14 @@ const RoomDetailsPage = () => {
                   <Button 
                     className="w-full py-2.5 text-xs font-black uppercase tracking-widest rounded-lg shadow-sm"
                     onClick={handleBookNow}
-                    disabled={isOccupied}
+                    disabled={isOccupied || isAdmin}
                   >
-                    {!isOccupied ? (isAuthenticated ? "Secure Spot" : "Log in to Book") : "Fully Booked"}
+                    {isAdmin 
+                      ? "Admin Accounts Cannot Book" 
+                      : !isOccupied 
+                        ? (isAuthenticated ? "Secure Spot" : "Log in to Book") 
+                        : "Fully Booked"
+                    }
                   </Button>
                 </div>
               </Card>
@@ -274,9 +280,14 @@ const RoomDetailsPage = () => {
         <Button 
           className="px-8 font-black uppercase tracking-widest shadow-lg shadow-blue-100 rounded-xl"
           onClick={handleBookNow}
-          disabled={isOccupied}
+          disabled={isOccupied || isAdmin}
         >
-          {!isOccupied ? 'Book Now' : 'Occupied'}
+          {isAdmin 
+            ? "Admin Restricted" 
+            : !isOccupied 
+              ? 'Book Now' 
+              : 'Occupied'
+          }
         </Button>
       </div>
     </div>

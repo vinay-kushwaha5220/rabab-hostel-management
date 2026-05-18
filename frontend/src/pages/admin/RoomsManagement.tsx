@@ -24,7 +24,13 @@ const RoomsManagement = () => {
     }
   }
 
-  const toggleAvailability = async (roomId: number, currentStatus: boolean) => {
+  const toggleAvailability = async (roomId: number, currentStatus: boolean, occupancy: number) => {
+    if (currentStatus === true && occupancy > 0) {
+      if (!confirm("This room currently has active booking/renter. Are you sure you want to put it in MAINTENANCE?")) {
+        return;
+      }
+    }
+
     try {
       await api.put(`/rooms/${roomId}`, { isAvailable: !currentStatus })
       alert('Room status updated')
@@ -46,8 +52,10 @@ const RoomsManagement = () => {
   }
 
   const filteredRooms = rooms.filter(room => {
-    if (filter === "available") return room.isAvailable
-    if (filter === "booked") return !room.isAvailable
+    if (filter === "available") return room.isAvailable && room.currentOccupancy === 0
+    if (filter === "booked") return room.isAvailable && room.currentOccupancy > 0 && room.currentOccupancy < room.capacity
+    if (filter === "full") return room.isAvailable && room.currentOccupancy >= room.capacity
+    if (filter === "maintenance") return !room.isAvailable
     if (filter === "ac") return room.roomType === "AC"
     if (filter === "non-ac") return room.roomType === "NON_AC"
     return true
@@ -83,41 +91,50 @@ const RoomsManagement = () => {
           <div className="flex gap-1.5 flex-wrap">
             <button
               onClick={() => setFilter("all")}
-              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
-                filter === "all" ? "bg-slate-900 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
-              }`}
+              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${filter === "all" ? "bg-slate-900 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                }`}
             >
               All ({rooms.length})
             </button>
             <button
               onClick={() => setFilter("available")}
-              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
-                filter === "available" ? "bg-green-600 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
-              }`}
+              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${filter === "available" ? "bg-green-600 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                }`}
             >
-              Live ({rooms.filter(r => r.isAvailable).length})
+              Available ({rooms.filter(r => r.isAvailable && r.currentOccupancy === 0).length})
             </button>
             <button
               onClick={() => setFilter("booked")}
-              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
-                filter === "booked" ? "bg-red-600 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
-              }`}
+              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${filter === "booked" ? "bg-blue-600 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                }`}
             >
-              Full ({rooms.filter(r => !r.isAvailable).length})
+              Booked ({rooms.filter(r => r.isAvailable && r.currentOccupancy > 0 && r.currentOccupancy < r.capacity).length})
+            </button>
+            <button
+              onClick={() => setFilter("full")}
+              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${filter === "full" ? "bg-red-600 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                }`}
+            >
+              Full ({rooms.filter(r => r.isAvailable && r.currentOccupancy >= r.capacity).length})
+            </button>
+            <button
+              onClick={() => setFilter("maintenance")}
+              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${filter === "maintenance" ? "bg-orange-600 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                }`}
+            >
+              Maint. ({rooms.filter(r => !r.isAvailable).length})
             </button>
             <button
               onClick={() => setFilter("ac")}
-              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
-                filter === "ac" ? "bg-blue-600 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
-              }`}
+              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${filter === "ac" ? "bg-blue-600 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                }`}
             >
               AC ({rooms.filter(r => r.roomType === "AC").length})
             </button>
             <button
               onClick={() => setFilter("non-ac")}
-              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
-                filter === "non-ac" ? "bg-gray-600 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
-              }`}
+              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${filter === "non-ac" ? "bg-gray-600 text-white" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                }`}
             >
               Non-AC ({rooms.filter(r => r.roomType === "NON_AC").length})
             </button>
@@ -148,9 +165,8 @@ const RoomsManagement = () => {
                       {room.title}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        room.roomType === "AC" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"
-                      }`}>
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${room.roomType === "AC" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"
+                        }`}>
                         {room.roomType === "NON_AC" ? "Non-AC" : room.roomType}
                       </span>
                     </td>
@@ -158,11 +174,31 @@ const RoomsManagement = () => {
                       ₹{room.price.toLocaleString()}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        room.isAvailable ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                      }`}>
-                        {room.isAvailable ? "AVAILABLE" : "BOOKED"}
-                      </span>
+                      {(() => {
+                        const isMaint = !room.isAvailable;
+                        const isFull = room.currentOccupancy >= room.capacity;
+                        const isOccupied = room.currentOccupancy > 0;
+
+                        let statusLabel = "AVAILABLE";
+                        let statusClass = "bg-green-100 text-green-800";
+
+                        if (isMaint) {
+                          statusLabel = "MAINTENANCE";
+                          statusClass = "bg-red-100 text-red-800";
+                        } else if (isFull) {
+                          statusLabel = "FULL";
+                          statusClass = "bg-orange-100 text-orange-800";
+                        } else if (isOccupied) {
+                          statusLabel = "BOOKED";
+                          statusClass = "bg-blue-100 text-blue-800";
+                        }
+
+                        return (
+                          <span className={`px-2 py-1 rounded text-xs font-semibold ${statusClass}`}>
+                            {statusLabel}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <div className="flex gap-2">
@@ -173,10 +209,10 @@ const RoomsManagement = () => {
                           View
                         </button>
                         <button
-                          onClick={() => toggleAvailability(room.id, room.isAvailable)}
+                          onClick={() => toggleAvailability(room.id, room.isAvailable, room.currentOccupancy)}
                           className="text-yellow-600 hover:underline text-xs"
                         >
-                          Toggle
+                          Toggle Maint.
                         </button>
                         <button
                           onClick={() => deleteRoom(room.id)}

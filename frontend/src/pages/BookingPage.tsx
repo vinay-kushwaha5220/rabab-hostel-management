@@ -16,7 +16,7 @@ const BookingPage = () => {
   const [room, setRoom] = useState<RoomType | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  
+
   const [formData, setFormData] = useState({
     customerName: "",
     customerEmail: "",
@@ -28,7 +28,7 @@ const BookingPage = () => {
     bookingType: "DAILY" as "DAILY" | "MONTHLY",
     monthlyMonths: 1, // Default 1 month for monthly booking
   })
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [totalDays, setTotalDays] = useState(0)
   const [totalAmount, setTotalAmount] = useState(0)
@@ -50,7 +50,7 @@ const BookingPage = () => {
       }))
     }
   }, [user])
-  
+
   useEffect(() => {
     if (formData.bookingType === "MONTHLY" && formData.checkInDate) {
       // Auto-calculate checkout for monthly
@@ -79,18 +79,18 @@ const BookingPage = () => {
       setLoading(false)
     }
   }
-  
+
   const calculatePrice = () => {
     if (!formData.checkInDate || !formData.checkOutDate || !room) {
       setTotalDays(0)
       setTotalAmount(0)
       return
     }
-    
+
     const checkIn = new Date(formData.checkInDate)
     const checkOut = new Date(formData.checkOutDate)
     const days = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
-    
+
     if (days > 0) {
       setTotalDays(days)
       if (formData.bookingType === "MONTHLY") {
@@ -105,7 +105,7 @@ const BookingPage = () => {
       setTotalAmount(0)
     }
   }
-  
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
@@ -113,12 +113,12 @@ const BookingPage = () => {
   }
 
   const handleBookingTypeChange = (type: "DAILY" | "MONTHLY") => {
-    setFormData(prev => ({ 
-      ...prev, 
+    setFormData(prev => ({
+      ...prev,
       bookingType: type,
       checkInDate: "",
       checkOutDate: "",
-      monthlyMonths: 1 
+      monthlyMonths: 1
     }))
     setErrors({})
   }
@@ -126,7 +126,7 @@ const BookingPage = () => {
   const handleExtendStay = () => {
     setFormData(prev => ({ ...prev, monthlyMonths: prev.monthlyMonths + 1 }))
   }
-  
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
     if (!formData.customerName.trim()) newErrors.customerName = "Name is required"
@@ -142,25 +142,25 @@ const BookingPage = () => {
     }
     if (!formData.checkInDate) newErrors.checkInDate = "Check-in date is required"
     if (!formData.checkOutDate) newErrors.checkOutDate = "Check-out date is required"
-    
+
     if (formData.checkInDate && formData.checkOutDate) {
       const checkIn = new Date(formData.checkInDate)
       const checkOut = new Date(formData.checkOutDate)
       if (checkOut <= checkIn) newErrors.checkOutDate = "Check-out must be after check-in"
     }
-    
+
     if (room && formData.numberOfGuests > room.capacity) {
       newErrors.numberOfGuests = `Maximum ${room.capacity} guests allowed`
     }
-    
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validateForm()) return
-    
+
     try {
       setSubmitting(true)
       const bookingData = {
@@ -187,6 +187,21 @@ const BookingPage = () => {
     )
   }
 
+  if (user?.role === "ADMIN") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center bg-white p-8 rounded-2xl shadow-xl max-w-md">
+          <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+          </div>
+          <h2 className="text-2xl font-black text-gray-900 mb-2">Admin Restricted</h2>
+          <p className="text-gray-500 mb-6 font-medium">Administrator accounts are not authorized to book rooms. Please log in with a customer account to make a reservation.</p>
+          <Button onClick={() => navigate('/admin/dashboard')} className="w-full">Go back to Admin Dashboard</Button>
+        </div>
+      </div>
+    )
+  }
+
   if (!room) return null
 
   const isMonthly = formData.bookingType === "MONTHLY"
@@ -203,7 +218,7 @@ const BookingPage = () => {
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Reserve your spot at Rabab Hostel</p>
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <Card className="p-6 sm:p-8 border-none shadow-sm bg-white rounded-2xl">
@@ -240,10 +255,10 @@ const BookingPage = () => {
                       ))}
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Input label="Check-in Date" name="checkInDate" type="date" value={formData.checkInDate} onChange={handleInputChange} error={errors.checkInDate} className="bg-gray-50/30" />
-                    
+
                     {isMonthly ? (
                       <div className="space-y-1">
                         <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Auto Checkout</label>
@@ -251,7 +266,7 @@ const BookingPage = () => {
                           <div className="w-full px-4 py-2.5 bg-blue-50/50 border border-blue-100 rounded-lg text-xs font-bold text-blue-700">
                             {formData.checkOutDate || 'Pick Check-in'}
                           </div>
-                          <button 
+                          <button
                             type="button"
                             onClick={handleExtendStay}
                             disabled={!formData.checkInDate}
@@ -267,7 +282,7 @@ const BookingPage = () => {
 
                     <Input label="No. of Guests" name="numberOfGuests" type="number" min="1" max={room.capacity} value={formData.numberOfGuests} onChange={handleInputChange} error={errors.numberOfGuests} className="bg-gray-50/30" />
                   </div>
-                  
+
                   {isMonthly && (
                     <div className="mt-6 p-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-between text-white shadow-md">
                       <div className="flex items-center gap-3">
@@ -292,12 +307,12 @@ const BookingPage = () => {
               </form>
             </Card>
           </div>
-          
+
           <div className="lg:col-span-1">
             <div className="sticky top-20 space-y-6">
               <Card className="p-6 border-none shadow-sm bg-white rounded-2xl border border-gray-100">
                 <h2 className="text-lg font-bold text-gray-900 mb-6 tracking-tight">Summary</h2>
-                
+
                 <div className="flex gap-4 mb-6 pb-6 border-b border-gray-50">
                   <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100">
                     <img src={room.images?.[0] || 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800'} alt="" className="w-full h-full object-cover" />
@@ -316,14 +331,14 @@ const BookingPage = () => {
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-bold text-gray-400 uppercase tracking-widest text-[9px]">Rent</span>
                     <span className="font-bold text-gray-900">
-                      ₹{isMonthly 
-                        ? (room.monthlyPrice || room.price * 30).toLocaleString() 
+                      ₹{isMonthly
+                        ? (room.monthlyPrice || room.price * 30).toLocaleString()
                         : (room.dailyPrice || room.price).toLocaleString()
                       }
                       <span className="text-[8px] text-gray-400 ml-1">/ {isMonthly ? 'mo' : 'day'}</span>
                     </span>
                   </div>
-                  
+
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-bold text-gray-400 uppercase tracking-widest text-[9px]">Stay</span>
                     <span className="font-bold text-gray-900">{isMonthly ? `${formData.monthlyMonths} Mo` : `${totalDays} Days`}</span>
@@ -335,7 +350,7 @@ const BookingPage = () => {
                       <span className="font-bold text-blue-700">₹{SECURITY_DEPOSIT.toLocaleString()}</span>
                     </div>
                   )}
-                  
+
                   <div className="flex justify-between items-center pt-3 border-t border-gray-50 text-xs">
                     <span className="font-bold text-gray-400 uppercase tracking-widest text-[9px]">Fee (12%)</span>
                     <span className="font-bold text-gray-900">₹{totalAmount > 0 ? Math.round(Math.max(0, totalAmount - (isMonthly ? SECURITY_DEPOSIT : 0)) * 0.12).toLocaleString() : '0'}</span>
@@ -346,7 +361,12 @@ const BookingPage = () => {
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Total Amount</p>
-                      <p className="text-2xl font-black text-blue-700 tracking-tight">₹{(totalAmount + Math.round((totalAmount - (isMonthly ? SECURITY_DEPOSIT : 0)) * 0.12)).toLocaleString()}</p>
+                      <p className="text-2xl font-black text-blue-700 tracking-tight">
+                        ₹{totalAmount > 0 
+                          ? (totalAmount + Math.round(Math.max(0, totalAmount - (isMonthly ? SECURITY_DEPOSIT : 0)) * 0.12)).toLocaleString() 
+                          : '0'
+                        }
+                      </p>
                     </div>
                   </div>
                 </div>

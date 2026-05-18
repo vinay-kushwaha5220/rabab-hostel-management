@@ -38,8 +38,8 @@ const RentersManagement = () => {
 
   const filteredRenters = renters.filter(renter => {
     // Filter by booking type
-    if (filter === "daily" && renter.room?.bookingType !== "DAILY") return false
-    if (filter === "monthly" && renter.room?.bookingType !== "MONTHLY") return false
+    if (filter === "daily" && renter.bookingType !== "DAILY") return false
+    if (filter === "monthly" && renter.bookingType !== "MONTHLY") return false
     if (filter === "pending-payment" && renter.paymentStatus === "SUCCESS") return false
     
     // Search
@@ -81,13 +81,13 @@ const RentersManagement = () => {
           </div>
           <div className="bg-white p-4 rounded border border-gray-200">
             <div className="text-2xl font-bold text-blue-600">
-              {renters.filter(r => r.room?.bookingType === "DAILY").length}
+              {renters.filter(r => r.bookingType === "DAILY").length}
             </div>
             <div className="text-sm text-gray-600">Daily Renters</div>
           </div>
           <div className="bg-white p-4 rounded border border-gray-200">
             <div className="text-2xl font-bold text-purple-600">
-              {renters.filter(r => r.room?.bookingType === "MONTHLY").length}
+              {renters.filter(r => r.bookingType === "MONTHLY").length}
             </div>
             <div className="text-sm text-gray-600">Monthly Renters</div>
           </div>
@@ -125,7 +125,7 @@ const RentersManagement = () => {
                 filter === "daily" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Daily ({renters.filter(r => r.room?.bookingType === "DAILY").length})
+              Daily ({renters.filter(r => r.bookingType === "DAILY").length})
             </button>
             <button
               onClick={() => setFilter("monthly")}
@@ -133,7 +133,7 @@ const RentersManagement = () => {
                 filter === "monthly" ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Monthly ({renters.filter(r => r.room?.bookingType === "MONTHLY").length})
+              Monthly ({renters.filter(r => r.bookingType === "MONTHLY").length})
             </button>
             <button
               onClick={() => setFilter("pending-payment")}
@@ -195,11 +195,11 @@ const RentersManagement = () => {
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          renter.room?.bookingType === "DAILY" 
+                          renter.bookingType === "DAILY" 
                             ? "bg-blue-100 text-blue-800" 
                             : "bg-purple-100 text-purple-800"
                         }`}>
-                          {renter.room?.bookingType}
+                          {renter.bookingType}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">

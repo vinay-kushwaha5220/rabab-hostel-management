@@ -9,6 +9,12 @@ export const processMonthlyPayment = async (req: AuthRequest, res: Response) => 
   try {
     const { billId: rawBillId, paymentMethod } = req.body
     const userId = req.userId
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "Unauthorized - User session not found",
+      })
+    }
     const billId = Number(rawBillId)
 
     if (!billId || isNaN(billId) || !paymentMethod) {
@@ -59,7 +65,7 @@ export const processMonthlyPayment = async (req: AuthRequest, res: Response) => 
         monthlyBillId: billId,
         amount: bill.totalAmount,
         paymentMethod,
-        paymentStatus: paymentMethod === 'cash' ? "pending" : "success",
+        paymentStatus: paymentMethod === 'cash' ? "PENDING" : "SUCCESS",
         transactionId: paymentMethod === 'cash' ? `CASH-REQ-${Date.now()}` : `DEMO-MONTHLY-${Date.now()}`,
       },
     })
@@ -86,7 +92,7 @@ export const processMonthlyPayment = async (req: AuthRequest, res: Response) => 
         bookingId: bill.bookingId,
         title: "Payment Received",
         message: `Payment of ₹${bill.totalAmount} for ${bill.month} has been received successfully`,
-        type: "payment",
+        type: "PAYMENT",
       },
     })
 
@@ -111,6 +117,12 @@ export const processMonthlyPayment = async (req: AuthRequest, res: Response) => 
 export const getPaymentHistory = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "Unauthorized - User session not found",
+      })
+    }
 
     const payments = await prisma.payment.findMany({
       where: {

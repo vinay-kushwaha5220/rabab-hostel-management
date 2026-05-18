@@ -69,7 +69,7 @@ const PaymentPage = () => {
 
   if (!booking) return null
 
-  const isMonthly = booking.room?.bookingType === 'MONTHLY'
+  const isMonthly = booking.bookingType === 'MONTHLY'
   const rent = booking.totalAmount
   const tax = Math.round(rent * 0.12)
   const securityDeposit = isMonthly ? rent : 0 // Mock security deposit as 1 month rent

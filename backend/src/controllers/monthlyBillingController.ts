@@ -575,10 +575,12 @@ export const getRenterDashboardData = async (req: AuthRequest, res: Response) =>
     const activeBooking = await prisma.booking.findFirst({
       where: {
         userId,
-        status: BookingStatus.CONFIRMED,
+        status: { in: [BookingStatus.CONFIRMED, BookingStatus.PENDING] },
+        bookingType: "MONTHLY",
       },
       include: {
         room: true,
+        monthlyRenter: true,
       },
     })
 

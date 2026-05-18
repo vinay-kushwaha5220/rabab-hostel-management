@@ -11,6 +11,12 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
     const { bookingId, receiverId, content } = req.body
     const senderId = req.userId
 
+    if (!senderId) {
+      return res.status(401).json({
+        message: "Unauthorized - User session not found",
+      })
+    }
+
     if (!bookingId || !receiverId || !content) {
       return res.status(400).json({
         message: "bookingId, receiverId, and content are required",
@@ -88,6 +94,12 @@ export const getConversation = async (req: AuthRequest, res: Response) => {
     const { bookingId } = req.params
     const userId = req.userId
 
+    if (!userId) {
+      return res.status(401).json({
+        message: "Unauthorized - User session not found",
+      })
+    }
+
     // Handle both numeric ID and string Booking Code (e.g., RBS-2026-0001)
     const isNumeric = !isNaN(Number(bookingId))
     
@@ -156,6 +168,12 @@ export const getConversation = async (req: AuthRequest, res: Response) => {
 export const getUnreadCount = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "Unauthorized - User session not found",
+      })
+    }
 
     const unreadCount = await prisma.message.count({
       where: {

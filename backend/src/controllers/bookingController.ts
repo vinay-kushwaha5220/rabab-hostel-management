@@ -62,12 +62,12 @@ export const createBooking = async (
       return res.status(400).json({ message: "Room is already at full capacity" })
     }
 
-    // 3. Check existing booking
+    // 3. Check existing booking (Modified to prevent ANY duplicate active booking)
     const existingActiveBooking = await prisma.booking.findFirst({
       where: {
         userId: req.userId!,
-        roomId: Number(roomId),
         status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+        stayStatus: { in: [StayStatus.BOOKED, StayStatus.CHECKED_IN, StayStatus.STAYING] },
         isDeleted: false,
       }
     })
@@ -75,7 +75,7 @@ export const createBooking = async (
     if (existingActiveBooking) {
       console.log(`❌ Validation failed: User ${req.userId} already has active booking ${existingActiveBooking.bookingId}`)
       return res.status(400).json({
-        message: "You already have an active booking for this room",
+        message: "You already have an active room booking",
         existingBookingId: existingActiveBooking.bookingId
       })
     }
@@ -126,53 +126,85 @@ export const createBooking = async (
     const bookingCount = await prisma.booking.count()
     const bookingId = `RBS-${new Date().getFullYear()}-${String(bookingCount + 1).padStart(4, '0')}`
 
-    const booking = await prisma.booking.create({
-      data: {
-        bookingId,
-        userId: req.userId!,
-        customerName,
-        customerEmail,
-        customerPhone,
-        customerAadhaar: customerAadhaar || null,
-        roomId: Number(roomId),
-        bookingType: selectedBookingType,
-        checkInDate: checkIn,
-        checkOutDate: checkOut,
-        numberOfGuests: Number(numberOfGuests),
-        totalDays,
-        totalAmount,
-        status: BookingStatus.PENDING,
-        paymentStatus: PaymentStatus.PENDING,
-        stayStatus: StayStatus.BOOKED,
-      },
-      include: {
-        room: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    // Wrap in transaction for safety
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Create the booking
+      const booking = await tx.booking.create({
+        data: {
+          bookingId,
+          userId: req.userId!,
+          customerName: customerName,
+          customerEmail: customerEmail,
+          customerPhone: customerPhone,
+          customerAadhaar: customerAadhaar || null,
+          roomId: Number(roomId),
+          bookingType: selectedBookingType as any,
+          checkInDate: checkIn,
+          checkOutDate: checkOut,
+          numberOfGuests: Number(numberOfGuests),
+          totalDays,
+          totalAmount,
+          status: BookingStatus.PENDING,
+          paymentStatus: PaymentStatus.PENDING,
+          stayStatus: StayStatus.BOOKED,
+        },
+        include: {
+          room: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-      },
-    })
+      });
 
-    // Create notification
-    await prisma.notification.create({
-      data: {
-        bookingId: booking.id,
-        title: "New Booking",
-        message: `New booking ${bookingId} for room ${room.roomNumber}`,
-        type: NotificationType.BOOKING,
-        priority: NotificationPriority.MEDIUM,
-      },
-    })
+      // 2. Create notification
+      await tx.notification.create({
+        data: {
+          bookingId: booking.id,
+          title: "New Booking",
+          message: `New booking ${bookingId} for room ${room.roomNumber}`,
+          type: NotificationType.BOOKING,
+          priority: NotificationPriority.MEDIUM,
+        },
+      });
+
+      // 3. Auto-create MonthlyRenter profile for MONTHLY bookings
+      if (selectedBookingType === BookingType.MONTHLY) {
+        const joinDate = new Date(checkIn);
+        const nextDueDate = new Date(joinDate);
+        nextDueDate.setDate(nextDueDate.getDate() + 30);
+
+        const rentAmount = room.monthlyPrice || (room.dailyPrice * 30) || (room.price * 30) || 0;
+
+        await tx.monthlyRenter.create({
+          data: {
+            userId: req.userId!,
+            bookingId: booking.id,
+            roomId: Number(roomId),
+            joinDate,
+            lastPaidDate: null,
+            nextDueDate,
+            stayStatus: StayStatus.BOOKED,
+            rentAmount,
+            securityAmount: SECURITY_DEPOSIT,
+            status: "ACTIVE" as const
+          }
+        });
+        
+        console.log(`✅ Auto-created MonthlyRenter profile for booking ${bookingId}`);
+      }
+
+      return booking;
+    });
 
     console.log(`✅ SUCCESS: Booking created: ${bookingId}`)
 
     res.status(201).json({
       message: "Booking created successfully",
-      booking,
+      booking: result,
     })
   } catch (error: any) {
     console.error("❌ ERROR: Create booking failed:", error)
@@ -218,6 +250,32 @@ export const processPayment = async (
     // Generate transaction ID
     const transactionId = `DEMO-TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
 
+    const isMonthly = booking.bookingType === 'MONTHLY'
+
+    if (isMonthly) {
+      // Create pending payment record
+      const payment = await prisma.payment.create({
+        data: {
+          bookingId: booking.id,
+          amount: booking.totalAmount,
+          paymentMethod,
+          transactionId,
+          paymentStatus: PaymentStatus.PENDING,
+        },
+      })
+
+      // Do NOT confirm booking or update occupancy yet.
+      // Admin will verify it later.
+      console.log(`⏳ Payment method selected for monthly booking: ${transactionId} (Awaiting Admin Verification)`)
+
+      return res.status(200).json({
+        message: "Payment recorded. Awaiting admin verification.",
+        payment,
+        booking,
+      })
+    }
+
+    // --- DAILY BOOKING FLOW (Auto-confirm) ---
     // Create payment record
     const payment = await prisma.payment.create({
       data: {
@@ -243,7 +301,6 @@ export const processPayment = async (
       where: { id: booking.roomId },
       data: { 
         currentOccupancy: { increment: 1 },
-        isAvailable: booking.room.currentOccupancy + 1 >= booking.room.capacity ? false : true
       },
     })
 
@@ -340,7 +397,6 @@ export const getAllBookings = async (
             where: { id: b.roomId },
             data: { 
               currentOccupancy: { decrement: 1 },
-              isAvailable: true 
             }
           })
         ])
@@ -419,7 +475,6 @@ export const checkOutBooking = async (req: AuthRequest, res: Response) => {
           where: { id: booking.roomId },
           data: { 
             currentOccupancy: { decrement: 1 },
-            isAvailable: true 
           }
         })
       ])
@@ -498,7 +553,6 @@ export const undoCheckOutBooking = async (req: AuthRequest, res: Response) => {
         where: { id: booking.roomId },
         data: { 
           currentOccupancy: { increment: 1 },
-          isAvailable: booking.room.currentOccupancy + 1 >= booking.room.capacity ? false : true
         }
       })
     ])
@@ -703,7 +757,6 @@ export const cancelBooking = async (
         where: { id: booking.roomId },
         data: { 
           currentOccupancy: { decrement: 1 },
-          isAvailable: true 
         },
       })
     }
@@ -782,7 +835,6 @@ export const confirmBooking = async (
       where: { id: booking.roomId },
       data: { 
         currentOccupancy: { increment: 1 },
-        isAvailable: booking.room.currentOccupancy + 1 >= booking.room.capacity ? false : true
       }
     })
 

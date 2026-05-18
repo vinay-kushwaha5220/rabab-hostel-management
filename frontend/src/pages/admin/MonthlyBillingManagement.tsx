@@ -264,24 +264,30 @@ const MonthlyBillingManagement = () => {
                 onClick={handleGenerateBulk}
                 variant="outline"
                 size="sm"
-                className="shadow-sm border-blue-200 text-blue-600 hover:bg-blue-50"
+                className="shadow-sm border-blue-200 text-blue-600 hover:bg-blue-50 flex items-center gap-1.5"
                 disabled={!monthFilter || !yearFilter}
                 title={!monthFilter || !yearFilter ? "Select month/year to enable bulk generation" : ""}
               >
-                <svg className="w-4 h-4 mr-1.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
-                Bulk Generate
+                <span>Bulk Generate</span>
               </Button>
               <Button
                 onClick={() => setShowForm(!showForm)}
                 size="sm"
-                className="shadow-sm"
+                className="shadow-sm flex items-center gap-1.5"
               >
-                <svg className="w-4 h-4 mr-1.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                {showForm ? "Close Form" : "New Bill"}
+                {showForm ? (
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l18 18" />
+                  </svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                )}
+                <span>{showForm ? "Close Form" : "New Bill"}</span>
               </Button>
             </div>
           </div>

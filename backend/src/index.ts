@@ -3,7 +3,6 @@ import express from "express"
 import cors from "cors"
 import cookieParser from "cookie-parser"
 import roomRoutes from "./routes/roomRoutes.js"
-import authRoutes from "./routes/authRoutes.js"
 import authRoutesV2 from "./routes/authRoutesV2.js"
 import bookingRoutes from "./routes/bookingRoutes.js"
 import dashboardRoutes from "./routes/dashboardRoutes.js"
@@ -39,7 +38,7 @@ app.use(cookieParser()) // Parse cookies
 // Routes
 app.use("/api/monthly-bills", monthlyBillingRoutes)
 app.use("/api/rooms", roomRoutes)
-app.use("/api/auth", authRoutes)
+app.use("/api/auth", authRoutesV2)
 app.use("/api/v2/auth", authRoutesV2)
 app.use("/api/bookings", bookingRoutes)
 app.use("/api/dashboard", dashboardRoutes)
