@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from "react"
 import { useSearchParams } from "react-router-dom"
-import { billingService, messagingService, paymentService } from "../services/billingService"
+import { billingService, messagingService } from "../services/billingService"
 import type { RenterDashboardData } from "../types/billing"
 import LoadingSpinner from "../components/ui/LoadingSpinner"
 import Card from "../components/ui/Card"
 import Button from "../components/ui/Button"
 import Badge from "../components/ui/Badge"
+import { CurrentBillTab } from "./CurrentBillTab"
 
 type TabType = 'dashboard' | 'history' | 'messages' | 'notifications' | 'bills'
 
@@ -19,9 +20,6 @@ const RenterMonthlyDashboard = () => {
 
   const [messageContent, setMessageContent] = useState("")
   const [sendingMessage, setSendingMessage] = useState(false)
-  const [processingPayment, setProcessingPayment] = useState(false)
-  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success'>('idle')
-  const [paymentMethod, setPaymentMethod] = useState("")
   const [showRenewModal, setShowRenewModal] = useState(false)
   const [renewalPaymentMethod, setRenewalPaymentMethod] = useState("UPI")
   const [submittingRenewal, setSubmittingRenewal] = useState(false)
@@ -94,29 +92,6 @@ const RenterMonthlyDashboard = () => {
       console.error("Error sending message:", error)
     } finally {
       setSendingMessage(false)
-    }
-  }
-
-  const handlePayment = async () => {
-    if (!paymentMethod || !data?.monthlyBill) return
-    try {
-      setProcessingPayment(true)
-      setPaymentStatus('processing')
-      await paymentService.processMonthlyPayment({
-        billId: data.monthlyBill.id,
-        paymentMethod,
-      })
-      setPaymentStatus('success')
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      setPaymentMethod("")
-      setPaymentStatus('idle')
-      await fetchDashboardData()
-      await fetchBillHistory()
-    } catch (error) {
-      console.error("Error processing payment:", error)
-      setPaymentStatus('idle')
-    } finally {
-      setProcessingPayment(false)
     }
   }
 
@@ -430,173 +405,20 @@ const RenterMonthlyDashboard = () => {
 
         {/* Current Bill Tab */}
         {activeTab === 'bills' && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-4">
-            <div className="mb-2">
-              <h1 className="text-xl font-black text-gray-900 tracking-tight">Rent Validity & Statements</h1>
-              <p className="text-xs text-gray-400 font-medium">Manage your stay validity and billing invoices</p>
-            </div>
-
-            {/* Premium Mobile Recharge Validity Card - Always Show Professional Card */}
-            {activeBooking && monthlyRenter ? (
-              <Card className={`p-4 rounded-2xl border ${validity.cardColor} relative overflow-hidden transition-all duration-300 hover:shadow-sm`}>
-                <div className="absolute top-0 right-0 w-24 h-24 bg-current opacity-[0.02] rounded-bl-full pointer-events-none" />
-                
-                {/* Header */}
-                <div className="flex justify-between items-center mb-3">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm">⚡</span>
-                    <div>
-                      <h3 className="text-[10px] font-extrabold uppercase tracking-widest opacity-80">Current Rent Cycle</h3>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="relative flex h-2 w-2">
-                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${validity.indicatorColor} opacity-75`}></span>
-                      <span className={`relative inline-flex rounded-full h-2 w-2 ${validity.indicatorColor}`}></span>
-                    </span>
-                    <Badge variant={validity.badgeVariant} size="sm" className="font-black text-[8px] uppercase tracking-wider px-2 py-0.5">
-                      {validity.badgeLabel}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Main Countdown displays */}
-                <div className="my-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-y border-black/[0.04] py-3">
-                  <div>
-                    <span className="text-[9px] font-bold uppercase opacity-60 tracking-wider">Days Remaining</span>
-                    <h2 className="text-xl sm:text-2xl font-black tracking-tight mt-0.5 flex items-baseline gap-1">
-                      {validity.isOverdue ? `${validity.overdueDays} day${validity.overdueDays > 1 ? 's' : ''} overdue` : `${validity.diffDays} day${validity.diffDays > 1 ? 's' : ''} left`}
-                    </h2>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:text-right font-bold">
-                    <div>
-                      <span className="block opacity-65 text-[8px] font-bold uppercase tracking-wider">Room Number</span>
-                      <span className="text-blue-600 font-extrabold text-sm">{activeBooking.room?.roomNumber || "N/A"}</span>
-                    </div>
-                    <div>
-                      <span className="block opacity-65 text-[8px] font-bold uppercase tracking-wider">Monthly Rent</span>
-                      <span className="text-gray-900 font-extrabold text-sm">₹{(monthlyRenter?.rentAmount || activeBooking.room?.monthlyPrice || 0).toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Cycle Details */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px] font-semibold opacity-90">
-                  <div>
-                    <span className="block text-[8px] font-bold uppercase tracking-widest opacity-60 mb-0.5">Current Cycle</span>
-                    <span className="text-gray-900 font-extrabold">
-                      {formatDate(validity.cycleStart)} → {formatDate(validity.cycleEnd)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-[8px] font-bold uppercase tracking-widest opacity-60 mb-0.5">Valid Till</span>
-                    <span className="text-gray-950 font-extrabold">
-                      {validity.cycleEnd ? new Date(validity.cycleEnd).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }) : "N/A"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-[8px] font-bold uppercase tracking-widest opacity-60 mb-0.5">Pending Amount</span>
-                    <span className={`font-extrabold ${monthlyRenter?.pendingAmount > 0 ? "text-rose-600" : "text-gray-900"}`}>
-                      ₹{(monthlyRenter?.pendingAmount || 0).toLocaleString()}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-[8px] font-bold uppercase tracking-widest opacity-60 mb-0.5">Payment Window</span>
-                    <span className="text-blue-600 font-extrabold uppercase text-[10px]">
-                      1–10 of month
-                    </span>
-                  </div>
-                </div>
-
-                {/* Recharge action buttons */}
-                <div className="mt-4 pt-3 border-t border-black/[0.04] flex flex-col sm:flex-row gap-2">
-                  <button 
-                    onClick={() => {
-                      setRenewalError(null)
-                      setRenewalSuccess(null)
-                      setShowRenewModal(true)
-                    }}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[9px] tracking-widest uppercase py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow-sm shadow-blue-100 hover:-translate-y-0.5 active:translate-y-0"
-                  >
-                    <span>⚡</span>
-                    <span>Renew Stay (Extend Plan)</span>
-                  </button>
-                  <button 
-                    onClick={handleRequestCheckout}
-                    disabled={monthlyRenter?.status === "CHECKOUT_PENDING" || monthlyRenter?.status === "CHECKED_OUT" || submittingCheckout}
-                    className="flex-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-[9px] tracking-widest uppercase py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span>🏠</span>
-                    <span>
-                      {monthlyRenter?.status === "CHECKOUT_PENDING" ? "Checkout Request Pending" : (monthlyRenter?.status === "CHECKED_OUT" ? "Checked Out" : "Request Checkout")}
-                    </span>
-                  </button>
-                </div>
-              </Card>
-            ) : (
-              <Card className="p-8 text-center border-none shadow-sm bg-white">
-                <p className="text-gray-400 font-black text-xs uppercase tracking-widest">No active monthly stay found.</p>
-              </Card>
-            )}
-
-            {/* Monthly Bills History Section */}
-            {allBills && allBills.length > 0 ? (
-              <div className="space-y-4">
-                <div className="mb-3">
-                  <h3 className="text-sm font-black text-gray-900 tracking-tight">Recent Statements</h3>
-                  <p className="text-[10px] text-gray-400 font-medium">Your monthly billing history</p>
-                </div>
-                {allBills.slice(0, 3).map(bill => (
-                  <Card key={bill.id} className="overflow-hidden border-none shadow-sm">
-                    <div className="bg-slate-900 p-4 text-white flex justify-between items-start">
-                      <div>
-                        <h2 className="text-base font-black tracking-tight">{new Date(bill.month + "-01").toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h2>
-                        <p className="opacity-50 text-[9px] font-bold uppercase tracking-widest mt-1">
-                          {bill.paidDate ? `Settled ${new Date(bill.paidDate).toLocaleDateString()}` : 'Payment Pending'}
-                        </p>
-                      </div>
-                      <Badge variant={bill.isPaid ? 'success' : (bill.status === 'VERIFICATION_PENDING' ? 'info' : 'warning')} size="sm">
-                        {bill.isPaid ? "Paid" : (bill.status === 'VERIFICATION_PENDING' ? "Verifying" : "Pending")}
-                      </Badge>
-                    </div>
-                    <div className="p-4 bg-white grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-slate-50 p-3 rounded-lg space-y-2 text-xs">
-                        <div className="flex justify-between"><span className="text-gray-600">Unit Rent</span><span className="font-bold">₹{bill.rentAmount.toLocaleString()}</span></div>
-                        <div className="flex justify-between"><span className="text-gray-600">Electricity</span><span className="font-bold">₹{bill.electricityAmount.toLocaleString()}</span></div>
-                        {bill.extraCharges > 0 && <div className="flex justify-between"><span className="text-gray-600">Maintenance</span><span className="font-bold">₹{bill.extraCharges.toLocaleString()}</span></div>}
-                        {bill.previousDue > 0 && <div className="flex justify-between text-red-600"><span>Previous Due</span><span className="font-bold">₹{bill.previousDue.toLocaleString()}</span></div>}
-                        <div className="pt-2 border-t border-gray-200 flex justify-between font-bold"><span>Total Due</span><span className="text-blue-600">₹{bill.totalDue.toLocaleString()}</span></div>
-                        <div className="flex justify-between text-green-600"><span>Paid</span><span className="font-bold">₹{bill.paidAmount.toLocaleString()}</span></div>
-                        <div className="flex justify-between text-red-600 font-bold pt-2 border-t border-gray-200"><span>Remaining</span><span>₹{bill.remainingAmount.toLocaleString()}</span></div>
-                      </div>
-                      {!bill.isPaid && (
-                        <div className="space-y-3">
-                          <p className="text-[10px] font-bold text-gray-900 uppercase tracking-widest">Settle This Invoice</p>
-                          <div className="p-2 bg-blue-50/50 border border-blue-100 rounded-lg">
-                            <p className="text-[9px] text-blue-600 font-bold uppercase mb-0.5">Note</p>
-                            <p className="text-[10px] text-blue-700 leading-relaxed">Make payment via UPI or Cash, then select method to notify admin.</p>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            {['UPI', 'CASH'].map(m => (
-                              <button key={m} onClick={() => setPaymentMethod(m)} className={`p-2 rounded-lg border flex flex-col items-center gap-0.5 transition-all text-[9px] ${paymentMethod === m ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-gray-200'}`}>
-                                <span className="text-sm">{m === 'UPI' ? '⚡' : '🏠'}</span>
-                                <span className="font-black uppercase">{m}</span>
-                              </button>
-                            ))}
-                          </div>
-                          <Button onClick={handlePayment} size="sm" className="w-full py-2 text-[9px] font-black uppercase tracking-widest shadow-sm" disabled={!paymentMethod || processingPayment}>Alert Admin</Button>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <Card className="p-12 text-center border-none shadow-sm bg-white">
-                <p className="text-gray-400 font-black text-xs uppercase tracking-widest">No billing statements yet.</p>
-              </Card>
-            )}
-          </div>
+          <CurrentBillTab
+            activeBooking={activeBooking}
+            monthlyRenter={monthlyRenter}
+            allBills={allBills}
+            validity={validity}
+            formatDate={formatDate}
+            onRenewClick={() => {
+              setRenewalError(null)
+              setRenewalSuccess(null)
+              setShowRenewModal(true)
+            }}
+            onCheckoutClick={handleRequestCheckout}
+            submittingCheckout={submittingCheckout}
+          />
         )}
 
         {/* Messages Tab */}
@@ -687,28 +509,6 @@ const RenterMonthlyDashboard = () => {
           </div>
         )}
       </div>
-
-      {/* Payment Processing Overlay */}
-      {(paymentStatus === 'processing' || paymentStatus === 'success') && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/90 backdrop-blur-md">
-          <Card className="p-10 text-center max-w-sm w-full shadow-2xl border-none bg-white">
-            {paymentStatus === 'processing' ? (
-              <div className="space-y-6">
-                <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                <h3 className="text-xl font-black text-gray-900 tracking-tight">Verifying Statement...</h3>
-              </div>
-            ) : (
-              <div className="space-y-4 animate-in zoom-in duration-300">
-                <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-200">
-                  <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
-                </div>
-                <h3 className="text-2xl font-black text-green-600 tracking-tight">Success!</h3>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Payment alerted to Admin</p>
-              </div>
-            )}
-          </Card>
-        </div>
-      )}
 
       {/* Stay Renewal Modal (Business Rule 2, 6, 7) */}
       {showRenewModal && activeBooking && monthlyRenter && (
