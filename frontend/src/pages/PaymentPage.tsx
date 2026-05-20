@@ -70,10 +70,14 @@ const PaymentPage = () => {
   if (!booking) return null
 
   const isMonthly = booking.bookingType === 'MONTHLY'
-  const rent = booking.totalAmount
-  const tax = Math.round(rent * 0.12)
-  const securityDeposit = isMonthly ? rent : 0 // Mock security deposit as 1 month rent
-  const finalAmount = rent + tax + securityDeposit
+  const SECURITY_DEPOSIT = 2500
+  
+  // For monthly bookings: totalAmount already includes deposit
+  // For daily bookings: totalAmount is just the rent
+  const baseAmount = isMonthly ? booking.totalAmount - SECURITY_DEPOSIT : booking.totalAmount
+  const tax = Math.round(baseAmount * 0.12)
+  const securityDeposit = isMonthly ? SECURITY_DEPOSIT : 0
+  const finalAmount = booking.totalAmount + tax
 
   return (
     <div className="min-h-screen bg-gray-50/50 py-8 px-4 sm:px-6 lg:px-8 relative">
@@ -181,7 +185,7 @@ const PaymentPage = () => {
                 <div className="space-y-3 py-6 border-y border-gray-50">
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-medium text-gray-500">Room Rent</span>
-                    <span className="font-bold text-gray-900">₹{rent.toLocaleString()}</span>
+                    <span className="font-bold text-gray-900">₹{baseAmount.toLocaleString()}</span>
                   </div>
                   {isMonthly && (
                     <div className="flex justify-between items-center text-xs">

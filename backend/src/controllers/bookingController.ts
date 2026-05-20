@@ -393,6 +393,13 @@ export const getAllBookings = async (
               stayStatus: StayStatus.CHECKED_OUT 
             }
           }),
+          prisma.monthlyRenter.updateMany({
+            where: { bookingId: b.id },
+            data: {
+              status: "CHECKED_OUT",
+              stayStatus: StayStatus.CHECKED_OUT
+            }
+          }),
           prisma.room.update({
             where: { id: b.roomId },
             data: { 
@@ -469,6 +476,13 @@ export const checkOutBooking = async (req: AuthRequest, res: Response) => {
           data: { 
             stayStatus: StayStatus.CHECKED_OUT,
             status: BookingStatus.COMPLETED 
+          }
+        }),
+        prisma.monthlyRenter.updateMany({
+          where: { bookingId: booking.id },
+          data: {
+            status: "CHECKED_OUT",
+            stayStatus: StayStatus.CHECKED_OUT
           }
         }),
         prisma.room.update({
@@ -749,6 +763,15 @@ export const cancelBooking = async (
     await prisma.booking.update({
       where: { id: bookingId },
       data: { status: BookingStatus.CANCELLED },
+    })
+
+    // Also update associated monthly renter record if exists
+    await prisma.monthlyRenter.updateMany({
+      where: { bookingId },
+      data: {
+        status: "CHECKED_OUT",
+        stayStatus: StayStatus.CHECKED_OUT
+      }
     })
 
     // Update room occupancy if it was confirmed

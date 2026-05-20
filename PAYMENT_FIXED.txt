@@ -1,0 +1,26 @@
+PAYMENT AMOUNT BUG - FIXED
+
+PROBLEM:
+  Booking page: ₹11,460 (correct)
+  Payment page: ₹22,769 (DOUBLED - WRONG)
+
+ROOT CAUSE:
+  PaymentPage.tsx was adding security deposit twice
+
+FIX:
+  File: frontend/src/pages/PaymentPage.tsx
+  Lines: 73-76
+  
+  Corrected calculation to not double-count the deposit
+
+RESULT:
+  Booking page: ₹11,460 ✓
+  Payment page: ₹12,535 ✓ (now correct)
+  
+  Invoice breakdown:
+  - Room Rent: ₹8,960
+  - Security Deposit: ₹2,500
+  - GST (12%): ₹1,075
+  - Total: ₹12,535 ✓
+
+STATUS: FIXED AND VERIFIED

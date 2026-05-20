@@ -41,6 +41,8 @@ const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
     badgeVariant = 'info'
   }
 
+  const showStayingBadge = (statusLabel === 'Booked' || statusLabel === 'Full') && !!room.currentRenterName
+
   const canBook = room.isAvailable && !isFull
 
   return (
@@ -93,7 +95,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
         </div>
 
         {/* Live Renter Status Badge - Prominent on AC / Booked Rooms */}
-        {room.currentRenterName && (
+        {showStayingBadge && (
           <div className="mb-2 px-2 py-1 bg-amber-50/70 border border-amber-200/40 rounded-lg inline-flex items-center gap-1.5 text-[8px] sm:text-[9px] font-semibold text-amber-800 self-start animate-pulse">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
             <span>Staying: <strong className="font-extrabold text-amber-900">{room.currentRenterName}</strong></span>

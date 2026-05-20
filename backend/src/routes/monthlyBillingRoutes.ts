@@ -12,6 +12,10 @@ import {
   getAdminBillingStats,
   getRoomBillingHistory,
   generateBulkMonthlyBills,
+  requestStayRenewal,
+  sendRenterReminder,
+  requestRenterCheckout,
+  rejectRenterCheckout,
 } from "../controllers/monthlyBillingController.js"
 
 const router = Router()
@@ -22,10 +26,14 @@ router.get("/admin/all", protect, adminOnly, getAllMonthlyBills)
 router.get("/admin/stats", protect, adminOnly, getAdminBillingStats)
 router.get("/admin/room-history/:roomId", protect, adminOnly, getRoomBillingHistory)
 router.post("/admin/generate-bulk", protect, adminOnly, generateBulkMonthlyBills)
+router.post("/admin/send-reminder/:bookingId", protect, adminOnly, sendRenterReminder)
+router.post("/admin/reject-checkout/:bookingId", protect, adminOnly, rejectRenterCheckout)
 
 // Renter routes - specific paths
 router.get("/renter/dashboard", protect, getRenterDashboardData)
 router.get("/renter/bills", protect, getRenterMonthlyBills)
+router.post("/renter/renew", protect, requestStayRenewal)
+router.post("/renter/request-checkout", protect, requestRenterCheckout)
 router.get("/test", (req, res) => {
   res.json({
     message: "Monthly billing route working",

@@ -15,18 +15,36 @@ import contactRoutes from "./routes/contactRoutes.js"
 const app = express()
 
 // CORS configuration to allow credentials (cookies)
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : [];
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow all localhost origins in development
-    if (origin?.includes("localhost") || origin?.includes("127.0.0.1")) {
-      callback(null, true)
-    } else if (origin === "http://localhost:5173" || origin === "http://localhost:5174" || origin === "http://localhost:5175" || origin === "http://localhost:3000") {
-      callback(null, true)
-    } else if (!origin) {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      callback(null, true)
+    // In production, check against allowed origins
+    if (process.env.NODE_ENV === 'production' && allowedOrigins.length > 0) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+      return;
+    }
+
+    // In development, allow localhost and local network
+    if (!origin) {
+      // Allow requests with no origin (like mobile apps, Postman, curl)
+      callback(null, true);
+    } else if (
+      origin.includes("localhost") || 
+      origin.includes("127.0.0.1") ||
+      origin.match(/^http:\/\/192\.168\.\d{1,3}\.\d{1,3}/) || // 192.168.x.x
+      origin.match(/^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}/) || // 10.x.x.x
+      origin.match(/^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}/) // 172.16-31.x.x
+    ) {
+      callback(null, true);
     } else {
-      callback(new Error("Not allowed by CORS"))
+      callback(new Error("Not allowed by CORS"));
     }
   },
   credentials: true, // Allow cookies
@@ -51,8 +69,12 @@ app.get("/", (req, res) => {
   res.send("Rabab Stay Backend Running 🏨")
 })
 
-const PORT = 5000
+const PORT = parseInt(process.env.PORT || '5000', 10)
+const HOST = process.env.HOST || '0.0.0.0' // Listen on all network interfaces
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
+app.listen(PORT, HOST, () => {
+  console.log(`🚀 Server running on:`)
+  console.log(`   - Local:   http://localhost:${PORT}`)
+  console.log(`   - Network: http://<your-ip>:${PORT}`)
+  console.log(`   - Host:    ${HOST}`)
 })

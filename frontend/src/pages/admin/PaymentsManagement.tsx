@@ -27,21 +27,21 @@ const PaymentsManagement = () => {
 
   const getTotalPaid = () => {
     return bookings
-      .filter(b => b.paymentStatus === "paid")
+      .filter(b => b.paymentStatus === "SUCCESS")
       .reduce((sum, b) => sum + b.totalAmount, 0)
   }
 
   const getTotalPending = () => {
     return bookings
-      .filter(b => b.paymentStatus === "pending")
+      .filter(b => b.paymentStatus === "PENDING")
       .reduce((sum, b) => sum + b.totalAmount, 0)
   }
 
   const filteredBookings = bookings.filter(booking => {
     // Filter by payment status
-    if (filter === "paid" && booking.paymentStatus !== "paid") return false
-    if (filter === "pending" && booking.paymentStatus !== "pending") return false
-    if (filter === "failed" && booking.paymentStatus !== "failed") return false
+    if (filter === "paid" && booking.paymentStatus !== "SUCCESS") return false
+    if (filter === "pending" && booking.paymentStatus !== "PENDING") return false
+    if (filter === "failed" && booking.paymentStatus !== "FAILED") return false
     
     // Search
     if (search) {
@@ -50,7 +50,7 @@ const PaymentsManagement = () => {
         booking.bookingId.toLowerCase().includes(searchLower) ||
         booking.customerName.toLowerCase().includes(searchLower) ||
         booking.customerPhone.includes(search) ||
-        booking.payment?.transactionId?.toLowerCase().includes(searchLower)
+        booking.payment?.[0]?.transactionId?.toLowerCase().includes(searchLower)
       )
     }
     
@@ -94,7 +94,7 @@ const PaymentsManagement = () => {
           </div>
           <div className="bg-white p-4 rounded border border-gray-200">
             <div className="text-2xl font-bold text-yellow-600">
-              {bookings.filter(b => b.paymentStatus === "pending").length}
+              {bookings.filter(b => b.paymentStatus === "PENDING").length}
             </div>
             <div className="text-sm text-gray-600">Pending Count</div>
           </div>
@@ -126,7 +126,7 @@ const PaymentsManagement = () => {
                 filter === "paid" ? "bg-green-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Paid ({bookings.filter(b => b.paymentStatus === "paid").length})
+              Paid ({bookings.filter(b => b.paymentStatus === "SUCCESS").length})
             </button>
             <button
               onClick={() => setFilter("pending")}
@@ -134,7 +134,7 @@ const PaymentsManagement = () => {
                 filter === "pending" ? "bg-yellow-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Pending ({bookings.filter(b => b.paymentStatus === "pending").length})
+              Pending ({bookings.filter(b => b.paymentStatus === "PENDING").length})
             </button>
             <button
               onClick={() => setFilter("failed")}
@@ -142,7 +142,7 @@ const PaymentsManagement = () => {
                 filter === "failed" ? "bg-red-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              Failed ({bookings.filter(b => b.paymentStatus === "failed").length})
+              Failed ({bookings.filter(b => b.paymentStatus === "FAILED").length})
             </button>
           </div>
         </div>
@@ -174,7 +174,7 @@ const PaymentsManagement = () => {
                 ) : (
                   filteredBookings.map((booking) => (
                     <tr key={booking.id} className={`hover:bg-gray-50 ${
-                      booking.paymentStatus === "pending" ? "bg-yellow-50" : ""
+                      booking.paymentStatus === "PENDING" ? "bg-yellow-50" : ""
                     }`}>
                       <td className="px-4 py-3 text-sm font-mono font-bold text-blue-600">
                         {booking.bookingId}
@@ -195,16 +195,16 @@ const PaymentsManagement = () => {
                         ₹{booking.totalAmount.toLocaleString()}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {booking.payment?.paymentMethod || "N/A"}
+                        {booking.payment?.[0]?.paymentMethod || "N/A"}
                       </td>
                       <td className="px-4 py-3 text-sm font-mono text-gray-600">
-                        {booking.payment?.transactionId || "N/A"}
+                        {booking.payment?.[0]?.transactionId || "N/A"}
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          booking.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' :
-                          booking.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          booking.paymentStatus === 'failed' ? 'bg-red-100 text-red-800' :
+                          booking.paymentStatus === 'SUCCESS' ? 'bg-green-100 text-green-800' :
+                          booking.paymentStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                          booking.paymentStatus === 'FAILED' ? 'bg-red-100 text-red-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
                           {booking.paymentStatus.toUpperCase()}
@@ -221,7 +221,7 @@ const PaymentsManagement = () => {
                           >
                             View
                           </button>
-                          {booking.paymentStatus === "pending" && (
+                          {booking.paymentStatus === "PENDING" && (
                             <button
                               onClick={() => alert('Mark as paid feature coming soon')}
                               className="text-green-600 hover:underline text-xs"
@@ -255,7 +255,7 @@ const PaymentsManagement = () => {
             <div>
               <div className="text-sm text-gray-600">Pending Amount (Filtered)</div>
               <div className="text-lg font-bold text-red-600">
-                ₹{filteredBookings.filter(b => b.paymentStatus === "pending").reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString()}
+                ₹{filteredBookings.filter(b => b.paymentStatus === "PENDING").reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString()}
               </div>
             </div>
           </div>

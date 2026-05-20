@@ -103,6 +103,9 @@ enum VerificationStatus {
 
 enum MonthlyRenterStatus {
   ACTIVE
+  PENDING_PAYMENT
+  OVERDUE
+  CHECKOUT_PENDING
   CHECKED_OUT
 }
 
@@ -460,15 +463,22 @@ model MonthlyRenter {
   roomId    Int
   room      Room    @relation(fields: [roomId], references: [id])
 
-  joinDate     DateTime
-  lastPaidDate DateTime?
-  nextDueDate  DateTime
-  stayStatus   StayStatus @default(CHECKED_IN)
+  joinDate          DateTime
+  lastPaidDate      DateTime?
+  currentCycleStart DateTime?
+  currentCycleEnd   DateTime?
+  dueDate           DateTime?
+  nextDueDate       DateTime
+  stayStatus        StayStatus @default(CHECKED_IN)
 
   rentAmount     Float
   securityAmount Float @default(2500)
+  paidAmount     Float @default(0)
+  pendingAmount  Float @default(0)
+  overdueDays    Int   @default(0)
 
-  status MonthlyRenterStatus @default(ACTIVE)
+  status        MonthlyRenterStatus @default(ACTIVE)
+  paymentStatus String?             @default("PENDING")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

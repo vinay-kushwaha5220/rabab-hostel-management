@@ -21,6 +21,21 @@ export const billingService = {
     return response.data
   },
 
+  renewStay: async (data: { paymentMethod: string }): Promise<any> => {
+    const response = await api.post("/monthly-bills/renter/renew", data)
+    return response.data
+  },
+
+  requestCheckout: async (): Promise<any> => {
+    const response = await api.post("/monthly-bills/renter/request-checkout")
+    return response.data
+  },
+
+  rejectCheckout: async (bookingId: number): Promise<any> => {
+    const response = await api.post(`/monthly-bills/admin/reject-checkout/${bookingId}`)
+    return response.data
+  },
+
   // Admin endpoints
   createBill: async (data: {
     bookingId: number
