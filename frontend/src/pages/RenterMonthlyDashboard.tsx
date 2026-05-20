@@ -186,7 +186,6 @@ const RenterMonthlyDashboard = () => {
   const { activeBooking = null, monthlyBill = null, messages = [], notifications = [] } = data || {}
 
   const monthlyRenter = activeBooking?.monthlyRenter
-  const dueDateVal = monthlyRenter?.dueDate
 
   const formatDate = (dateInput: any) => {
     if (!dateInput) return "N/A"
@@ -195,76 +194,93 @@ const RenterMonthlyDashboard = () => {
   }
 
   const getValidityDetails = () => {
-    if (!dueDateVal) {
+    // Use monthlyRenter data (not separate monthlyBill query)
+    if (!monthlyRenter || !monthlyRenter.currentCycleEnd) {
       return {
-        message: "No active validity found",
+        message: "No active stay cycle",
         cardColor: "bg-slate-50 border-slate-200 text-slate-700",
         indicatorColor: "bg-slate-300",
-        badgeLabel: "Unknown",
+        badgeLabel: "INACTIVE",
         badgeVariant: "default" as any,
         diffDays: 0,
-        isOverdue: false
+        isOverdue: false,
+        overdueDays: 0,
+        cycleStart: null,
+        cycleEnd: null,
+        dueDate: null
       }
     }
 
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    const due = new Date(dueDateVal)
-    due.setHours(0, 0, 0, 0)
+    
+    const cycleEnd = new Date(monthlyRenter.currentCycleEnd)
+    cycleEnd.setHours(0, 0, 0, 0)
 
-    const diffTime = due.getTime() - today.getTime()
+    const diffTime = cycleEnd.getTime() - today.getTime()
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
+    // Status Logic: ACTIVE (>10 days) | DUE_SOON (1-10 days) | EXPIRES_TODAY (last day) | OVERDUE (past due)
     if (diffDays < 0) {
+      // OVERDUE: Rent cycle has ended
       const overdueDays = Math.abs(diffDays)
       return {
-        message: `Overdue by ${overdueDays} days`,
+        message: `Rent expired ${overdueDays} day${overdueDays > 1 ? 's' : ''} ago`,
         cardColor: "bg-rose-50/80 border border-rose-200/60 text-rose-900 shadow-sm shadow-rose-50/50",
         indicatorColor: "bg-rose-500 animate-pulse",
         badgeLabel: "OVERDUE",
         badgeVariant: "danger" as any,
-        diffDays: overdueDays,
-        isOverdue: true
+        diffDays: 0,
+        isOverdue: true,
+        overdueDays,
+        cycleStart: monthlyRenter.currentCycleStart,
+        cycleEnd: monthlyRenter.currentCycleEnd,
+        dueDate: monthlyRenter.dueDate
       }
     } else if (diffDays === 0) {
+      // EXPIRES_TODAY: Last day of cycle
       return {
         message: "Rent expires today",
-        cardColor: "bg-amber-50/80 border border-amber-200/60 text-amber-900 shadow-sm shadow-amber-50/50",
-        indicatorColor: "bg-amber-500 animate-pulse",
+        cardColor: "bg-orange-50/80 border border-orange-200/60 text-orange-900 shadow-sm shadow-orange-50/50",
+        indicatorColor: "bg-orange-500 animate-pulse",
         badgeLabel: "EXPIRES TODAY",
         badgeVariant: "warning" as any,
         diffDays: 0,
-        isOverdue: false
+        isOverdue: false,
+        overdueDays: 0,
+        cycleStart: monthlyRenter.currentCycleStart,
+        cycleEnd: monthlyRenter.currentCycleEnd,
+        dueDate: monthlyRenter.dueDate
       }
-    } else if (diffDays <= 4) {
+    } else if (diffDays <= 10) {
+      // DUE_SOON: 1-10 days left
       return {
-        message: `Rent expires in ${diffDays} days`,
-        cardColor: "bg-amber-50/70 border border-amber-200/50 text-amber-900 shadow-sm shadow-amber-50/50",
-        indicatorColor: "bg-amber-500",
-        badgeLabel: "DUE SOON",
-        badgeVariant: "warning" as any,
-        diffDays,
-        isOverdue: false
-      }
-    } else if (diffDays <= 9) {
-      return {
-        message: `Rent expires in ${diffDays} days`,
-        cardColor: "bg-yellow-50/60 border border-yellow-200/50 text-yellow-800 shadow-sm shadow-yellow-50/50",
+        message: `${diffDays} day${diffDays > 1 ? 's' : ''} left`,
+        cardColor: "bg-yellow-50/70 border border-yellow-200/50 text-yellow-900 shadow-sm shadow-yellow-50/50",
         indicatorColor: "bg-yellow-500",
         badgeLabel: "DUE SOON",
         badgeVariant: "warning" as any,
         diffDays,
-        isOverdue: false
+        isOverdue: false,
+        overdueDays: 0,
+        cycleStart: monthlyRenter.currentCycleStart,
+        cycleEnd: monthlyRenter.currentCycleEnd,
+        dueDate: monthlyRenter.dueDate
       }
     } else {
+      // ACTIVE: >10 days left
       return {
-        message: `${diffDays} Days Left`,
+        message: `${diffDays} days left`,
         cardColor: "bg-emerald-50/80 border border-emerald-200/60 text-emerald-900 shadow-sm shadow-emerald-50/50",
         indicatorColor: "bg-emerald-500",
         badgeLabel: "ACTIVE",
         badgeVariant: "success" as any,
         diffDays,
-        isOverdue: false
+        isOverdue: false,
+        overdueDays: 0,
+        cycleStart: monthlyRenter.currentCycleStart,
+        cycleEnd: monthlyRenter.currentCycleEnd,
+        dueDate: monthlyRenter.dueDate
       }
     }
   }
@@ -298,21 +314,22 @@ const RenterMonthlyDashboard = () => {
 
                 {/* Smart Reminder System (Step 7.5) */}
                 {(() => {
-                  if (!dueDateVal) return null
+                  if (!monthlyRenter || !monthlyRenter.currentCycleEnd) return null
                   const today = new Date()
                   today.setHours(0, 0, 0, 0)
-                  const due = new Date(dueDateVal)
-                  due.setHours(0, 0, 0, 0)
-                  const diffTime = due.getTime() - today.getTime()
+                  const cycleEnd = new Date(monthlyRenter.currentCycleEnd)
+                  cycleEnd.setHours(0, 0, 0, 0)
+                  const diffTime = cycleEnd.getTime() - today.getTime()
                   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
                   if (diffDays < 0) {
+                    const overdueDays = Math.abs(diffDays)
                     return (
                       <div className="p-3 sm:p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-3 text-rose-800 shadow-sm">
                         <span className="text-xl">🚨</span>
                         <div>
                           <h4 className="text-xs font-black uppercase tracking-wider">Overdue Alert</h4>
-                          <p className="text-[10px] sm:text-xs font-semibold text-rose-700 mt-0.5">Overdue by {Math.abs(diffDays)} days. Please renew stay or settle rent dues immediately.</p>
+                          <p className="text-[10px] sm:text-xs font-semibold text-rose-700 mt-0.5">Rent expired {overdueDays} day{overdueDays > 1 ? 's' : ''} ago. Please renew stay or settle rent dues immediately.</p>
                         </div>
                       </div>
                     )
@@ -419,8 +436,8 @@ const RenterMonthlyDashboard = () => {
               <p className="text-xs text-gray-400 font-medium">Manage your stay validity and billing invoices</p>
             </div>
 
-            {/* Premium Mobile Recharge Validity Card */}
-            {activeBooking && (
+            {/* Premium Mobile Recharge Validity Card - Always Show Professional Card */}
+            {activeBooking && monthlyRenter ? (
               <Card className={`p-4 rounded-2xl border ${validity.cardColor} relative overflow-hidden transition-all duration-300 hover:shadow-sm`}>
                 <div className="absolute top-0 right-0 w-24 h-24 bg-current opacity-[0.02] rounded-bl-full pointer-events-none" />
                 
@@ -429,7 +446,7 @@ const RenterMonthlyDashboard = () => {
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm">⚡</span>
                     <div>
-                      <h3 className="text-[10px] font-extrabold uppercase tracking-widest opacity-80">Stay Validity</h3>
+                      <h3 className="text-[10px] font-extrabold uppercase tracking-widest opacity-80">Current Rent Cycle</h3>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -446,9 +463,9 @@ const RenterMonthlyDashboard = () => {
                 {/* Main Countdown displays */}
                 <div className="my-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-y border-black/[0.04] py-3">
                   <div>
-                    <span className="text-[9px] font-bold uppercase opacity-60 tracking-wider">Plan Status</span>
+                    <span className="text-[9px] font-bold uppercase opacity-60 tracking-wider">Days Remaining</span>
                     <h2 className="text-xl sm:text-2xl font-black tracking-tight mt-0.5 flex items-baseline gap-1">
-                      {validity.message}
+                      {validity.isOverdue ? `${validity.overdueDays} day${validity.overdueDays > 1 ? 's' : ''} overdue` : `${validity.diffDays} day${validity.diffDays > 1 ? 's' : ''} left`}
                     </h2>
                   </div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:text-right font-bold">
@@ -463,18 +480,18 @@ const RenterMonthlyDashboard = () => {
                   </div>
                 </div>
 
-                {/* Sub details details */}
+                {/* Cycle Details */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px] font-semibold opacity-90">
                   <div>
-                    <span className="block text-[8px] font-bold uppercase tracking-widest opacity-60 mb-0.5">Current Stay Cycle</span>
+                    <span className="block text-[8px] font-bold uppercase tracking-widest opacity-60 mb-0.5">Current Cycle</span>
                     <span className="text-gray-900 font-extrabold">
-                      {formatDate(monthlyRenter?.currentCycleStart)} → {formatDate(monthlyRenter?.currentCycleEnd)}
+                      {formatDate(validity.cycleStart)} → {formatDate(validity.cycleEnd)}
                     </span>
                   </div>
                   <div>
-                    <span className="block text-[8px] font-bold uppercase tracking-widest opacity-60 mb-0.5">Due Date</span>
+                    <span className="block text-[8px] font-bold uppercase tracking-widest opacity-60 mb-0.5">Valid Till</span>
                     <span className="text-gray-950 font-extrabold">
-                      {monthlyRenter?.dueDate ? new Date(monthlyRenter.dueDate).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }) : "N/A"}
+                      {validity.cycleEnd ? new Date(validity.cycleEnd).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }) : "N/A"}
                     </span>
                   </div>
                   <div>
@@ -484,9 +501,9 @@ const RenterMonthlyDashboard = () => {
                     </span>
                   </div>
                   <div>
-                    <span className="block text-[8px] font-bold uppercase tracking-widest opacity-60 mb-0.5">Payment Status</span>
-                    <span className="text-emerald-600 font-extrabold uppercase">
-                      {monthlyRenter?.paymentStatus || "PAID"}
+                    <span className="block text-[8px] font-bold uppercase tracking-widest opacity-60 mb-0.5">Payment Window</span>
+                    <span className="text-blue-600 font-extrabold uppercase text-[10px]">
+                      1–10 of month
                     </span>
                   </div>
                 </div>
@@ -516,60 +533,68 @@ const RenterMonthlyDashboard = () => {
                   </button>
                 </div>
               </Card>
+            ) : (
+              <Card className="p-8 text-center border-none shadow-sm bg-white">
+                <p className="text-gray-400 font-black text-xs uppercase tracking-widest">No active monthly stay found.</p>
+              </Card>
             )}
 
-            {monthlyBill ? (
+            {/* Monthly Bills History Section */}
+            {allBills && allBills.length > 0 ? (
               <div className="space-y-4">
-                <Card className="overflow-hidden border-none shadow-sm">
-                  <div className="bg-slate-900 p-6 text-white">
-                    <div className="flex justify-between items-start mb-4">
+                <div className="mb-3">
+                  <h3 className="text-sm font-black text-gray-900 tracking-tight">Recent Statements</h3>
+                  <p className="text-[10px] text-gray-400 font-medium">Your monthly billing history</p>
+                </div>
+                {allBills.slice(0, 3).map(bill => (
+                  <Card key={bill.id} className="overflow-hidden border-none shadow-sm">
+                    <div className="bg-slate-900 p-4 text-white flex justify-between items-start">
                       <div>
-                        <h2 className="text-xl font-black tracking-tight">Monthly Statement</h2>
-                        <p className="opacity-50 text-[10px] font-bold uppercase tracking-widest mt-1">
-                          {new Date(monthlyBill.month + "-01").toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                        <h2 className="text-base font-black tracking-tight">{new Date(bill.month + "-01").toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h2>
+                        <p className="opacity-50 text-[9px] font-bold uppercase tracking-widest mt-1">
+                          {bill.paidDate ? `Settled ${new Date(bill.paidDate).toLocaleDateString()}` : 'Payment Pending'}
                         </p>
                       </div>
-                      <Badge variant={monthlyBill.isPaid ? 'success' : (monthlyBill.status === 'VERIFICATION_PENDING' ? 'info' : 'warning')} size="sm">
-                        {monthlyBill.isPaid ? "Paid" : (monthlyBill.status === 'VERIFICATION_PENDING' ? "Verifying" : "Pending")}
+                      <Badge variant={bill.isPaid ? 'success' : (bill.status === 'VERIFICATION_PENDING' ? 'info' : 'warning')} size="sm">
+                        {bill.isPaid ? "Paid" : (bill.status === 'VERIFICATION_PENDING' ? "Verifying" : "Pending")}
                       </Badge>
                     </div>
-                  </div>
-                  <div className="p-6 bg-white grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-slate-50 p-4 rounded-xl space-y-3">
-                      <div className="flex justify-between text-[10px] text-gray-400 font-bold uppercase tracking-widest"><span>Line Item</span><span>Amount</span></div>
-                      <div className="flex justify-between text-xs font-medium"><span>Unit Rent</span><span className="font-bold">₹{monthlyBill.rentAmount.toLocaleString()}</span></div>
-                      <div className="flex justify-between text-xs font-medium"><span>Electricity Usage</span><span className="font-bold">₹{monthlyBill.electricityAmount.toLocaleString()}</span></div>
-                      {monthlyBill.extraCharges > 0 && <div className="flex justify-between text-xs font-medium"><span>Maintenance</span><span className="font-bold">₹{monthlyBill.extraCharges.toLocaleString()}</span></div>}
-                      <div className="flex justify-between text-xs text-red-400 pt-2 border-t border-gray-100"><span>Previous Carryover</span><span className="font-bold">₹{monthlyBill.previousDue.toLocaleString()}</span></div>
-                      <div className="pt-2 border-t border-gray-200 flex justify-between items-center">
-                        <span className="text-xs font-bold">Total Statement</span><span className="text-lg font-black text-blue-600">₹{monthlyBill.totalDue.toLocaleString()}</span>
+                    <div className="p-4 bg-white grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-slate-50 p-3 rounded-lg space-y-2 text-xs">
+                        <div className="flex justify-between"><span className="text-gray-600">Unit Rent</span><span className="font-bold">₹{bill.rentAmount.toLocaleString()}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-600">Electricity</span><span className="font-bold">₹{bill.electricityAmount.toLocaleString()}</span></div>
+                        {bill.extraCharges > 0 && <div className="flex justify-between"><span className="text-gray-600">Maintenance</span><span className="font-bold">₹{bill.extraCharges.toLocaleString()}</span></div>}
+                        {bill.previousDue > 0 && <div className="flex justify-between text-red-600"><span>Previous Due</span><span className="font-bold">₹{bill.previousDue.toLocaleString()}</span></div>}
+                        <div className="pt-2 border-t border-gray-200 flex justify-between font-bold"><span>Total Due</span><span className="text-blue-600">₹{bill.totalDue.toLocaleString()}</span></div>
+                        <div className="flex justify-between text-green-600"><span>Paid</span><span className="font-bold">₹{bill.paidAmount.toLocaleString()}</span></div>
+                        <div className="flex justify-between text-red-600 font-bold pt-2 border-t border-gray-200"><span>Remaining</span><span>₹{bill.remainingAmount.toLocaleString()}</span></div>
                       </div>
-                      <div className="flex justify-between text-xs text-green-500"><span>Paid (Current)</span><span className="font-bold">₹{monthlyBill.paidAmount.toLocaleString()}</span></div>
-                      <div className="flex justify-between text-xs text-red-600 font-bold pt-2 border-t border-gray-100"><span>Final Dues</span><span>₹{monthlyBill.remainingAmount.toLocaleString()}</span></div>
+                      {!bill.isPaid && (
+                        <div className="space-y-3">
+                          <p className="text-[10px] font-bold text-gray-900 uppercase tracking-widest">Settle This Invoice</p>
+                          <div className="p-2 bg-blue-50/50 border border-blue-100 rounded-lg">
+                            <p className="text-[9px] text-blue-600 font-bold uppercase mb-0.5">Note</p>
+                            <p className="text-[10px] text-blue-700 leading-relaxed">Make payment via UPI or Cash, then select method to notify admin.</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            {['UPI', 'CASH'].map(m => (
+                              <button key={m} onClick={() => setPaymentMethod(m)} className={`p-2 rounded-lg border flex flex-col items-center gap-0.5 transition-all text-[9px] ${paymentMethod === m ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-gray-200'}`}>
+                                <span className="text-sm">{m === 'UPI' ? '⚡' : '🏠'}</span>
+                                <span className="font-black uppercase">{m}</span>
+                              </button>
+                            ))}
+                          </div>
+                          <Button onClick={handlePayment} size="sm" className="w-full py-2 text-[9px] font-black uppercase tracking-widest shadow-sm" disabled={!paymentMethod || processingPayment}>Alert Admin</Button>
+                        </div>
+                      )}
                     </div>
-                    {!monthlyBill.isPaid && (
-                      <div className="space-y-4">
-                        <p className="text-[10px] font-bold text-gray-900 uppercase tracking-widest">Settle Invoice</p>
-                        <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl">
-                          <p className="text-[10px] text-blue-600 font-bold uppercase mb-0.5">Note</p>
-                          <p className="text-[11px] text-blue-700 leading-relaxed">Please make payment via UPI or Cash, then select the method below to notify admin for verification.</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {['UPI', 'CASH'].map(m => (
-                            <button key={m} onClick={() => setPaymentMethod(m)} className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all ${paymentMethod === m ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-gray-200'}`}>
-                              <span className="text-base">{m === 'UPI' ? '⚡' : '🏠'}</span>
-                              <span className="text-[10px] font-black uppercase">{m}</span>
-                            </button>
-                          ))}
-                        </div>
-                        <Button onClick={handlePayment} size="sm" className="w-full py-2.5 text-[10px] font-black uppercase tracking-widest shadow-sm" disabled={!paymentMethod || processingPayment}>Alert Admin for Verification</Button>
-                      </div>
-                    )}
-                  </div>
-                </Card>
+                  </Card>
+                ))}
               </div>
             ) : (
-              <Card className="p-20 text-center border-none shadow-sm bg-white"><p className="text-gray-400 font-black text-xs uppercase tracking-widest">No active statements found.</p></Card>
+              <Card className="p-12 text-center border-none shadow-sm bg-white">
+                <p className="text-gray-400 font-black text-xs uppercase tracking-widest">No billing statements yet.</p>
+              </Card>
             )}
           </div>
         )}
