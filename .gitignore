@@ -142,10 +142,18 @@ build/
 # Keep setup scripts but not the generated .env files
 
 # ============================================================================
-# DOCUMENTATION GENERATED
+# DOCUMENTATION
 # ============================================================================
-# Keep documentation files but ignore generated ones
-docs/generated/
+# Keep only essential project documentation (README.md)
+# Ignore generated documentation and notes
+*.md
+!README.md
+!frontend/README.md
+!backend/README.md
+*.txt
+!setup-mobile.sh
+!setup-mobile.bat
+!setup-mobile-quick.bat
 
 # ============================================================================
 # BACKUP FILES
