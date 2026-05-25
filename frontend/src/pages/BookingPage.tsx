@@ -8,6 +8,7 @@ import Button from "../components/ui/Button"
 import Input from "../components/ui/Input"
 import Card from "../components/ui/Card"
 import Badge from "../components/ui/Badge"
+import { calculateBookingPrice } from "../services/pricingEngine"
 
 const BookingPage = () => {
   const { roomId } = useParams()
@@ -93,13 +94,16 @@ const BookingPage = () => {
 
     if (days > 0) {
       setTotalDays(days)
-      if (formData.bookingType === "MONTHLY") {
-        const pricePerMonth = room.monthlyPrice || room.price * 30
-        setTotalAmount(Math.round(pricePerMonth * formData.monthlyMonths) + SECURITY_DEPOSIT)
-      } else {
-        const pricePerDay = room.dailyPrice || room.price
-        setTotalAmount(pricePerDay * days)
-      }
+      const priceInfo = calculateBookingPrice({
+        room: {
+          dailyPrice: room.dailyPrice || room.price,
+          monthlyPrice: room.monthlyPrice || room.price * 30,
+          price: room.price
+        },
+        stayType: formData.bookingType,
+        duration: formData.bookingType === "MONTHLY" ? formData.monthlyMonths : days
+      })
+      setTotalAmount(priceInfo.grandTotal)
     } else {
       setTotalDays(0)
       setTotalAmount(0)
@@ -256,31 +260,37 @@ const BookingPage = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Input label="Check-in Date" name="checkInDate" type="date" value={formData.checkInDate} onChange={handleInputChange} error={errors.checkInDate} className="bg-gray-50/30" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <div className="w-full">
+                      <Input label="Check-in Date" name="checkInDate" type="date" value={formData.checkInDate} onChange={handleInputChange} error={errors.checkInDate} className="bg-gray-50/30" />
+                    </div>
 
-                    {isMonthly ? (
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Auto Checkout</label>
-                        <div className="relative">
-                          <div className="w-full px-4 py-2.5 bg-blue-50/50 border border-blue-100 rounded-lg text-xs font-bold text-blue-700">
-                            {formData.checkOutDate || 'Pick Check-in'}
+                    <div className="w-full">
+                      {isMonthly ? (
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Auto Checkout</label>
+                          <div className="relative">
+                            <div className="w-full pl-4 pr-16 py-2.5 bg-blue-50/50 border border-blue-100 rounded-lg text-xs font-bold text-blue-700">
+                              {formData.checkOutDate || 'Pick Check-in'}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleExtendStay}
+                              disabled={!formData.checkInDate}
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2 py-1 bg-blue-600 text-white text-[8px] font-bold uppercase tracking-wider rounded shadow-md hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              Extend
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={handleExtendStay}
-                            disabled={!formData.checkInDate}
-                            className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2 py-1 bg-blue-600 text-white text-[8px] font-bold uppercase tracking-wider rounded shadow-md hover:bg-blue-700 disabled:opacity-50"
-                          >
-                            Extend
-                          </button>
                         </div>
-                      </div>
-                    ) : (
-                      <Input label="Check-out Date" name="checkOutDate" type="date" value={formData.checkOutDate} onChange={handleInputChange} error={errors.checkOutDate} className="bg-gray-50/30" />
-                    )}
+                      ) : (
+                        <Input label="Check-out Date" name="checkOutDate" type="date" value={formData.checkOutDate} onChange={handleInputChange} error={errors.checkOutDate} className="bg-gray-50/30" />
+                      )}
+                    </div>
 
-                    <Input label="No. of Guests" name="numberOfGuests" type="number" min="1" max={room.capacity} value={formData.numberOfGuests} onChange={handleInputChange} error={errors.numberOfGuests} className="bg-gray-50/30" />
+                    <div className="w-full sm:col-span-2 xl:col-span-1">
+                      <Input label="No. of Guests" name="numberOfGuests" type="number" min="1" max={room.capacity} value={formData.numberOfGuests} onChange={handleInputChange} error={errors.numberOfGuests} className="bg-gray-50/30" />
+                    </div>
                   </div>
 
                   {isMonthly && (
@@ -300,8 +310,8 @@ const BookingPage = () => {
                 </section>
 
                 <div className="pt-6 border-t border-gray-100">
-                  <Button type="submit" size="lg" className="w-full text-xs font-bold uppercase tracking-widest shadow-lg" isLoading={submitting}>
-                    {submitting ? 'Confirming...' : 'Proceed to Payment'}
+                  <Button type="submit" variant="success" size="lg" className="w-full text-xs font-bold uppercase tracking-widest shadow-lg" isLoading={submitting}>
+                    {submitting ? 'Confirming...' : 'CONFIRM & PAY NOW'}
                   </Button>
                 </div>
               </form>
@@ -350,11 +360,6 @@ const BookingPage = () => {
                       <span className="font-bold text-blue-700">₹{SECURITY_DEPOSIT.toLocaleString()}</span>
                     </div>
                   )}
-
-                  <div className="flex justify-between items-center pt-3 border-t border-gray-50 text-xs">
-                    <span className="font-bold text-gray-400 uppercase tracking-widest text-[9px]">Fee (12%)</span>
-                    <span className="font-bold text-gray-900">₹{totalAmount > 0 ? Math.round(Math.max(0, totalAmount - (isMonthly ? SECURITY_DEPOSIT : 0)) * 0.12).toLocaleString() : '0'}</span>
-                  </div>
                 </div>
 
                 <div className="bg-gray-50 -mx-6 px-6 py-5">
@@ -362,10 +367,7 @@ const BookingPage = () => {
                     <div>
                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Total Amount</p>
                       <p className="text-2xl font-black text-blue-700 tracking-tight">
-                        ₹{totalAmount > 0 
-                          ? (totalAmount + Math.round(Math.max(0, totalAmount - (isMonthly ? SECURITY_DEPOSIT : 0)) * 0.12)).toLocaleString() 
-                          : '0'
-                        }
+                        ₹{totalAmount > 0 ? totalAmount.toLocaleString() : '0'}
                       </p>
                     </div>
                   </div>

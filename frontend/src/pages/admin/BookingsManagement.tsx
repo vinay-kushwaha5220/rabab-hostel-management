@@ -8,12 +8,56 @@ import LoadingSpinner from "../../components/ui/LoadingSpinner"
 
 type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'primary' | 'secondary'
 
+interface UserProfile {
+  name?: string
+  email?: string
+  role?: string
+  avatar?: string
+}
+
+interface Notification {
+  id: number
+  message: string
+  read: boolean
+  createdAt: string
+}
+
+const normalizeMonthlyRenterStatus = (status?: string): string | undefined => {
+  if (!status) return undefined
+  switch (status) {
+    case 'CHECKOUT_PENDING':
+    case 'CHECKOUT_REQUESTED':
+      return 'CHECKOUT_REQUESTED'
+    case 'RENEWAL_PENDING':
+    case 'PENDING_ADMIN_APPROVAL':
+    case 'STAY_CONTINUED':
+    case 'PENDING_PAYMENT':
+      return 'PAYMENT_PENDING'
+    default:
+      return status
+  }
+}
+
+const getBookingStatusLabel = (booking: BookingType): string => {
+  if (booking.bookingType === 'MONTHLY' && booking.monthlyRenter?.status) {
+    return normalizeMonthlyRenterStatus(booking.monthlyRenter.status) || booking.monthlyRenter.status
+  }
+  return booking.status || 'UNKNOWN'
+}
+
 const getStatusVariant = (status: string | undefined): BadgeVariant => {
   switch (status) {
     case 'CONFIRMED': return 'success'
     case 'PENDING': return 'warning'
     case 'CANCELLED': return 'danger'
     case 'COMPLETED': return 'primary'
+    case 'ACTIVE': return 'success'
+    case 'DUE_SOON': return 'warning'
+    case 'EXPIRES_TODAY': return 'warning'
+    case 'PAYMENT_PENDING': return 'warning'
+    case 'OVERDUE': return 'danger'
+    case 'CHECKOUT_REQUESTED': return 'secondary'
+    case 'CHECKED_OUT': return 'secondary'
     default: return 'secondary'
   }
 }
@@ -22,6 +66,7 @@ const getPaymentStatusVariant = (status: string | undefined): BadgeVariant => {
   switch (status) {
     case 'SUCCESS': return 'success'
     case 'PENDING': return 'warning'
+    case 'VERIFICATION_PENDING': return 'warning'
     case 'FAILED': return 'danger'
     case 'OVERDUE': return 'warning'
     case 'REFUNDED': return 'info'
@@ -35,8 +80,37 @@ const getStayStatusVariant = (status: string | undefined): BadgeVariant => {
     case 'CHECKED_OUT': return 'secondary'
     case 'NO_SHOW': return 'danger'
     case 'BOOKED': return 'warning'
+    case 'EXPIRED': return 'danger'
+    case 'EXPIRING_SOON': return 'warning'
     default: return 'warning'
   }
+}
+
+const getDateBasedStayStatus = (checkOutDate: string, currentStayStatus?: string): string => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  const checkout = new Date(checkOutDate)
+  checkout.setHours(0, 0, 0, 0)
+  
+  const daysRemaining = Math.floor((checkout.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  
+  // If already checked out, don't override with date-based status
+  if (currentStayStatus === 'CHECKED_OUT') {
+    return currentStayStatus
+  }
+  
+  // If checkout date has passed and not checked out yet, show EXPIRED
+  if (daysRemaining < 0) {
+    return 'EXPIRED'
+  }
+  
+  // If 1-2 days remaining, show EXPIRING SOON
+  if (daysRemaining <= 2 && daysRemaining >= 0) {
+    return 'EXPIRING_SOON'
+  }
+  
+  return currentStayStatus || 'BOOKED'
 }
 
 const BookingsManagement = () => {
@@ -49,6 +123,18 @@ const BookingsManagement = () => {
   const currentYear = new Date().getFullYear()
   const [selectedMonth, setSelectedMonth] = useState<string>("all")
   const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString())
+
+  // Header states
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+
+  // Stay Renewal Modal states
+  const [showRenewModal, setShowRenewModal] = useState(false)
+  const [selectedBookingForRenewal, setSelectedBookingForRenewal] = useState<BookingType | null>(null)
+  const [renewalElectricity, setRenewalElectricity] = useState("0")
+  const [renewalMaintenance, setRenewalMaintenance] = useState("0")
+  const [renewalNotes, setRenewalNotes] = useState("")
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   const months = [
     { value: "01", label: "January" },
@@ -69,7 +155,27 @@ const BookingsManagement = () => {
 
   useEffect(() => {
     fetchBookings()
+    fetchUserProfile()
+    fetchNotifications()
   }, [])
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await api.get("/auth/me")
+      setUserProfile(response.data)
+    } catch (error) {
+      console.error('Error fetching user profile:', error)
+    }
+  }
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await api.get("/notifications")
+      setNotifications(response.data)
+    } catch (error) {
+      console.error('Error fetching notifications:', error)
+    }
+  }
 
   const fetchBookings = async () => {
     try {
@@ -133,14 +239,31 @@ const BookingsManagement = () => {
     }
   }
 
-  const handleRenewStay = async (bookingId: number) => {
-    if (!confirm('RENEW STAY: Extend this guest stay by another 30 days?')) return
+  const openRenewalModal = (booking: BookingType) => {
+    setSelectedBookingForRenewal(booking)
+    setRenewalElectricity("0")
+    setRenewalMaintenance("0")
+    setRenewalNotes("")
+    setShowRenewModal(true)
+  }
+
+  const handleRenewStaySubmit = async () => {
+    if (!selectedBookingForRenewal) return
     try {
-      await api.put(`/bookings/${bookingId}/renew-stay`)
-      alert('Stay extended successfully for 30 days!')
+      setActionLoading(`renew-${selectedBookingForRenewal.id}`)
+      await api.put(`/bookings/${selectedBookingForRenewal.id}/renew-stay`, {
+        electricityAmount: parseFloat(renewalElectricity) || 0,
+        maintenanceCharge: parseFloat(renewalMaintenance) || 0,
+        notes: renewalNotes
+      })
+      alert('Stay extended and monthly rent invoice sent to renter successfully!')
+      setShowRenewModal(false)
+      setSelectedBookingForRenewal(null)
       fetchBookings()
     } catch (error: any) {
       alert(error.response?.data?.message || 'Failed to renew stay')
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -189,25 +312,27 @@ const BookingsManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/50 p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6 flex justify-between items-end">
-          <div>
-            <button
-              onClick={() => navigate('/admin/dashboard')}
-              className="text-blue-600 hover:underline mb-1 text-[10px] font-bold uppercase tracking-widest"
-            >
-              ← Back
-            </button>
-            <h1 className="text-xl font-black text-gray-900 tracking-tight">Booking Management</h1>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Global reservation control</p>
+    <div className="min-h-screen bg-slate-50/50">
+      {/* Main Content */}
+      <div className="p-4 sm:p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Page Header */}
+          <div className="mb-6 flex justify-between items-end">
+            <div>
+              <button
+                onClick={() => navigate('/admin/dashboard')}
+                className="text-blue-600 hover:underline mb-1 text-[10px] font-bold uppercase tracking-widest"
+              >
+                ← Back
+              </button>
+              <h1 className="text-xl font-black text-gray-900 tracking-tight">Booking Management</h1>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Global reservation control</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-black text-gray-900">{filteredBookings.length} / {bookings.length}</p>
+              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Showing Logs</p>
+            </div>
           </div>
-          <div className="text-right">
-            <p className="text-xs font-black text-gray-900">{filteredBookings.length} / {bookings.length}</p>
-            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Showing Logs</p>
-          </div>
-        </div>
 
         {/* Search and Filters */}
         <div className="bg-white p-2 rounded-xl border border-gray-100 mb-4 shadow-sm space-y-2">
@@ -320,11 +445,11 @@ const BookingsManagement = () => {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <Badge 
-                          variant={getStatusVariant(booking.status)}
+                          variant={getStatusVariant(getBookingStatusLabel(booking))}
                           size="sm"
                           className="text-[8px] px-1.5 font-black"
                         >
-                          {booking.status}
+                          {getBookingStatusLabel(booking).replace(/_/g, ' ')}
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -337,13 +462,18 @@ const BookingsManagement = () => {
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <Badge 
-                          variant={getStayStatusVariant(booking.stayStatus || 'BOOKED')}
-                          size="sm"
-                          className="text-[8px] px-1.5 font-black"
-                        >
-                          {booking.stayStatus || 'BOOKED'}
-                        </Badge>
+                        {(() => {
+                          const dateBasedStatus = getDateBasedStayStatus(booking.checkOutDate, booking.stayStatus)
+                          return (
+                            <Badge 
+                              variant={getStayStatusVariant(dateBasedStatus)}
+                              size="sm"
+                              className="text-[8px] px-1.5 font-black"
+                            >
+                              {dateBasedStatus.replace(/_/g, ' ')}
+                            </Badge>
+                          )
+                        })()}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1.5 justify-end">
@@ -396,7 +526,7 @@ const BookingsManagement = () => {
                           )}
                           {booking.status === 'CONFIRMED' && booking.stayStatus === 'CHECKED_IN' && booking.bookingType === 'MONTHLY' && (
                             <button
-                              onClick={() => handleRenewStay(booking.id)}
+                              onClick={() => openRenewalModal(booking)}
                               className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-all"
                               title="Extend stay by 30 days"
                             >
@@ -420,9 +550,96 @@ const BookingsManagement = () => {
             </table>
           </div>
         </Card>
+
+        {/* Stay Renewal Modal */}
+        {showRenewModal && selectedBookingForRenewal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <Card className="w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200 relative overflow-hidden bg-white border border-slate-100">
+              <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Renew Stay & Send Rent Invoice</h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">
+                {selectedBookingForRenewal.customerName} — Room {selectedBookingForRenewal.room?.roomNumber || "N/A"}
+              </p>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black mb-1">Room Rent</p>
+                    <p className="text-sm font-extrabold text-slate-900">
+                      ₹{(selectedBookingForRenewal.monthlyRenter?.rentAmount || selectedBookingForRenewal.room?.monthlyPrice || selectedBookingForRenewal.room?.price || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black mb-1">Stay Period</p>
+                    <p className="text-xs font-bold text-slate-700">30 Days Stay</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Electricity Amount (₹)</label>
+                  <input
+                    type="number"
+                    value={renewalElectricity}
+                    onChange={(e) => setRenewalElectricity(e.target.value)}
+                    placeholder="Enter electric bill amount"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg focus:ring-1 focus:ring-blue-500 font-black text-xs outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Maintenance Charge (₹)</label>
+                  <input
+                    type="number"
+                    value={renewalMaintenance}
+                    onChange={(e) => setRenewalMaintenance(e.target.value)}
+                    placeholder="Enter maintenance charge"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg focus:ring-1 focus:ring-blue-500 font-black text-xs outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Notes (Optional)</label>
+                  <textarea
+                    value={renewalNotes}
+                    onChange={(e) => setRenewalNotes(e.target.value)}
+                    rows={2}
+                    placeholder="Add renewal notes"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg focus:ring-1 focus:ring-blue-500 font-black text-xs outline-none"
+                  />
+                </div>
+
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estimated Total</p>
+                  <p className="text-lg font-extrabold text-slate-900 mt-1">
+                    ₹{((selectedBookingForRenewal.monthlyRenter?.rentAmount || selectedBookingForRenewal.room?.monthlyPrice || selectedBookingForRenewal.room?.price || 0) + 
+                      (parseFloat(renewalElectricity) || 0) + 
+                      (parseFloat(renewalMaintenance) || 0)).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2.5 mt-6">
+                <button
+                  onClick={handleRenewStaySubmit}
+                  disabled={actionLoading === `renew-${selectedBookingForRenewal.id}`}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold tracking-widest text-[9px] uppercase py-2.5 rounded-lg transition-all active:scale-95 shadow-sm"
+                >
+                  {actionLoading === `renew-${selectedBookingForRenewal.id}` ? "Sending..." : "Send Invoice & Renew"}
+                </button>
+                <button
+                  onClick={() => setShowRenewModal(false)}
+                  className="bg-white hover:bg-slate-50 text-slate-500 border border-slate-200 font-bold tracking-widest text-[9px] uppercase py-2.5 px-4 rounded-lg transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
+  </div>
   )
 }
 
 export default BookingsManagement
+

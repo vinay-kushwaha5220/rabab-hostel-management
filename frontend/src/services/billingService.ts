@@ -36,6 +36,46 @@ export const billingService = {
     return response.data
   },
 
+  // Professional Renewal Lifecycle - Renter
+  requestContinueStay: async (): Promise<any> => {
+    const response = await api.post("/monthly-bills/renter/continue-stay")
+    return response.data
+  },
+
+  requestCheckoutNew: async (): Promise<any> => {
+    const response = await api.post("/monthly-bills/renter/checkout")
+    return response.data
+  },
+
+  // Professional Renewal Lifecycle - Admin
+  getPendingRenewalRequests: async (filters: { requestType?: string, status?: string } = {}): Promise<any[]> => {
+    const params = new URLSearchParams()
+    if (filters.requestType) params.append("requestType", filters.requestType)
+    if (filters.status) params.append("status", filters.status)
+    const response = await api.get(`/monthly-bills/admin/renewal-requests?${params}`)
+    return response.data
+  },
+
+  approveContinueStay: async (requestId: number, data: { electricityAmount?: number, otherCharges?: number, notes?: string }): Promise<any> => {
+    const response = await api.post(`/monthly-bills/admin/renewal-requests/${requestId}/approve`, data)
+    return response.data
+  },
+
+  rejectContinueStay: async (requestId: number, data: { reason?: string }): Promise<any> => {
+    const response = await api.post(`/monthly-bills/admin/renewal-requests/${requestId}/reject`, data)
+    return response.data
+  },
+
+  approveCheckout: async (requestId: number, data: { notes?: string }): Promise<any> => {
+    const response = await api.post(`/monthly-bills/admin/checkout-requests/${requestId}/approve`, data)
+    return response.data
+  },
+
+  rejectCheckoutRequest: async (requestId: number, data: { reason?: string }): Promise<any> => {
+    const response = await api.post(`/monthly-bills/admin/checkout-requests/${requestId}/reject`, data)
+    return response.data
+  },
+
   // Admin endpoints
   createBill: async (data: {
     bookingId: number

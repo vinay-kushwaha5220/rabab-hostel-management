@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { useAuth } from "../../context/AuthContextV2"
+import api from "../../services/apiV2"
 
 interface DashboardSidebarProps {
   open: boolean
@@ -11,35 +12,45 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
   const { user } = useAuth()
   const location = useLocation()
   const [billsOpen, setBillsOpen] = useState(location.pathname.includes('renter-monthly-dashboard'))
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     onClose()
   }, [location])
 
-  const isActive = (path: string, search?: string) => {
-    if (search) {
-      return location.pathname === path && location.search.includes(search)
+  const fetchUnreadCount = async () => {
+    if (!user || user.role !== "ADMIN") return
+    try {
+      const response = await api.get("/dashboard/notifications")
+      const unreads = (response.data || []).filter((n: any) => !(n.isRead ?? n.read)).length
+      setUnreadCount(unreads)
+    } catch (err) {
+      console.error("Failed to fetch sidebar unread count:", err)
     }
-    return location.pathname === path && !location.search
+  }
+
+  useEffect(() => {
+    fetchUnreadCount()
+    const interval = setInterval(fetchUnreadCount, 30000)
+    return () => clearInterval(interval)
+  }, [user])
+
+  const isActive = (path: string, search?: string) => {
+    const [pathName, queryStr] = path.split('?');
+    if (queryStr) {
+      return location.pathname === pathName && location.search.includes(queryStr);
+    }
+    if (search) {
+      return location.pathname === pathName && location.search.includes(search);
+    }
+    return location.pathname === pathName && !location.search;
   }
 
   const renterMenuItems = [
     { icon: "📊", label: "Overview", path: "/dashboard" },
     { icon: "🏨", label: "My Bookings", path: "/my-bookings" },
-    { 
-      icon: "💰", 
-      label: "Monthly Bills", 
-      path: "/renter-monthly-dashboard",
-      isSubmenu: true,
-      subItems: [
-        { label: "Summary", path: "/renter-monthly-dashboard", search: "tab=dashboard" },
-        { label: "Current Bill", path: "/renter-monthly-dashboard", search: "tab=bills" },
-        { label: "Bill History", path: "/renter-monthly-dashboard", search: "tab=history" },
-        { label: "Messages", path: "/renter-monthly-dashboard", search: "tab=messages" },
-        { label: "Notifications", path: "/renter-monthly-dashboard", search: "tab=notifications" },
-      ]
-    },
-    { icon: "📞", label: "Contact Support", path: "/contact" },
+    { icon: "💰", label: "Monthly Bills", path: "/renter-monthly-dashboard?tab=dashboard" },
+    { icon: "📞", label: "Contact Support", path: "/renter-monthly-dashboard?tab=messages" },
     { icon: "⚙️", label: "Settings", path: "/settings" },
   ]
 
@@ -74,11 +85,11 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
         } flex flex-col`}
       >
         {/* Logo */}
-        <div className="h-12 flex items-center gap-2.5 px-4 border-b border-gray-50">
+        <div className="h-12 flex items-center gap-2.5 px-4 border-b border-slate-50">
           <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-            <span className="text-white font-black text-sm">R</span>
+            <span className="text-white font-bold text-sm">R</span>
           </div>
-          <span className="font-black text-sm text-gray-900 tracking-tight">Rabab Stay</span>
+          <span className="font-bold text-sm text-slate-800 tracking-tight">Rabab Stay</span>
         </div>
 
         {/* Menu Items */}
@@ -89,7 +100,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
                 <div>
                   <button
                     onClick={() => setBillsOpen(!billsOpen)}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all duration-200 ${
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold text-[11px] transition-all duration-200 ${
                       location.pathname.includes(item.path)
                         ? "text-blue-600 bg-blue-50/50"
                         : "text-gray-400 hover:bg-slate-50 hover:text-gray-700"
@@ -115,9 +126,9 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
                       <Link
                         key={sub.label}
                         to={`${sub.path}?${sub.search}`}
-                        className={`flex items-center gap-2.5 pl-9 pr-3 py-1.5 rounded-lg font-bold text-[10px] transition-all duration-200 ${
+                        className={`flex items-center gap-2.5 pl-9 pr-3 py-1.5 rounded-lg font-semibold text-[10px] transition-all duration-200 ${
                           isActive(sub.path, sub.search)
-                            ? "text-blue-600 bg-blue-50 font-black"
+                            ? "text-blue-600 bg-blue-50 font-bold"
                             : "text-gray-400 hover:text-gray-600 hover:bg-slate-50/50"
                         }`}
                       >
@@ -129,14 +140,24 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
               ) : (
                 <Link
                   to={item.path}
-                  className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all duration-200 ${
+                  className={`flex items-center justify-between px-3 py-2 rounded-xl font-semibold text-[11px] transition-all duration-200 ${
                     isActive(item.path)
                       ? "bg-blue-600 text-white shadow-sm shadow-blue-100"
-                      : "text-gray-400 hover:bg-slate-50 hover:text-gray-700"
+                      : "text-slate-400 hover:bg-slate-50 hover:text-slate-700"
                   }`}
                 >
-                  <span className="text-sm opacity-80">{item.icon}</span>
-                  <span>{item.label}</span>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-sm opacity-80">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </div>
+                  {item.label === "Notifications" && unreadCount > 0 && (
+                    <span className="flex h-4 w-4 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-4 w-4 bg-rose-500 text-[8px] font-black text-white items-center justify-center shadow-sm">
+                        {unreadCount}
+                      </span>
+                    </span>
+                  )}
                 </Link>
               )}
             </div>

@@ -78,3 +78,29 @@ app.listen(PORT, HOST, () => {
   console.log(`   - Network: http://<your-ip>:${PORT}`)
   console.log(`   - Host:    ${HOST}`)
 })
+
+// ─── BACKGROUND SCHEDULER: Automatic Billing Alerts ───
+// Runs a check every 12 hours. It automatically dispatches alerts on the 5th of every month.
+import { runAutomaticBillingReminders } from "./services/schedulerService.js"
+
+const schedulerInterval = 12 * 60 * 60 * 1000 // 12 hours in milliseconds
+setInterval(async () => {
+  try {
+    console.log("⏰ Background Scheduler Check triggered...")
+    const result = await runAutomaticBillingReminders(false)
+    console.log(`⏰ Background Scheduler Check completed. Success: ${result.success}, Notified: ${result.notifiedCount}`)
+  } catch (err) {
+    console.error("⏰ Background Scheduler Error:", err)
+  }
+}, schedulerInterval)
+
+// Run once immediately on startup with a brief delay so the server starts fully first
+setTimeout(async () => {
+  try {
+    console.log("⏰ Background Scheduler Initial Startup Check...")
+    const result = await runAutomaticBillingReminders(false)
+    console.log(`⏰ Background Scheduler Initial Startup completed. Success: ${result.success}, Notified: ${result.notifiedCount}`)
+  } catch (err) {
+    console.error("⏰ Background Scheduler Startup Error:", err)
+  }
+}, 10000) // 10 seconds startup delay

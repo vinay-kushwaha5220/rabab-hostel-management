@@ -87,8 +87,10 @@ enum MaintenanceStatus {
 }
 
 enum MonthlyBillStatus {
+  DRAFT
   PENDING
   PARTIAL
+  PAID
   PAID_ONLINE
   PAID_CASH
   OVERDUE
@@ -103,10 +105,27 @@ enum VerificationStatus {
 
 enum MonthlyRenterStatus {
   ACTIVE
+  DUE_SOON
+  EXPIRES_TODAY
+  RENEWAL_PENDING
+  PENDING_ADMIN_APPROVAL
+  STAY_CONTINUED
   PENDING_PAYMENT
   OVERDUE
-  CHECKOUT_PENDING
+  CHECKOUT_REQUESTED
   CHECKED_OUT
+  CONTINUE_REQUESTED
+}
+
+enum RenewalRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RenewalRequestType {
+  CONTINUE_STAY
+  CHECKOUT
 }
 
 model User {
@@ -232,6 +251,7 @@ model Booking {
   monthlyBills  MonthlyBill[]
   messages      Message[]
   monthlyRenter MonthlyRenter?
+  renewalRequests StayRenewalRequest[] @relation("RenewalRequests")
 
   isDeleted Boolean   @default(false)
   deletedAt DateTime?
@@ -359,6 +379,10 @@ model MonthlyBill {
   dueDate  DateTime
   paidDate DateTime?
 
+  sentAt      DateTime?
+  daysOverdue Int       @default(0)
+  latePenalty Float     @default(0)
+
   verificationStatus VerificationStatus?
   verifiedBy         Int?
   verifiedAt         DateTime?
@@ -480,6 +504,16 @@ model MonthlyRenter {
   status        MonthlyRenterStatus @default(ACTIVE)
   paymentStatus String?             @default("PENDING")
 
+  // Renewal tracking
+  renewalRequestDate    DateTime?
+  renewalDecisionDate   DateTime?
+  checkoutRequestDate   DateTime?
+  latePenalty           Float     @default(0)
+  lastElectricityAmount Float     @default(0)
+
+  // Relations
+  renewalRequests StayRenewalRequest[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -487,4 +521,36 @@ model MonthlyRenter {
   @@index([roomId])
   @@index([status])
   @@index([nextDueDate])
+}
+
+model StayRenewalRequest {
+  id        Int     @id @default(autoincrement())
+  bookingId Int
+  booking   Booking @relation("RenewalRequests", fields: [bookingId], references: [id], onDelete: Cascade)
+
+  monthlyRenterId Int
+  monthlyRenter   MonthlyRenter @relation(fields: [monthlyRenterId], references: [id], onDelete: Cascade)
+
+  requestType RenewalRequestType     @default(CONTINUE_STAY)
+  status      RenewalRequestStatus   @default(PENDING)
+
+  requestDate  DateTime @default(now())
+  decisionDate DateTime?
+
+  decidedByAdminId Int?
+  rejectionReason  String?
+  approvalNotes    String?
+
+  // For continue stay flow: store generated bill details
+  generatedBillId Int?
+  nextCycleStart  DateTime?
+  nextCycleEnd    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bookingId])
+  @@index([monthlyRenterId])
+  @@index([status])
+  @@index([requestDate])
 }

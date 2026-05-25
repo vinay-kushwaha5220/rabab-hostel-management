@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, useMemo } from "react"
 import type { ReactNode } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import api from "../services/apiV2"
@@ -25,6 +25,7 @@ interface AuthContextType {
   logout: () => Promise<void>
   logoutAllDevices: () => Promise<void>
   refreshToken: () => Promise<string | null>
+  updateUser: (updatedUser: User) => void
 }
 
 // ==========================================
@@ -260,10 +261,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
+  const updateUser = (updatedUser: User) => {
+    setUser(updatedUser)
+    localStorage.setItem("user", JSON.stringify(updatedUser))
+  }
+
   // ==========================================
-  // CONTEXT VALUE
+  // CONTEXT VALUE — memoized to prevent
+  // child re-renders when value reference changes
   // ==========================================
-  const value: AuthContextType = {
+  const value: AuthContextType = useMemo(() => ({
     user,
     accessToken,
     isAuthenticated: !!user && !!accessToken,
@@ -273,7 +280,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     logout,
     logoutAllDevices,
     refreshToken,
-  }
+    updateUser,
+  }), [user, accessToken, isLoading])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

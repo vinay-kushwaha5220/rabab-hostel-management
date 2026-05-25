@@ -14,6 +14,8 @@ import {
   refundBooking,
   undoCheckOutBooking,
   renewMonthlyStay,
+  checkExtensionAvailability,
+  extendDailyBooking,
 } from "../controllers/bookingController.js"
 
 import { protect } from "../middleware/authMiddleware.js"
@@ -25,6 +27,8 @@ const router = express.Router()
 router.post("/", protect, createBooking)
 router.post("/payment", protect, processPayment)
 router.get("/my-bookings", protect, getUserBookings)
+router.post("/:id/extend-check", protect, checkExtensionAvailability)
+router.post("/:id/extend", protect, extendDailyBooking)
 
 // Admin routes
 router.get("/monthly-active", protect, adminOnly, getMonthlyActiveBookings)

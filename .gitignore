@@ -6,6 +6,7 @@
 # ENVIRONMENT & SECRETS
 # ============================================================================
 .env
+.env.*
 .env.local
 .env.*.local
 .env.production.local

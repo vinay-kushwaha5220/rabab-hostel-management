@@ -1,6 +1,7 @@
 import type { Request, Response } from "express"
 import prisma from "../config/prisma.js"
 import type { AuthRequest } from "../middleware/authMiddleware.js"
+import { PaymentStatus, PaymentMethod, VerificationStatus, MonthlyBillStatus, MonthlyRenterStatus } from "@prisma/client"
 
 // ==========================================
 // PROCESS MONTHLY BILL PAYMENT
@@ -58,40 +59,56 @@ export const processMonthlyPayment = async (req: AuthRequest, res: Response) => 
     await new Promise(resolve => setTimeout(resolve, 2000))
 
 
-    // Create payment
+    const isCash = (paymentMethod || "").toLowerCase() === "cash"
+    const status = PaymentStatus.PENDING
+    const txnId = isCash ? `CASH-REQ-${Date.now()}` : `UPI-REQ-${Date.now()}`
+
+    // Create payment record (Both Cash and UPI require admin verification now!)
     const payment = await prisma.payment.create({
       data: {
         bookingId: bill.bookingId,
         monthlyBillId: billId,
-        amount: bill.totalAmount,
-        paymentMethod,
-        paymentStatus: paymentMethod === 'cash' ? "PENDING" : "SUCCESS",
-        transactionId: paymentMethod === 'cash' ? `CASH-REQ-${Date.now()}` : `DEMO-MONTHLY-${Date.now()}`,
+        amount: bill.totalDue,
+        paymentMethod: isCash ? PaymentMethod.CASH : PaymentMethod.UPI,
+        paymentStatus: status,
+        transactionId: txnId,
+        verificationStatus: VerificationStatus.PENDING
       },
     })
 
-    console.log(`💳 Payment record created: ${payment.id}. Method: ${paymentMethod}`)
+    console.log(`💳 Payment notification record created: ${payment.id}. Method: ${paymentMethod}`)
 
-    // ONLY Update bill as paid if NOT cash (Online payment is instant success in demo)
-    if (paymentMethod !== 'cash') {
-      const updatedBill = await prisma.monthlyBill.update({
-        where: { id: billId },
+    // Both payment methods are set to VERIFICATION_PENDING awaiting property manager approval
+    await prisma.monthlyBill.update({
+      where: { id: billId },
+      data: {
+        status: MonthlyBillStatus.VERIFICATION_PENDING,
+        verificationStatus: VerificationStatus.PENDING
+      }
+    })
+
+    const monthlyRenter = await prisma.monthlyRenter.findUnique({
+      where: { bookingId: bill.bookingId }
+    })
+
+    if (monthlyRenter) {
+      await prisma.monthlyRenter.update({
+        where: { id: monthlyRenter.id },
         data: {
-          isPaid: true,
-          paidDate: new Date(),
-        },
+          paymentStatus: "PENDING_VERIFICATION"
+        }
       })
-      console.log(`✅ Bill ${billId} status updated to Paid (Online)`)
-    } else {
-      console.log(`⏳ Bill ${billId} awaiting cash verification`)
     }
+    console.log(`⏳ Bill ${billId} status updated to VERIFICATION_PENDING. Awaiting admin approval.`)
 
-    // Create notification
+    // Create notification for admin to approve the payment
     await prisma.notification.create({
       data: {
         bookingId: bill.bookingId,
-        title: "Payment Received",
-        message: `Payment of ₹${bill.totalAmount} for ${bill.month} has been received successfully`,
+        title: isCash ? "Cash Payment Submitted" : "UPI Payment Submitted",
+        message: isCash 
+          ? `Cash payment of ₹${bill.totalDue} submitted by renter ${bill.booking.customerName} for ${bill.month} is awaiting verification & approval.`
+          : `UPI payment notification of ₹${bill.totalDue} submitted by renter ${bill.booking.customerName} for ${bill.month} is awaiting verification & approval.`,
         type: "PAYMENT",
       },
     })

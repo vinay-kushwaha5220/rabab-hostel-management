@@ -13,8 +13,15 @@ const PaymentPage = () => {
   const [booking, setBooking] = useState<BookingType | null>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
-  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success'>('idle')
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'awaiting_verification'>('idle')
   const [paymentMethod, setPaymentMethod] = useState<string>("")
+
+  // New Modals/States
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [showUPIModal, setShowUPIModal] = useState(false)
+  const [showComingSoonModal, setShowComingSoonModal] = useState(false)
+  const [utrNumber, setUtrNumber] = useState("")
+  const [utrError, setUtrError] = useState("")
 
   useEffect(() => {
     fetchBookingDetails()
@@ -33,27 +40,89 @@ const PaymentPage = () => {
     }
   }
 
-  const handlePayment = async () => {
+  const getButtonLabel = () => {
+    if (paymentMethod === "UPI") return "Pay with UPI"
+    if (paymentMethod === "CARD") return "Pay with Card"
+    if (paymentMethod === "ONLINE") return "Continue to Bank"
+    if (paymentMethod === "CASH") return "Confirm Booking"
+    return "Select a Payment Method"
+  }
+
+  const getMethodLabel = (method: string) => {
+    if (method === "UPI") return "UPI Instant"
+    if (method === "CARD") return "Card Payment"
+    if (method === "ONLINE") return "Net Banking"
+    if (method === "CASH") return "Pay at Property"
+    return method
+  }
+
+  const handlePayClick = () => {
     if (!paymentMethod) {
-      alert('Please select a payment method')
+      alert("Please select a payment method")
       return
     }
+    setShowConfirmModal(true)
+  }
 
+  const handleConfirmAction = async () => {
+    setShowConfirmModal(false)
+    if (paymentMethod === "CARD" || paymentMethod === "ONLINE") {
+      setShowComingSoonModal(true)
+    } else if (paymentMethod === "CASH") {
+      await processCashPayment()
+    } else if (paymentMethod === "UPI") {
+      setUtrNumber("")
+      setUtrError("")
+      setShowUPIModal(true)
+    }
+  }
+
+  const processCashPayment = async () => {
     try {
       setProcessing(true)
       setPaymentStatus('processing')
-      await new Promise(resolve => setTimeout(resolve, 2500))
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
       await api.post("/bookings/payment", {
         bookingId: Number(bookingId),
-        paymentMethod,
+        paymentMethod: 'CASH',
       })
+      
       setPaymentStatus('success')
       await new Promise(resolve => setTimeout(resolve, 1500))
       navigate(`/booking-confirmation/${bookingId}`)
     } catch (error: any) {
       setPaymentStatus('idle')
-      console.error('Error processing payment:', error)
+      console.error('Error processing CASH payment:', error)
       alert(error.response?.data?.message || 'Payment failed. Please try again.')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const submitUPIPayment = async () => {
+    if (!utrNumber) {
+      setUtrError("UTR reference number is required")
+      return
+    }
+    if (!/^\d{12}$/.test(utrNumber)) {
+      setUtrError("UTR must be exactly a 12-digit number")
+      return
+    }
+    setUtrError("")
+
+    try {
+      setProcessing(true)
+      await api.post("/bookings/payment", {
+        bookingId: Number(bookingId),
+        paymentMethod: 'UPI',
+        transactionId: utrNumber,
+      })
+      setShowUPIModal(false)
+      setPaymentStatus('awaiting_verification')
+    } catch (error: any) {
+      console.error('Error submitting UPI payment:', error)
+      setUtrError(error.response?.data?.message || 'Failed to submit payment. Please verify your UTR.')
     } finally {
       setProcessing(false)
     }
@@ -72,18 +141,21 @@ const PaymentPage = () => {
   const isMonthly = booking.bookingType === 'MONTHLY'
   const SECURITY_DEPOSIT = 2500
   
-  // For monthly bookings: totalAmount already includes deposit
-  // For daily bookings: totalAmount is just the rent
   const baseAmount = isMonthly ? booking.totalAmount - SECURITY_DEPOSIT : booking.totalAmount
-  const tax = Math.round(baseAmount * 0.12)
+  const tax = 0
   const securityDeposit = isMonthly ? SECURITY_DEPOSIT : 0
-  const finalAmount = booking.totalAmount + tax
+  const finalAmount = booking.totalAmount
+
+  // Dynamic QR Code link
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
+    `upi://pay?pa=6386227501@axl&pn=Rabab Hostel&am=${finalAmount}&cu=INR`
+  )}`
 
   return (
     <div className="min-h-screen bg-gray-50/50 py-8 px-4 sm:px-6 lg:px-8 relative">
-      {/* Premium Payment Overlay */}
+      {/* Standard Processing/Success Overlay */}
       {(paymentStatus === 'processing' || paymentStatus === 'success') && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <Card className="p-8 text-center max-w-xs w-full shadow-2xl border-none bg-white rounded-2xl animate-in zoom-in duration-200">
             {paymentStatus === 'processing' ? (
               <div className="space-y-4">
@@ -96,11 +168,148 @@ const PaymentPage = () => {
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto text-green-600">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                 </div>
-                <h3 className="text-xl font-bold text-green-600 tracking-tight">Payment Verified!</h3>
-                <p className="text-gray-400 font-bold uppercase tracking-widest text-[9px]">Booking Confirmed</p>
+                <h3 className="text-xl font-bold text-green-600 tracking-tight">Booking Saved!</h3>
+                <p className="text-gray-400 font-bold uppercase tracking-widest text-[9px]">Redirecting to details</p>
               </div>
             )}
           </Card>
+        </div>
+      )}
+
+      {/* Awaiting Admin Verification Overlay */}
+      {paymentStatus === 'awaiting_verification' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <Card className="p-8 text-center max-w-md w-full shadow-2xl border-none bg-white rounded-2xl animate-in zoom-in duration-200">
+            <div className="space-y-6">
+              <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto text-amber-500 animate-pulse border border-amber-100">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight">Awaiting Admin Verification</h3>
+                <p className="text-[10px] text-blue-600 font-extrabold uppercase tracking-widest font-mono">Reservation: {booking.bookingId}</p>
+              </div>
+              <p className="text-sm font-semibold text-gray-500 max-w-sm mx-auto leading-relaxed">
+                Your payment of <span className="font-extrabold text-slate-800">₹{finalAmount.toLocaleString()}</span> via UPI (UTR: <span className="font-mono font-bold text-blue-600">{utrNumber}</span>) has been recorded successfully.
+              </p>
+              <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl text-left text-xs font-semibold text-slate-600 space-y-2">
+                <div className="flex justify-between items-center"><span className="text-gray-400">Payment status:</span> <Badge variant="warning" size="sm" className="font-black text-[9px]">PAYMENT_PENDING</Badge></div>
+                <div className="flex justify-between items-center"><span className="text-gray-400">Verification status:</span> <span className="font-extrabold text-amber-600 text-[10px] uppercase">Awaiting Approval</span></div>
+              </div>
+              <div className="pt-2">
+                <Button onClick={() => navigate('/dashboard')} className="w-full text-xs font-black uppercase tracking-widest py-3">
+                  Go to My Dashboard
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <Card className="p-6 max-w-sm w-full shadow-2xl border-none bg-white rounded-2xl animate-in zoom-in duration-200">
+            <h3 className="text-lg font-black text-gray-900 tracking-tight mb-2">Confirm Payment</h3>
+            <p className="text-sm text-gray-500 font-semibold leading-relaxed mb-6">
+              You are paying <span className="font-extrabold text-slate-800">₹{finalAmount.toLocaleString()}</span> via <span className="font-extrabold text-blue-600">{getMethodLabel(paymentMethod)}</span>.
+            </p>
+            <div className="flex gap-3">
+              <Button onClick={handleConfirmAction} variant="success" className="flex-1 text-xs font-black uppercase tracking-widest py-2.5">
+                Confirm
+              </Button>
+              <Button onClick={() => setShowConfirmModal(false)} variant="outline" className="flex-1 text-xs font-black uppercase tracking-widest py-2.5 border-gray-200">
+                Cancel
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Coming Soon Modal */}
+      {showComingSoonModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <Card className="p-6 max-w-sm w-full shadow-2xl border-none bg-white rounded-2xl animate-in zoom-in duration-200 text-center">
+            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-100">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+            <h3 className="text-lg font-black text-gray-900 tracking-tight mb-2">Coming Soon</h3>
+            <p className="text-sm font-semibold text-gray-400 mb-6 uppercase tracking-wider">Please use UPI payment to complete your booking</p>
+            <Button onClick={() => setShowComingSoonModal(false)} className="w-full text-xs font-black uppercase tracking-widest py-2.5">
+              Choose UPI
+            </Button>
+          </Card>
+        </div>
+      )}
+
+      {/* UPI Payment Modal */}
+      {showUPIModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="my-8 max-w-sm w-full">
+            <Card className="p-6 shadow-2xl border-none bg-white rounded-2xl animate-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4 border-b border-gray-50 pb-2">
+                <div>
+                  <h3 className="text-base font-black text-gray-900 tracking-tight">UPI Secure Payment</h3>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Scan or copy details to pay</p>
+                </div>
+                <button onClick={() => setShowUPIModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* QR Code Container */}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center">
+                  <img 
+                    src={qrCodeUrl} 
+                    alt="UPI Payment QR Code" 
+                    className="w-48 h-48 object-contain rounded-lg border bg-white p-2 shadow-inner"
+                  />
+                  <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mt-2">Scan with GPay, PhonePe or Paytm</p>
+                </div>
+
+                {/* Amount & UPI Details */}
+                <div className="bg-blue-50/50 border border-blue-50/80 p-4 rounded-xl text-center space-y-1">
+                  <p className="text-[9px] text-blue-500 font-black uppercase tracking-widest">Amount to Pay</p>
+                  <p className="text-2xl font-black text-blue-700 tracking-tight">₹{finalAmount.toLocaleString()}</p>
+                  <div className="pt-2 flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-600">
+                    <span className="text-gray-400 font-medium">UPI ID:</span>
+                    <span className="font-mono bg-white px-2 py-0.5 border rounded border-gray-200">6386227501@axl</span>
+                  </div>
+                </div>
+
+                {/* UTR Input Field */}
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest">Enter 12-Digit Transaction UTR</label>
+                  <input
+                    type="text"
+                    maxLength={20}
+                    value={utrNumber}
+                    onChange={(e) => {
+                      setUtrNumber(e.target.value.replace(/\D/g, ""))
+                      setUtrError("")
+                    }}
+                    placeholder="e.g. 348596041285"
+                    className="w-full px-3 py-2.5 text-sm font-extrabold font-mono border rounded-lg focus:ring-1 focus:ring-blue-500 outline-none bg-slate-50 focus:bg-white transition-all text-center tracking-widest placeholder:tracking-normal placeholder:font-sans placeholder:font-medium"
+                  />
+                  {utrError && <p className="text-[10px] font-extrabold text-red-500">{utrError}</p>}
+                </div>
+
+                {/* Submit Action */}
+                <div className="pt-2">
+                  <Button 
+                    onClick={submitUPIPayment} 
+                    variant="success" 
+                    className="w-full text-xs font-black uppercase tracking-widest py-3 shadow-md"
+                    isLoading={processing}
+                  >
+                    I Have Completed Payment
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </div>
         </div>
       )}
 
@@ -144,13 +353,13 @@ const PaymentPage = () => {
 
               <div className="mt-8 pt-8 border-t border-gray-50">
                 <Button 
-                  onClick={handlePayment} 
+                  onClick={handlePayClick} 
+                  variant="success"
                   size="lg"
                   className="w-full text-sm font-bold uppercase tracking-widest shadow-md" 
-                  isLoading={processing}
                   disabled={!paymentMethod || processing}
                 >
-                  Pay ₹{finalAmount.toLocaleString()}
+                  {getButtonLabel()}
                 </Button>
                 <div className="flex items-center justify-center gap-2 mt-4 text-gray-400">
                   <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
@@ -193,10 +402,6 @@ const PaymentPage = () => {
                       <span className="font-bold text-gray-900">₹{securityDeposit.toLocaleString()}</span>
                     </div>
                   )}
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-medium text-gray-500">GST (12%)</span>
-                    <span className="font-bold text-gray-900">₹{tax.toLocaleString()}</span>
-                  </div>
                 </div>
 
                 <div className="mt-6">

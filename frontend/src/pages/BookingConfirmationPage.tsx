@@ -59,8 +59,9 @@ const BookingConfirmationPage = () => {
   const SECURITY_DEPOSIT = 2500
   const isMonthly = booking.bookingType === "MONTHLY"
   const rentAmount = isMonthly ? (booking.totalAmount - SECURITY_DEPOSIT) : booking.totalAmount
-  const taxAmount = Math.round(rentAmount * 0.12)
-  const finalAmount = booking.totalAmount + taxAmount
+  const taxAmount = 0
+  const finalAmount = booking.totalAmount
+  const isConfirmed = booking.status === "CONFIRMED" || booking.status === "COMPLETED"
 
   return (
     <div className="min-h-screen bg-slate-50/50 py-10 px-4">
@@ -84,7 +85,11 @@ const BookingConfirmationPage = () => {
                   <p className="text-2xl font-black font-mono tracking-tighter">{booking.bookingId}</p>
                 </div>
                 <div className="text-right">
-                  <Badge variant="success" size="sm" className="bg-green-500/20 text-green-400 border-none font-black text-[9px] px-2 uppercase">Verified Confirmed</Badge>
+                  {isConfirmed ? (
+                    <Badge variant="success" size="sm" className="bg-green-500/20 text-green-400 border-none font-black text-[9px] px-2 uppercase">Verified Confirmed</Badge>
+                  ) : (
+                    <Badge variant="warning" size="sm" className="bg-amber-500/20 text-amber-400 border-none font-black text-[9px] px-2 uppercase animate-pulse">Awaiting Verification</Badge>
+                  )}
                   <p className="text-[9px] font-bold opacity-50 uppercase tracking-widest mt-2">{new Date(booking.createdAt).toLocaleDateString()}</p>
                 </div>
               </div>
@@ -139,16 +144,16 @@ const BookingConfirmationPage = () => {
                     <span>₹{SECURITY_DEPOSIT.toLocaleString()}</span>
                   </div>
                 )}
-                <div className="flex justify-between items-center text-[11px] font-bold text-slate-600">
-                  <span>Platform Fee (12%)</span>
-                  <span>₹{taxAmount.toLocaleString()}</span>
-                </div>
                 <div className="pt-4 border-t border-slate-200 flex justify-between items-end">
                   <div>
                     <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest leading-none mb-1">Total Valuation</p>
                     <p className="text-2xl font-black text-slate-900 leading-none tracking-tighter">₹{finalAmount.toLocaleString()}</p>
                   </div>
-                  <Badge variant="success" size="md" className="bg-green-100 text-green-700 border-none font-black text-[9px] py-1.5 px-3 uppercase tracking-wider">Payment Received</Badge>
+                  {isConfirmed ? (
+                    <Badge variant="success" size="md" className="bg-green-100 text-green-700 border-none font-black text-[9px] py-1.5 px-3 uppercase tracking-wider">Payment Received</Badge>
+                  ) : (
+                    <Badge variant="warning" size="md" className="bg-amber-100 text-amber-700 border-none font-black text-[9px] py-1.5 px-3 uppercase tracking-wider">Payment Verification Pending</Badge>
+                  )}
                 </div>
               </div>
             </div>

@@ -142,11 +142,22 @@ export const getNotifications = async (
       include: {
         booking: {
           include: {
-            room: {
+            room: true,
+            user: {
               select: {
-                roomNumber: true,
-                title: true,
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
               },
+            },
+            payments: {
+              orderBy: { createdAt: "desc" },
+            },
+            monthlyRenter: true,
+            monthlyBills: {
+              where: { isDeleted: false },
+              orderBy: { createdAt: "desc" },
             },
           },
         },
