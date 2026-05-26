@@ -260,6 +260,16 @@ export const processPayment = async (
           message: "UTR must be a 12-digit number",
         })
       }
+
+      // Check if this UTR has already been submitted to prevent unique constraint crash
+      const existingPayment = await prisma.payment.findUnique({
+        where: { transactionId },
+      })
+      if (existingPayment) {
+        return res.status(400).json({
+          message: "This Transaction UTR has already been submitted. Please check the code or contact support.",
+        })
+      }
     } else if (paymentMethod === "CASH") {
       finalTransactionId = `CASH-PENDING-${Date.now()}`
     } else {
@@ -1358,6 +1368,23 @@ export const extendDailyBooking = async (
 
       // Determine payment status
       const activePaymentMethod = paymentMethod || "UPI"
+      
+      if (activePaymentMethod === "UPI") {
+        if (!transactionId) {
+          throw new Error("Transaction ID / UTR reference code is required for UPI payments")
+        }
+        if (!/^\d{12}$/.test(transactionId)) {
+          throw new Error("UTR must be exactly a 12-digit number")
+        }
+        // Check if UTR is already in use
+        const existingPayment = await tx.payment.findUnique({
+          where: { transactionId },
+        })
+        if (existingPayment) {
+          throw new Error("This UPI Transaction UTR has already been submitted. Please check the code or contact support.")
+        }
+      }
+
       const activeTransactionId = transactionId || `EXTN-${Date.now()}`
 
       // Create a Payment record for the stay extension as PENDING
