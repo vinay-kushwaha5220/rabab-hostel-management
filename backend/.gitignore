@@ -154,3 +154,12 @@ backend/scripts/verify_booking_payment.ts
 backend/scripts/verify-credentials.ts
 backend/scripts/verify-monthly-renter-lifecycle.ts
 backend/src/debug-booking.ts
+
+
+# Debug / Test scripts
+scripts/
+src/debug-booking.ts
+
+# Temporary files
+*.log
+
