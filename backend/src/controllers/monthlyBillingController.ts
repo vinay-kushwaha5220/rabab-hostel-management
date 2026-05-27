@@ -22,13 +22,45 @@ const throttledSyncOverdueStatuses = async () => {
   await syncAllRenterOverdueStatuses()
 }
 
+// Helper to format dynamic stay cycle as a unique month string
+const getCycleMonthString = (start: Date, end: Date): string => {
+  const formatDateISO = (d: Date): string => {
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+  return `Cycle: ${formatDateISO(start)} to ${formatDateISO(end)}`
+}
+
+const calculateCycleEnd = (start: Date): Date => {
+  const end = new Date(start)
+  end.setMonth(end.getMonth() + 1)
+  // Real hostel rule: join Apr 27 → stay ends May 27 (exactly 1 month, inclusive)
+  // No -1 day needed
+  end.setHours(23, 59, 59, 999)
+  return end
+}
+
+const parseCycleDates = (monthStr: string): { start: Date; end: Date } | null => {
+  const match = monthStr.match(/Cycle:\s*([\d-]+)\s*to\s*([\d-]+)/)
+  if (match && match[1] && match[2]) {
+    const start = new Date(match[1])
+    const end = new Date(match[2])
+    start.setHours(0, 0, 0, 0)
+    end.setHours(23, 59, 59, 999)
+    return { start, end }
+  }
+  return null
+}
+
 // ==========================================
 // CREATE MONTHLY BILL (Admin)
 // ==========================================
 export const createMonthlyBill = async (req: AuthRequest, res: Response) => {
   console.log("🚀 createMonthlyBill controller HIT with body:", req.body)
   try {
-    let { bookingId, month, rentAmount, electricityAmount, extraCharges, dueDate } = req.body
+    let { bookingId, rentAmount, electricityAmount, extraCharges, dueDate } = req.body
 
     // Ensure numeric values are numbers
     bookingId = parseInt(String(bookingId))
@@ -36,23 +68,23 @@ export const createMonthlyBill = async (req: AuthRequest, res: Response) => {
     electricityAmount = parseFloat(String(electricityAmount || 0))
     extraCharges = parseFloat(String(extraCharges || 0))
 
-    if (isNaN(bookingId) || !month || isNaN(rentAmount) || !dueDate) {
+    if (isNaN(bookingId) || isNaN(rentAmount)) {
       return res.status(400).json({
-        message: "Valid bookingId, month, rentAmount, and dueDate are required",
+        message: "Valid bookingId and rentAmount are required",
       })
     }
 
     // Try to find booking by numeric ID or by the bookingId string
     let booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { user: true },
+      include: { user: true, monthlyRenter: true },
     })
 
     // If not found by numeric ID, try searching by the bookingId string (e.g., "RBS-2026-001")
     if (!booking) {
-      booking = await prisma.booking.findUnique({
+      booking = await prisma.booking.findFirst({
         where: { bookingId: String(req.body.bookingId) },
-        include: { user: true },
+        include: { user: true, monthlyRenter: true },
       })
     }
 
@@ -66,42 +98,68 @@ export const createMonthlyBill = async (req: AuthRequest, res: Response) => {
     const actualBookingId = booking.id;
     bookingId = actualBookingId;
 
-    // Check if bill already exists for this month
+    const monthlyRenter = booking.monthlyRenter || await prisma.monthlyRenter.findUnique({
+      where: { bookingId: actualBookingId }
+    })
+
+    let nextCycleStart: Date
+    let nextCycleEnd: Date
+
+    if (monthlyRenter) {
+      const prevEnd = monthlyRenter.currentCycleEnd || monthlyRenter.joinDate
+      nextCycleStart = new Date(prevEnd)
+      nextCycleStart.setDate(nextCycleStart.getDate() + 1)
+      nextCycleStart.setHours(0, 0, 0, 0)
+
+      nextCycleEnd = calculateCycleEnd(nextCycleStart)
+    } else {
+      nextCycleStart = new Date(booking.checkInDate)
+      nextCycleEnd = calculateCycleEnd(nextCycleStart)
+    }
+
+    const calculatedMonthStr = getCycleMonthString(nextCycleStart, nextCycleEnd)
+
+    // Check if bill already exists for this stay cycle
     const existingBill = await prisma.monthlyBill.findFirst({
       where: {
         bookingId,
-        month,
+        month: calculatedMonthStr,
       },
     })
 
     if (existingBill) {
       return res.status(400).json({
-        message: "A bill already exists for this booking in the selected month",
+        message: "A bill already exists for this booking in the current stay cycle",
       })
     }
 
     // Calculate totals and dues
     const currentMonthTotal = rentAmount + (electricityAmount || 0) + (extraCharges || 0)
     
-    // Find previous month's bill to get remaining dues
-    const previousBill = await prisma.monthlyBill.findFirst({
+    // Find all previous unpaid bills to get remaining dues
+    const unpaidBills = await prisma.monthlyBill.findMany({
       where: {
         bookingId: actualBookingId,
-      },
-      orderBy: {
-        month: 'desc'
+        isPaid: false,
+        status: { not: MonthlyBillStatus.DRAFT },
+        isDeleted: false
       }
     })
-
-    const previousDue = previousBill ? previousBill.remainingAmount : 0
+    const previousDue = unpaidBills.reduce((sum, b) => sum + b.remainingAmount, 0)
     const totalDue = currentMonthTotal + previousDue
     const remainingAmount = totalDue // Initially full amount is remaining
+
+    const activeDueDate = dueDate ? new Date(dueDate) : new Date(nextCycleStart)
+    if (!dueDate && nextCycleStart) {
+      activeDueDate.setDate(activeDueDate.getDate() + 5) // Default 5 days grace
+      activeDueDate.setHours(23, 59, 59, 999)
+    }
 
     // Create monthly bill
     const bill = await prisma.monthlyBill.create({
       data: {
         bookingId: actualBookingId,
-        month,
+        month: calculatedMonthStr,
         rentAmount,
         electricityAmount: electricityAmount || 0,
         extraCharges: extraCharges || 0,
@@ -110,7 +168,7 @@ export const createMonthlyBill = async (req: AuthRequest, res: Response) => {
         totalDue,
         paidAmount: 0,
         remainingAmount,
-        dueDate: new Date(dueDate),
+        dueDate: activeDueDate,
         status: MonthlyBillStatus.PENDING,
         verificationStatus: VerificationStatus.PENDING,
       },
@@ -124,12 +182,24 @@ export const createMonthlyBill = async (req: AuthRequest, res: Response) => {
       },
     })
 
+    // Update MonthlyRenter status to PENDING_PAYMENT (Do NOT shift stay cycle dates forward prematurely)
+    if (monthlyRenter) {
+      await prisma.monthlyRenter.update({
+        where: { id: monthlyRenter.id },
+        data: {
+          status: MonthlyRenterStatus.PENDING_PAYMENT,
+          paymentStatus: "PENDING",
+          pendingAmount: remainingAmount
+        }
+      })
+    }
+
     // Create notification for renter
     await prisma.notification.create({
       data: {
         bookingId: actualBookingId,
         title: "Monthly Bill Added",
-        message: `Your monthly bill for ${month} has been added. Total due: ₹${totalDue}`,
+        message: `Your monthly bill for ${calculatedMonthStr} has been added. Total due: ₹${totalDue}`,
         type: NotificationType.BILL,
         priority: NotificationPriority.MEDIUM,
       },
@@ -289,6 +359,16 @@ export const getMonthlyBill = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Restrict renter from viewing statement if it is in draft review (AWAITING_ADMIN_REVIEW)
+    if (bill.status === MonthlyBillStatus.DRAFT) {
+      const user = await prisma.user.findUnique({ where: { id: userId } })
+      if (user?.role !== UserRole.ADMIN) {
+        return res.status(403).json({
+          message: "Unauthorized - Statement is in draft review",
+        })
+      }
+    }
+
     res.status(200).json(bill)
   } catch (error) {
     console.error("Get monthly bill error:", error)
@@ -311,6 +391,7 @@ export const getRenterMonthlyBills = async (req: AuthRequest, res: Response) => 
         booking: {
           userId,
         },
+        status: { not: MonthlyBillStatus.DRAFT } // Exclude draft bills from renter view
       },
       include: {
         booking: {
@@ -343,10 +424,14 @@ export const getAllMonthlyBills = async (req: AuthRequest, res: Response) => {
     // Sync all renter overdue states first
     await throttledSyncOverdueStatuses()
 
-    const { status, month, year, roomNumber } = req.query
+    const { status, month, year, roomNumber, bookingId } = req.query
 
     const where: any = {
       isDeleted: false
+    }
+
+    if (bookingId) {
+      where.bookingId = parseInt(String(bookingId))
     }
 
     if (status) {
@@ -434,18 +519,24 @@ export const updateMonthlyBill = async (req: AuthRequest, res: Response) => {
       })
     }
 
-    const totalAmount =
-      (rentAmount || bill.rentAmount) +
-      (electricityAmount || bill.electricityAmount) +
-      (extraCharges || bill.extraCharges)
+    const newRentAmount = rentAmount !== undefined ? parseFloat(String(rentAmount)) : bill.rentAmount
+    const newElectricity = electricityAmount !== undefined ? parseFloat(String(electricityAmount)) : bill.electricityAmount
+    const newExtraCharges = extraCharges !== undefined ? parseFloat(String(extraCharges)) : bill.extraCharges
+
+    const totalAmount = newRentAmount + newElectricity + newExtraCharges
+    // Recalculate totalDue including previousDue and latePenalty so that editing charges keeps the bill accurate
+    const totalDue = totalAmount + bill.previousDue + bill.latePenalty
+    const remainingAmount = Math.max(0, totalDue - bill.paidAmount)
 
     const updatedBill = await prisma.monthlyBill.update({
       where: { id: parseInt(String(billId)) },
       data: {
-        rentAmount: rentAmount || bill.rentAmount,
-        electricityAmount: electricityAmount || bill.electricityAmount,
-        extraCharges: extraCharges || bill.extraCharges,
+        rentAmount: newRentAmount,
+        electricityAmount: newElectricity,
+        extraCharges: newExtraCharges,
         totalAmount,
+        totalDue,
+        remainingAmount,
         dueDate: dueDate ? new Date(dueDate) : bill.dueDate,
       },
       include: {
@@ -555,6 +646,32 @@ export const verifyMonthlyPayment = async (req: AuthRequest, res: Response) => {
       },
     })
 
+    // If this bill is fully paid, also mark all previous unpaid bills as PAID and settled
+    if (newRemainingAmount <= 0) {
+      const previousUnpaidBills = await prisma.monthlyBill.findMany({
+        where: {
+          bookingId: bill.bookingId,
+          isPaid: false,
+          status: { not: MonthlyBillStatus.DRAFT },
+          id: { lt: numericBillId }
+        }
+      })
+      for (const prevBill of previousUnpaidBills) {
+        await prisma.monthlyBill.update({
+          where: { id: prevBill.id },
+          data: {
+            isPaid: true,
+            paidAmount: prevBill.totalDue,
+            remainingAmount: 0,
+            paidDate: new Date(),
+            status: newStatus,
+            verificationStatus: VerificationStatus.VERIFIED
+          }
+        })
+      }
+      console.log(`⚡ verifyMonthlyPayment: Auto-marked ${previousUnpaidBills.length} previous unpaid bills as PAID.`)
+    }
+
     // Fix Payment Double Logging: check for existing pending payment record
     const pendingPayment = await prisma.payment.findFirst({
       where: {
@@ -597,57 +714,27 @@ export const verifyMonthlyPayment = async (req: AuthRequest, res: Response) => {
     })
 
     if (monthlyRenter) {
-      // Calculate cycle dates based on the BILL's month, not by stacking on currentCycleEnd
-      // Parse the bill's month (e.g. "May 2026") to determine the correct cycle period
-      const joinDate = new Date(monthlyRenter.joinDate)
-      const joinDay = joinDate.getDate() // e.g., 23
+      const cycleDates = parseCycleDates(bill.month)
+      if (cycleDates) {
+        const isFull = newRemainingAmount <= 0
+        console.log(`⚡ Stay Cycle Update: Renter id=${monthlyRenter.id}, bill=${bill.month}, cycle=${cycleDates.start.toISOString()} to ${cycleDates.end.toISOString()}, isFull=${isFull}`)
 
-      // Parse bill month string like "May 2026" or "April 2026"
-      const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"]
-      const billMonthParts = bill.month ? bill.month.trim().split(" ") : []
-      const firstPart = billMonthParts[0] || ""
-      const secondPart = billMonthParts[1] || ""
-      const billMonthIdx = monthNames.findIndex(m => m.toLowerCase() === firstPart.toLowerCase())
-      const billYear = parseInt(secondPart) || new Date().getFullYear()
-
-      let nextStart: Date
-      let nextEnd: Date
-
-      if (billMonthIdx >= 0) {
-        // The bill's month cycle starts on joinDay of that month
-        // e.g., "May 2026" with joinDay=23 → cycle = May 23 - Jun 22
-        nextStart = new Date(billYear, billMonthIdx, joinDay)
-        nextEnd = new Date(nextStart)
-        nextEnd.setMonth(nextEnd.getMonth() + 1)
-        nextEnd.setDate(nextEnd.getDate() - 1)
-      } else {
-        // Fallback: use bill dueDate as cycle end
-        nextEnd = new Date(bill.dueDate)
-        nextStart = new Date(nextEnd)
-        nextStart.setMonth(nextStart.getMonth() - 1)
-        nextStart.setDate(nextStart.getDate() + 1)
+        await prisma.monthlyRenter.update({
+          where: { id: monthlyRenter.id },
+          data: {
+            currentCycleStart: cycleDates.start,
+            currentCycleEnd: cycleDates.end,
+            dueDate: cycleDates.end,
+            nextDueDate: cycleDates.end,
+            paidAmount: newPaidAmount,
+            pendingAmount: newRemainingAmount,
+            overdueDays: 0,
+            latePenalty: 0,
+            status: isFull ? MonthlyRenterStatus.ACTIVE : MonthlyRenterStatus.PENDING_PAYMENT,
+            paymentStatus: isFull ? "PAID" : "PARTIAL",
+          }
+        })
       }
-
-      nextEnd.setHours(23, 59, 59, 999)
-
-      const isFull = newRemainingAmount <= 0
-
-      console.log(`⚡ Stay Renewal: Renter id=${monthlyRenter.id}, bill=${bill.month}, cycle=${nextStart.toISOString()} to ${nextEnd.toISOString()}, isFull=${isFull}`)
-
-      await prisma.monthlyRenter.update({
-        where: { id: monthlyRenter.id },
-        data: {
-          currentCycleStart: nextStart,
-          currentCycleEnd: nextEnd,
-          dueDate: nextEnd,
-          nextDueDate: nextEnd,
-          paidAmount: newPaidAmount,
-          pendingAmount: newRemainingAmount,
-          overdueDays: 0,
-          status: MonthlyRenterStatus.ACTIVE,
-          paymentStatus: isFull ? "PAID" : "PARTIAL",
-        }
-      })
     }
 
     // Notify Renter
@@ -701,97 +788,29 @@ export const getRenterDashboardData = async (req: AuthRequest, res: Response) =>
       })
     }
 
-    // SELF-HEALING SYSTEM: Auto-resolve first month mismatch confusion dynamically
-    if (activeBooking.bookingType === BookingType.MONTHLY && activeBooking.room) {
-      const joinDate = new Date(activeBooking.checkInDate)
-      const firstMonthName = joinDate.toLocaleString("default", { month: "long" }) + " " + joinDate.getFullYear()
-      const rentAmount = activeBooking.room.monthlyPrice || (activeBooking.room.dailyPrice * 30) || (activeBooking.room.price * 30) || 0
-
-      // 1. Ensure the first month's bill is fully marked as PAID and VERIFIED
-      const firstCycleEnd = new Date(joinDate)
-      firstCycleEnd.setDate(firstCycleEnd.getDate() + 29)
-      firstCycleEnd.setHours(23, 59, 59, 999)
-
-      const existingFirstBill = await prisma.monthlyBill.findFirst({
-        where: { bookingId: activeBooking.id, month: firstMonthName }
-      })
-
-      if (!existingFirstBill) {
-        await prisma.monthlyBill.create({
-          data: {
-            bookingId: activeBooking.id,
-            month: firstMonthName,
-            rentAmount,
-            electricityAmount: 0,
-            extraCharges: 0,
-            totalAmount: rentAmount,
-            previousDue: 0,
-            totalDue: rentAmount,
-            paidAmount: rentAmount,
-            remainingAmount: 0,
-            isPaid: true,
-            status: MonthlyBillStatus.PAID_ONLINE,
-            verificationStatus: VerificationStatus.VERIFIED,
-            dueDate: firstCycleEnd
-          }
-        })
-      } else if (!existingFirstBill.isPaid || existingFirstBill.remainingAmount > 0 || existingFirstBill.status !== MonthlyBillStatus.PAID_ONLINE || existingFirstBill.verificationStatus !== VerificationStatus.VERIFIED) {
-        await prisma.monthlyBill.update({
-          where: { id: existingFirstBill.id },
-          data: {
-            paidAmount: existingFirstBill.totalDue > 0 ? existingFirstBill.totalDue : rentAmount,
-            remainingAmount: 0,
-            isPaid: true,
-            status: MonthlyBillStatus.PAID_ONLINE,
-            verificationStatus: VerificationStatus.VERIFIED
-          }
-        })
-      }
-
-      // 3. Ensure MonthlyRenter profile is synchronized with correct staying cycle and status
+    // Ensure MonthlyRenter profile is synchronized with correct staying status
+    if (activeBooking.bookingType === BookingType.MONTHLY) {
       const monthlyRenter = await prisma.monthlyRenter.findUnique({
         where: { bookingId: activeBooking.id }
       })
 
       if (monthlyRenter) {
-        const joinDate = new Date(activeBooking.checkInDate)
-        const firstCycleEnd = new Date(joinDate)
-        firstCycleEnd.setDate(firstCycleEnd.getDate() + 29)
-        firstCycleEnd.setHours(23, 59, 59, 999)
-
-        const secondCycleStart = new Date(firstCycleEnd)
-        secondCycleStart.setDate(secondCycleStart.getDate() + 1)
-        secondCycleStart.setHours(0, 0, 0, 0)
-
-        const checkoutDate = new Date(activeBooking.checkOutDate)
-
-        // If current date is within the second month, promote the active renter cycle to second cycle
-        const now = new Date()
-        const isSecondCycleActive = now >= secondCycleStart && now <= checkoutDate
-        
-        const targetCycleStart = isSecondCycleActive ? secondCycleStart : joinDate
-        const targetCycleEnd = isSecondCycleActive ? (new Date(secondCycleStart)) : firstCycleEnd
-        if (isSecondCycleActive && targetCycleEnd) {
-          targetCycleEnd.setMonth(targetCycleEnd.getMonth() + 1)
-          targetCycleEnd.setDate(targetCycleEnd.getDate() - 1)
-          targetCycleEnd.setHours(23, 59, 59, 999)
-        }
-
-        const secondMonthName = secondCycleStart.toLocaleString("default", { month: "long" }) + " " + secondCycleStart.getFullYear()
+        // Read latest bill to calculate pending amount
         const latestBill = await prisma.monthlyBill.findFirst({
-          where: { bookingId: activeBooking.id, month: isSecondCycleActive ? secondMonthName : firstMonthName }
+          where: { 
+            bookingId: activeBooking.id, 
+            status: { not: MonthlyBillStatus.DRAFT } // Exclude drafts from active stay resolution
+          },
+          orderBy: { createdAt: 'desc' }
         })
 
-        const isPaid = latestBill ? (latestBill.remainingAmount <= 0) : true
+        const isPaid = latestBill ? latestBill.remainingAmount <= 0 : true
+        const rentAmount = activeBooking.room?.monthlyPrice || (activeBooking.room?.dailyPrice * 30) || (activeBooking.room?.price * 30) || 0
 
         await prisma.monthlyRenter.update({
           where: { id: monthlyRenter.id },
           data: {
             stayStatus: StayStatus.CHECKED_IN,
-            currentCycleStart: monthlyRenter.currentCycleStart || targetCycleStart,
-            currentCycleEnd: monthlyRenter.currentCycleEnd || targetCycleEnd,
-            dueDate: monthlyRenter.dueDate || targetCycleEnd,
-            nextDueDate: monthlyRenter.nextDueDate || targetCycleEnd,
             status: monthlyRenter.status === "ACTIVE" || monthlyRenter.status === "PENDING_PAYMENT" ? (isPaid ? MonthlyRenterStatus.ACTIVE : MonthlyRenterStatus.PENDING_PAYMENT) : monthlyRenter.status,
             paymentStatus: isPaid ? "PAID" : "PENDING",
             pendingAmount: latestBill ? latestBill.remainingAmount : 0,
@@ -801,10 +820,11 @@ export const getRenterDashboardData = async (req: AuthRequest, res: Response) =>
       }
     }
 
-    // Get the most recent monthly bill for this booking
+    // Get the most recent monthly bill for this booking (excluding drafts for renter)
     const monthlyBill = await prisma.monthlyBill.findFirst({
       where: {
         bookingId: activeBooking.id,
+        status: { not: MonthlyBillStatus.DRAFT } // Exclude draft bills from renter view
       },
       include: {
         payments: true,
@@ -998,7 +1018,7 @@ export const syncAllRenterOverdueStatuses = async () => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    console.log(`⚡ Monthly Renter Status Sync: checking ${activeRenters.length} renters...`)
+    console.log(`⚡ Monthly Renter Stay-Cycle Status Sync: checking ${activeRenters.length} renters...`)
 
     for (const r of activeRenters) {
       if (!r.currentCycleEnd) {
@@ -1015,67 +1035,29 @@ export const syncAllRenterOverdueStatuses = async () => {
         }
       })
       if (hasCheckoutApproved || r.status === "CHECKED_OUT") {
-        continue // Renter is checked out. No next invoice generated!
+        continue // Renter is checked out.
       }
 
       const cycleEnd = new Date(r.currentCycleEnd)
       cycleEnd.setHours(0, 0, 0, 0)
 
-      // ======================================
-      // 1. AUTO DRAFT GENERATION ON CYCLE END
-      // ======================================
-      if (today >= cycleEnd) {
-        const nextCycleStart = new Date(r.currentCycleEnd)
-        nextCycleStart.setDate(nextCycleStart.getDate() + 1)
-        nextCycleStart.setHours(0, 0, 0, 0)
+      const isExpired = today >= cycleEnd
 
-        const nextCycleEnd = new Date(nextCycleStart)
-        nextCycleEnd.setMonth(nextCycleEnd.getMonth() + 1)
-        nextCycleEnd.setDate(nextCycleEnd.getDate() - 1)
-        nextCycleEnd.setHours(23, 59, 59, 999)
+      // Dynamic late penalty math
+      const penaltyStartDate = new Date(cycleEnd)
+      penaltyStartDate.setDate(penaltyStartDate.getDate() + 6) // e.g. 24 May + 6 = 30 May
 
-        const nextMonthName = nextCycleStart.toLocaleString("default", { month: "long" }) + " " + nextCycleStart.getFullYear()
+      let calculatedLatePenalty = 0
+      let calculatedOverdueDays = 0
 
-        // Check if next month's bill already exists (to prevent duplicates)
-        const existingNextBill = await prisma.monthlyBill.findFirst({
-          where: { bookingId: r.bookingId, month: nextMonthName }
-        })
-
-        if (!existingNextBill) {
-          // Calculate previous dues (any unpaid sent bills)
-          const unpaidSentBills = await prisma.monthlyBill.findMany({
-            where: {
-              bookingId: r.bookingId,
-              status: { in: [MonthlyBillStatus.PENDING, MonthlyBillStatus.OVERDUE, MonthlyBillStatus.VERIFICATION_PENDING] },
-              isDeleted: false
-            }
-          })
-          const previousDue = unpaidSentBills.reduce((sum, b) => sum + b.remainingAmount, 0)
-
-          await prisma.monthlyBill.create({
-            data: {
-              bookingId: r.bookingId,
-              month: nextMonthName,
-              rentAmount: r.rentAmount, // FLAT room rent (e.g. ₹6000)
-              electricityAmount: 0,
-              extraCharges: 0,
-              totalAmount: r.rentAmount,
-              previousDue,
-              totalDue: r.rentAmount + previousDue,
-              paidAmount: 0,
-              remainingAmount: r.rentAmount + previousDue,
-              status: MonthlyBillStatus.DRAFT, // Created as DRAFT!
-              dueDate: nextCycleEnd // Default, updated on sendMonthlyInvoice
-            }
-          })
-          console.log(`📝 Auto-created DRAFT monthly bill for booking ${r.bookingId} for month ${nextMonthName}`)
-        }
+      if (today >= penaltyStartDate) {
+        const diffTime = today.getTime() - penaltyStartDate.getTime()
+        calculatedOverdueDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+        calculatedLatePenalty = calculatedOverdueDays * 10
       }
 
-      // ======================================
-      // 2. DYNAMIC OVERDUE & LATE PENALTY ENGINE
-      // ======================================
-      const unpaidBills = await prisma.monthlyBill.findMany({
+      // Find any unpaid monthly bill to apply the dynamic penalty to
+      const unpaidBill = await prisma.monthlyBill.findFirst({
         where: {
           bookingId: r.bookingId,
           status: { in: [MonthlyBillStatus.PENDING, MonthlyBillStatus.OVERDUE, MonthlyBillStatus.VERIFICATION_PENDING] },
@@ -1083,53 +1065,41 @@ export const syncAllRenterOverdueStatuses = async () => {
         }
       })
 
-      for (const bill of unpaidBills) {
-        if (!bill.dueDate) continue
-        const dueDate = new Date(bill.dueDate)
-        dueDate.setHours(0, 0, 0, 0)
+      if (unpaidBill) {
+        // If the payment is already submitted (VERIFICATION_PENDING), we FREEZE penalty accumulation to stay fair
+        const finalLatePenalty = unpaidBill.status === MonthlyBillStatus.VERIFICATION_PENDING ? unpaidBill.latePenalty : calculatedLatePenalty
+        const finalOverdueDays = unpaidBill.status === MonthlyBillStatus.VERIFICATION_PENDING ? unpaidBill.daysOverdue : calculatedOverdueDays
 
-        if (today > dueDate) {
-          const diffTime = today.getTime() - dueDate.getTime()
-          const daysOverdue = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-          const latePenalty = daysOverdue * 10 // ₹10 per day penalty automatically
+        const newTotalDue = unpaidBill.rentAmount + unpaidBill.electricityAmount + unpaidBill.extraCharges + unpaidBill.previousDue + finalLatePenalty
+        const newRemainingAmount = Math.max(0, newTotalDue - unpaidBill.paidAmount)
 
-          const newTotalDue = bill.rentAmount + bill.electricityAmount + bill.extraCharges + bill.previousDue + latePenalty
-          const newRemainingAmount = Math.max(0, newTotalDue - bill.paidAmount)
+        const isBillOverdue = finalOverdueDays > 0 && unpaidBill.status !== MonthlyBillStatus.VERIFICATION_PENDING
 
-          await prisma.monthlyBill.update({
-            where: { id: bill.id },
-            data: {
-              status: MonthlyBillStatus.OVERDUE,
-              daysOverdue,
-              latePenalty,
-              totalDue: newTotalDue,
-              remainingAmount: newRemainingAmount
-            }
-          })
-          console.log(`⚠️ Overdue Bill update for ${bill.month}: ${daysOverdue} days late, ₹${latePenalty} penalty`)
-        }
+        await prisma.monthlyBill.update({
+          where: { id: unpaidBill.id },
+          data: {
+            status: isBillOverdue ? MonthlyBillStatus.OVERDUE : unpaidBill.status,
+            daysOverdue: finalOverdueDays,
+            latePenalty: finalLatePenalty,
+            totalDue: newTotalDue,
+            remainingAmount: newRemainingAmount
+          }
+        })
+
+        // Accumulate penalty states to renter profile
+        calculatedLatePenalty = finalLatePenalty
+        calculatedOverdueDays = finalOverdueDays
       }
 
-      // ======================================
-      // 3. RENTER CYCLE / STATUS CORRELATION
-      // ======================================
+      // 3. RENTER CYCLE / STATUS CORRELATION (STRICT STAY CYCLE DATES)
       const diffTime = cycleEnd.getTime() - today.getTime()
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
-      let newStatus = r.status
-      let newOverdueDays = 0
+      let newStatus: MonthlyRenterStatus = r.status
       let newPaymentStatus = r.paymentStatus
-      let newPendingAmount = 0
+      let newPendingAmount = unpaidBill ? unpaidBill.remainingAmount : 0
 
-      // Read latest bill to calculate pending amount
-      const latestBill = await prisma.monthlyBill.findFirst({
-        where: { bookingId: r.bookingId, isDeleted: false, status: { not: MonthlyBillStatus.DRAFT } },
-        orderBy: { createdAt: 'desc' }
-      })
-
-      const isPaid = latestBill ? latestBill.remainingAmount <= 0 : true
-      newPendingAmount = latestBill ? latestBill.remainingAmount : 0
-
+      // Identify if any renewal requests are pending
       let pendingRenewalRequest = null
       for (const req of r.renewalRequests) {
         if (req.status === "PENDING") {
@@ -1145,36 +1115,43 @@ export const syncAllRenterOverdueStatuses = async () => {
           newStatus = MonthlyRenterStatus.CHECKOUT_REQUESTED
         }
         newPaymentStatus = "PENDING"
-      } else if (latestBill && latestBill.status === MonthlyBillStatus.OVERDUE) {
+      } else if (unpaidBill && unpaidBill.status === MonthlyBillStatus.OVERDUE) {
         newStatus = MonthlyRenterStatus.OVERDUE
         newPaymentStatus = "OVERDUE"
-        newOverdueDays = latestBill.daysOverdue
-      } else if (diffDays > 0) {
-        newStatus = diffDays <= 5 ? "DUE_SOON" : "ACTIVE"
-        newPaymentStatus = isPaid ? "PAID" : "PENDING"
-      } else if (diffDays === 0) {
-        newStatus = "EXPIRES_TODAY"
-        newPaymentStatus = isPaid ? "PAID" : "PENDING"
+      } else if (unpaidBill) {
+        // Has unpaid bill (PENDING or VERIFICATION_PENDING) — determine urgency from cycle end
+        if (isExpired) {
+          newStatus = MonthlyRenterStatus.EXPIRES_TODAY
+          newPaymentStatus = "PENDING"
+        } else if (diffDays <= 5) {
+          newStatus = MonthlyRenterStatus.DUE_SOON
+          newPaymentStatus = "PENDING"
+        } else {
+          newStatus = MonthlyRenterStatus.PENDING_PAYMENT
+          newPaymentStatus = "PENDING"
+        }
       } else {
-        // Expired cycle without active bills overdue
-        newStatus = MonthlyRenterStatus.PENDING_PAYMENT
-        newPaymentStatus = "PENDING"
+        // No unpaid bill — renter is fully paid. Stay ACTIVE regardless of cycle-end proximity.
+        // The admin needs to generate the next month's invoice when it's time.
+        newStatus = MonthlyRenterStatus.ACTIVE
+        newPaymentStatus = "PAID"
       }
 
-      // Update Renter profile if status changed
-      if (r.status !== newStatus || r.overdueDays !== newOverdueDays || r.paymentStatus !== newPaymentStatus || r.pendingAmount !== newPendingAmount) {
+      // Update Renter profile if status or penalty changed
+      if (r.status !== newStatus || r.overdueDays !== calculatedOverdueDays || r.paymentStatus !== newPaymentStatus || r.pendingAmount !== newPendingAmount || r.latePenalty !== calculatedLatePenalty) {
         await prisma.monthlyRenter.update({
           where: { id: r.id },
           data: {
-            status: newStatus as any,
-            overdueDays: newOverdueDays,
+            status: newStatus,
+            overdueDays: calculatedOverdueDays,
             paymentStatus: newPaymentStatus,
-            pendingAmount: newPendingAmount
+            pendingAmount: newPendingAmount,
+            latePenalty: calculatedLatePenalty
           }
         })
       }
     }
-    console.log(`✅ Monthly Renter Status Sync: Complete`)
+    console.log(`✅ Monthly Renter Stay-Cycle Status Sync: Complete`)
   } catch (err) {
     console.error("❌ Error in syncAllRenterOverdueStatuses:", err)
   }
@@ -1213,8 +1190,10 @@ export const sendMonthlyInvoice = async (req: AuthRequest, res: Response) => {
     const electricity = parseFloat(String(electricityAmount || 0))
     const extras = parseFloat(String(extraCharges || 0))
     const totalAmount = bill.rentAmount + electricity + extras
-    const totalDue = totalAmount + bill.previousDue
-    const remainingAmount = totalDue - bill.paidAmount
+    // Include latePenalty in totalDue — it may already be non-zero if the scheduler applied a penalty
+    // before the admin sends the invoice
+    const totalDue = totalAmount + bill.previousDue + bill.latePenalty
+    const remainingAmount = Math.max(0, totalDue - bill.paidAmount)
 
     const sentAt = new Date()
     // Grace period: 5 days to pay
@@ -1291,12 +1270,11 @@ export const requestStayRenewal = async (req: AuthRequest, res: Response) => {
     const prevEnd = renter.currentCycleEnd || renter.joinDate
     const nextStart = new Date(prevEnd)
     nextStart.setDate(nextStart.getDate() + 1)
+    nextStart.setHours(0, 0, 0, 0)
     
-    const nextEnd = new Date(nextStart)
-    nextEnd.setMonth(nextEnd.getMonth() + 1)
-    nextEnd.setDate(nextEnd.getDate() - 1)
+    const nextEnd = calculateCycleEnd(nextStart)
 
-    const monthName = nextStart.toLocaleString("default", { month: "long" }) + " " + nextStart.getFullYear()
+    const monthName = getCycleMonthString(nextStart, nextEnd)
 
     const existingPendingBill = await prisma.monthlyBill.findFirst({
       where: {
@@ -1616,9 +1594,7 @@ export const requestContinueStay = async (req: AuthRequest, res: Response) => {
     nextCycleStart.setDate(nextCycleStart.getDate() + 1)
     nextCycleStart.setHours(0, 0, 0, 0)
 
-    const nextCycleEnd = new Date(nextCycleStart)
-    nextCycleEnd.setMonth(nextCycleEnd.getMonth() + 1)
-    nextCycleEnd.setDate(nextCycleEnd.getDate() - 1)
+    const nextCycleEnd = calculateCycleEnd(nextCycleStart)
 
     // Create renewal request
     const renewalRequest = await prisma.stayRenewalRequest.create({
@@ -1675,6 +1651,7 @@ export const requestContinueStay = async (req: AuthRequest, res: Response) => {
 export const requestCheckout = async (req: AuthRequest, res: Response) => {
   try {
     const userId = Number(req.userId)
+    const { reason = "", expectedCheckoutDate } = req.body
     
     const booking = await prisma.booking.findFirst({
       where: {
@@ -1713,14 +1690,15 @@ export const requestCheckout = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: "You already have a checkout request pending admin approval" })
     }
 
-    // Create checkout request
+    // Create checkout request with reason and expected date stored in notes
     const checkoutRequest = await prisma.stayRenewalRequest.create({
       data: {
         bookingId: booking.id,
         monthlyRenterId: renter.id,
         requestType: RenewalRequestType.CHECKOUT,
         status: RenewalRequestStatus.PENDING,
-        requestDate: new Date()
+        requestDate: new Date(),
+        approvalNotes: `Expected Date: ${expectedCheckoutDate || 'Not specified'}. Reason: ${reason || 'Not provided'}`
       }
     })
 
@@ -1729,7 +1707,7 @@ export const requestCheckout = async (req: AuthRequest, res: Response) => {
       where: { id: renter.id },
       data: {
         status: MonthlyRenterStatus.CHECKOUT_REQUESTED,
-        checkoutRequestDate: new Date()
+        checkoutRequestDate: expectedCheckoutDate ? new Date(expectedCheckoutDate) : new Date()
       }
     })
 
@@ -1738,7 +1716,7 @@ export const requestCheckout = async (req: AuthRequest, res: Response) => {
       data: {
         bookingId: booking.id,
         title: "🚪 Checkout Request",
-        message: `${booking.customerName} (Room ${booking.roomId}) has requested checkout. Please verify final billing and approve termination.`,
+        message: `${booking.customerName} (Room ${booking.roomId}) has requested checkout. Reason: ${reason || 'Not provided'}. Please verify final billing and approve termination.`,
         type: NotificationType.SYSTEM,
         priority: NotificationPriority.HIGH
       }
@@ -1850,29 +1828,49 @@ export const approveContinueStay = async (req: AuthRequest, res: Response) => {
     const booking = renewalRequest.booking
     const renter = renewalRequest.monthlyRenter
 
-    // Calculate penalty if applicable
+    // Calculate penalty dynamically based on stays expiry
     let penalty = 0
-    const cycleEnd = new Date(renter.currentCycleEnd!)
-    cycleEnd.setHours(23, 59, 59, 999)
-    const now = new Date()
-    const daysExpired = Math.ceil((now.getTime() - cycleEnd.getTime()) / (1000 * 60 * 60 * 24))
-    
-    if (daysExpired > 10) {
-      const penaltyDays = daysExpired - 10
-      penalty = penaltyDays * 10
+    if (renter.currentCycleEnd) {
+      const cycleEnd = new Date(renter.currentCycleEnd)
+      cycleEnd.setHours(0, 0, 0, 0)
+      
+      const penaltyStartDate = new Date(cycleEnd)
+      penaltyStartDate.setDate(penaltyStartDate.getDate() + 6) // e.g. 24 May + 6 = 30 May
+      
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      if (today >= penaltyStartDate) {
+        const diffTime = today.getTime() - penaltyStartDate.getTime()
+        const overdueDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+        penalty = overdueDays * 10
+      }
     }
 
-    // Get previous pending amount
-    const lastBill = booking.monthlyBills[0]
-    const previousPending = lastBill ? lastBill.remainingAmount : 0
+    // Find all previous unpaid bills to get remaining dues
+    const unpaidBills = await prisma.monthlyBill.findMany({
+      where: {
+        bookingId: booking.id,
+        isPaid: false,
+        status: { not: MonthlyBillStatus.DRAFT },
+        isDeleted: false
+      }
+    })
+    const previousPending = unpaidBills.reduce((sum, b) => sum + b.remainingAmount, 0)
 
-    // Format cycle dates for month name
+    // Format cycle dates as dynamic month string
     const nextCycleStart = renewalRequest.nextCycleStart!
-    const monthName = nextCycleStart.toLocaleString("default", { month: "long" }) + " " + nextCycleStart.getFullYear()
+    const nextCycleEnd = renewalRequest.nextCycleEnd!
+    const monthName = getCycleMonthString(nextCycleStart, nextCycleEnd)
 
-    // Create new bill with all charges
+    // Calculate bill total: Rent + Electricity + Extra/Other charges + Penalty + Previous carryover
     const billTotal = renter.rentAmount + parseFloat(String(electricityAmount || 0)) + previousPending + penalty + parseFloat(String(otherCharges || 0))
     
+    // Set bill due date exactly to grace limit (currentCycleEnd + 5 days)
+    const activeDueDate = new Date(renter.currentCycleEnd || new Date())
+    activeDueDate.setDate(activeDueDate.getDate() + 5)
+    activeDueDate.setHours(23, 59, 59, 999)
+
     let newBill
     const existingBill = await prisma.monthlyBill.findFirst({
       where: { bookingId: booking.id, month: monthName }
@@ -1889,6 +1887,7 @@ export const approveContinueStay = async (req: AuthRequest, res: Response) => {
           totalDue: billTotal,
           previousDue: previousPending,
           remainingAmount: billTotal - existingBill.paidAmount,
+          dueDate: activeDueDate,
           status: MonthlyBillStatus.PENDING,
           verificationStatus: VerificationStatus.PENDING
         }
@@ -1900,20 +1899,20 @@ export const approveContinueStay = async (req: AuthRequest, res: Response) => {
           month: monthName,
           rentAmount: renter.rentAmount,
           electricityAmount: parseFloat(String(electricityAmount || 0)),
-          extraCharges: previousPending + penalty + parseFloat(String(otherCharges || 0)), // Bundle pending dues + penalty + other charges as extra charges
+          extraCharges: previousPending + penalty + parseFloat(String(otherCharges || 0)),
           totalAmount: billTotal,
           totalDue: billTotal,
           previousDue: previousPending,
           paidAmount: 0,
           remainingAmount: billTotal,
-          dueDate: renewalRequest.nextCycleEnd!,
+          dueDate: activeDueDate,
           status: MonthlyBillStatus.PENDING,
           verificationStatus: VerificationStatus.PENDING
         }
       })
     }
 
-    // Update renewal request
+    // Update renewal request to APPROVED
     await prisma.stayRenewalRequest.update({
       where: { id: numericRequestId },
       data: {
@@ -1924,26 +1923,14 @@ export const approveContinueStay = async (req: AuthRequest, res: Response) => {
       }
     })
 
-    // Update monthly renter
+    // Update monthly renter status and penalty (Stay dates are only updated upon payment verification!)
     await prisma.monthlyRenter.update({
       where: { id: renter.id },
       data: {
         status: MonthlyRenterStatus.PENDING_PAYMENT,
-        currentCycleStart: renewalRequest.nextCycleStart,
-        currentCycleEnd: renewalRequest.nextCycleEnd,
-        dueDate: renewalRequest.nextCycleEnd,
         lastElectricityAmount: parseFloat(String(electricityAmount || 0)),
         latePenalty: penalty,
-        renewalDecisionDate: new Date(),
-        ...(renewalRequest.nextCycleEnd ? { nextDueDate: renewalRequest.nextCycleEnd } : {})
-      }
-    })
-
-    // Store electricity for future reference
-    await prisma.monthlyRenter.update({
-      where: { id: renter.id },
-      data: {
-        lastElectricityAmount: parseFloat(String(electricityAmount || 0))
+        renewalDecisionDate: new Date()
       }
     })
 

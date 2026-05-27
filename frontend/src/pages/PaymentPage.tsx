@@ -142,7 +142,6 @@ const PaymentPage = () => {
   const SECURITY_DEPOSIT = 2500
   
   const baseAmount = isMonthly ? booking.totalAmount - SECURITY_DEPOSIT : booking.totalAmount
-  const tax = 0
   const securityDeposit = isMonthly ? SECURITY_DEPOSIT : 0
   const finalAmount = booking.totalAmount
 
@@ -216,7 +215,7 @@ const PaymentPage = () => {
               You are paying <span className="font-extrabold text-slate-800">₹{finalAmount.toLocaleString()}</span> via <span className="font-extrabold text-blue-600">{getMethodLabel(paymentMethod)}</span>.
             </p>
             <div className="flex gap-3">
-              <Button onClick={handleConfirmAction} variant="success" className="flex-1 text-xs font-black uppercase tracking-widest py-2.5">
+              <Button onClick={handleConfirmAction} variant="primary" className="flex-1 text-xs font-black uppercase tracking-widest py-2.5">
                 Confirm
               </Button>
               <Button onClick={() => setShowConfirmModal(false)} variant="outline" className="flex-1 text-xs font-black uppercase tracking-widest py-2.5 border-gray-200">
@@ -300,7 +299,7 @@ const PaymentPage = () => {
                 <div className="pt-2">
                   <Button 
                     onClick={submitUPIPayment} 
-                    variant="success" 
+                    variant="primary" 
                     className="w-full text-xs font-black uppercase tracking-widest py-3 shadow-md"
                     isLoading={processing}
                   >
@@ -354,7 +353,7 @@ const PaymentPage = () => {
               <div className="mt-8 pt-8 border-t border-gray-50">
                 <Button 
                   onClick={handlePayClick} 
-                  variant="success"
+                  variant="primary"
                   size="lg"
                   className="w-full text-sm font-bold uppercase tracking-widest shadow-md" 
                   disabled={!paymentMethod || processing}

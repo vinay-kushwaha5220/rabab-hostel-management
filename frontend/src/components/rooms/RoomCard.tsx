@@ -43,7 +43,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
 
   const showStayingBadge = (statusLabel === 'Booked' || statusLabel === 'Full') && !!room.currentRenterName
 
-  const canBook = room.isAvailable && !isFull
+  const canBook = room.isAvailable && !isFull && !isOccupied
 
   return (
     <Card
@@ -121,14 +121,15 @@ const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
           >
             Details
           </Button>
-          <Button
-            size="sm"
-            className="flex-1 text-[8px] sm:text-[9px] py-1 sm:py-1.5 uppercase tracking-wider font-bold"
-            onClick={handleBookNow}
-            disabled={!canBook}
-          >
-            {!room.isAvailable ? 'Maint.' : isFull ? 'Full' : 'Book'}
-          </Button>
+          {canBook && (
+            <Button
+              size="sm"
+              className="flex-1 text-[8px] sm:text-[9px] py-1 sm:py-1.5 uppercase tracking-wider font-bold animate-in fade-in zoom-in-95 duration-200"
+              onClick={handleBookNow}
+            >
+              Book
+            </Button>
+          )}
         </div>
       </div>
     </Card>

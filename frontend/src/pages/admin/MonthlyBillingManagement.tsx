@@ -140,30 +140,39 @@ const MonthlyBillingManagement = () => {
     const renter = bill.booking?.monthlyRenter
     const normalizedStatus = normalizeMonthlyRenterStatus(renter?.status)
 
-    // 1. Use monthly renter status as primary source of truth for request states
-    if (normalizedStatus === "CHECKOUT_REQUESTED") return "CHECKOUT_REQUESTED"
-    if (normalizedStatus === "CONTINUE_REQUESTED") return "CONTINUE_REQUESTED"
-    if (normalizedStatus === "PAYMENT_PENDING") return "PAYMENT_PENDING"
-
-    // 2. Check for Pending Verification (Blue)
-    if (bill.status === "VERIFICATION_PENDING" || (bill.verificationStatus === "PENDING" && !bill.isPaid)) {
+    // 1. Check for Pending Verification (Blue) — payment submitted, awaiting admin
+    if (bill.status === "VERIFICATION_PENDING") {
       return "PENDING_VERIFICATION"
     }
 
-    // 3. Check for Checked Out (Gray)
+    // 2. Checked Out (Gray) — take priority over billing states
     if (renter?.status === "CHECKED_OUT" || renter?.stayStatus === "CHECKED_OUT") {
       return "CHECKED_OUT"
     }
 
-    // 4. Check for Overdue (Red)
+    // 3. Bill is fully paid — check renter-level status for request states
+    if (bill.isPaid) {
+      // Renter may have submitted a continue/checkout request after paying
+      if (normalizedStatus === "CHECKOUT_REQUESTED") return "CHECKOUT_REQUESTED"
+      if (normalizedStatus === "CONTINUE_REQUESTED") return "CONTINUE_REQUESTED"
+      // Bill is paid — stay is ACTIVE regardless of cycle-end proximity
+      return "ACTIVE"
+    }
+
+    // 4. Bill is UNPAID — check renter request states
+    if (normalizedStatus === "CHECKOUT_REQUESTED") return "CHECKOUT_REQUESTED"
+    if (normalizedStatus === "CONTINUE_REQUESTED") return "CONTINUE_REQUESTED"
+    if (normalizedStatus === "PAYMENT_PENDING") return "PAYMENT_PENDING"
+
+    // 5. Check for Overdue (Red)
     if (renter?.status === "OVERDUE" || bill.status === "OVERDUE") {
       return "OVERDUE"
     }
 
-    // 5. Calculate Days Remaining
-    const dueDateVal = renter?.dueDate || bill.dueDate
-    if (!dueDateVal) return "ACTIVE"
-    const { days } = getStayDaysLeft(dueDateVal)
+    // 6. Calculate Days Remaining on the STAY CYCLE (not bill due date) for unpaid bills
+    const cycleEndVal = renter?.currentCycleEnd || renter?.dueDate || bill.dueDate
+    if (!cycleEndVal) return "ACTIVE"
+    const { days } = getStayDaysLeft(cycleEndVal)
 
     if (days < 0) return "OVERDUE"
     if (days === 0) return "EXPIRES TODAY"

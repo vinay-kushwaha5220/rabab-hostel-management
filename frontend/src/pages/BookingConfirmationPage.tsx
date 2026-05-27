@@ -59,7 +59,6 @@ const BookingConfirmationPage = () => {
   const SECURITY_DEPOSIT = 2500
   const isMonthly = booking.bookingType === "MONTHLY"
   const rentAmount = isMonthly ? (booking.totalAmount - SECURITY_DEPOSIT) : booking.totalAmount
-  const taxAmount = 0
   const finalAmount = booking.totalAmount
   const isConfirmed = booking.status === "CONFIRMED" || booking.status === "COMPLETED"
 

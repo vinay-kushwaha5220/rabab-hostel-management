@@ -203,8 +203,8 @@ const MyBookingsPage = () => {
           <h2 className="text-base font-bold text-gray-900 mb-3 tracking-tight">Active Bookings</h2>
           <div className="space-y-3">
             {activeBookings.map((booking) => {
-              // For monthly bookings, calculate total from monthly bills
-              const bookingBills = booking.bookingType === "MONTHLY" ? monthlyBills : []
+              // For monthly bookings, calculate total from monthly bills filtered by booking ID
+              const bookingBills = booking.bookingType === "MONTHLY" ? monthlyBills.filter(b => b.bookingId === booking.id) : []
               const totalFromBills = bookingBills.reduce((sum, b) => sum + (b.paidAmount || 0), 0)
               const totalDueFromBills = bookingBills.reduce((sum, b) => sum + (b.totalDue || 0), 0)
               const displayTotal = booking.bookingType === "MONTHLY" && bookingBills.length > 0 
@@ -220,13 +220,31 @@ const MyBookingsPage = () => {
                       {booking.bookingType === "MONTHLY" && booking.monthlyRenter ? (
                         <>
                           {(() => {
-                            const status = normalizeMonthlyRenterStatus(booking.monthlyRenter.status) || booking.monthlyRenter.status
+                            let status = normalizeMonthlyRenterStatus(booking.monthlyRenter.status) || booking.monthlyRenter.status
+                            
+                            // Check if expired based on stayEndDate (currentCycleEnd) and unpaid invoice
+                            if (booking.monthlyRenter.currentCycleEnd) {
+                              const today = new Date()
+                              today.setHours(0, 0, 0, 0)
+                              const cycleEnd = new Date(booking.monthlyRenter.currentCycleEnd)
+                              cycleEnd.setHours(0, 0, 0, 0)
+                              
+                              const hasUnpaid = bookingBills.length === 0 || bookingBills.some(b => !b.isPaid)
+                              
+                              if (cycleEnd < today && hasUnpaid) {
+                                status = "EXPIRED"
+                              } else if (!hasUnpaid && status !== "CHECKED_OUT") {
+                                status = "ACTIVE"
+                              }
+                            }
+
                             const badgeVariant =
                               status === "ACTIVE" ? "success" :
                               status === "DUE_SOON" ? "warning" :
                               status === "EXPIRES_TODAY" ? "warning" :
                               status === "PAYMENT_PENDING" ? "warning" :
                               status === "OVERDUE" ? "danger" :
+                              status === "EXPIRED" ? "danger" :
                               status === "CHECKOUT_REQUESTED" ? "secondary" :
                               status === "CHECKED_OUT" ? "secondary" :
                               "secondary"

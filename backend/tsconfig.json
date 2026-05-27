@@ -41,5 +41,5 @@
     "moduleDetection": "force",
     "skipLibCheck": true
   },
-  "exclude": ["legacy_backup", "node_modules"]
+  "exclude": ["legacy_backup", "node_modules", "scripts"]
 }

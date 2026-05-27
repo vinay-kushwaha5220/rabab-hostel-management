@@ -8,20 +8,6 @@ import LoadingSpinner from "../../components/ui/LoadingSpinner"
 
 type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'primary' | 'secondary'
 
-interface UserProfile {
-  name?: string
-  email?: string
-  role?: string
-  avatar?: string
-}
-
-interface Notification {
-  id: number
-  message: string
-  read: boolean
-  createdAt: string
-}
-
 const normalizeMonthlyRenterStatus = (status?: string): string | undefined => {
   if (!status) return undefined
   switch (status) {
@@ -124,10 +110,6 @@ const BookingsManagement = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>("all")
   const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString())
 
-  // Header states
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
-  const [notifications, setNotifications] = useState<Notification[]>([])
-
   // Stay Renewal Modal states
   const [showRenewModal, setShowRenewModal] = useState(false)
   const [selectedBookingForRenewal, setSelectedBookingForRenewal] = useState<BookingType | null>(null)
@@ -155,27 +137,7 @@ const BookingsManagement = () => {
 
   useEffect(() => {
     fetchBookings()
-    fetchUserProfile()
-    fetchNotifications()
   }, [])
-
-  const fetchUserProfile = async () => {
-    try {
-      const response = await api.get("/auth/me")
-      setUserProfile(response.data)
-    } catch (error) {
-      console.error('Error fetching user profile:', error)
-    }
-  }
-
-  const fetchNotifications = async () => {
-    try {
-      const response = await api.get("/notifications")
-      setNotifications(response.data)
-    } catch (error) {
-      console.error('Error fetching notifications:', error)
-    }
-  }
 
   const fetchBookings = async () => {
     try {

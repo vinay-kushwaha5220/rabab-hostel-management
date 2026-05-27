@@ -42,8 +42,8 @@ export const billingService = {
     return response.data
   },
 
-  requestCheckoutNew: async (): Promise<any> => {
-    const response = await api.post("/monthly-bills/renter/checkout")
+  requestCheckoutNew: async (data?: { reason?: string, expectedCheckoutDate?: string }): Promise<any> => {
+    const response = await api.post("/monthly-bills/renter/checkout", data)
     return response.data
   },
 

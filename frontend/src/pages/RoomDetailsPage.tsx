@@ -71,7 +71,7 @@ const RoomDetailsPage = () => {
 
   const urgencyThreshold = 1
   const isUrgent = room.isAvailable && (room.capacity - room.currentOccupancy <= urgencyThreshold)
-  const isOccupied = !room.isAvailable || room.currentOccupancy >= room.capacity
+  const isOccupied = !room.isAvailable || room.currentOccupancy > 0
 
   return (
     <div className="min-h-screen bg-gray-50/30 pb-24 lg:pb-12">
@@ -238,18 +238,18 @@ const RoomDetailsPage = () => {
                     </div>
                   </div>
 
-                  <Button 
-                    className="w-full py-2.5 text-xs font-black uppercase tracking-widest rounded-lg shadow-sm"
-                    onClick={handleBookNow}
-                    disabled={isOccupied || isAdmin}
-                  >
-                    {isAdmin 
-                      ? "Admin Accounts Cannot Book" 
-                      : !isOccupied 
-                        ? (isAuthenticated ? "Secure Spot" : "Log in to Book") 
-                        : "Fully Booked"
-                    }
-                  </Button>
+                  {!isOccupied && (
+                    <Button 
+                      className="w-full py-2.5 text-xs font-black uppercase tracking-widest rounded-lg shadow-sm animate-in fade-in zoom-in-95 duration-200"
+                      onClick={handleBookNow}
+                      disabled={isAdmin}
+                    >
+                      {isAdmin 
+                        ? "Admin Accounts Cannot Book" 
+                        : (isAuthenticated ? "Book Room" : "Log in to Book Room")
+                      }
+                    </Button>
+                  )}
                 </div>
               </Card>
 
@@ -272,24 +272,21 @@ const RoomDetailsPage = () => {
       </div>
 
       {/* Sticky Mobile Footer CTA */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t p-4 flex items-center justify-between shadow-[0_-8px_30px_rgb(0,0,0,0.08)]">
-        <div className="flex flex-col">
-          <p className="text-xl font-black text-blue-700">₹{(room.monthlyPrice || room.price).toLocaleString()}<span className="text-[10px] text-gray-400 ml-1">/mo</span></p>
-          <p className="text-xs font-bold text-gray-400">₹{(room.dailyPrice || room.price).toLocaleString()}/day</p>
+      {!isOccupied && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t p-4 flex items-center justify-between shadow-[0_-8px_30px_rgb(0,0,0,0.08)]">
+          <div className="flex flex-col">
+            <p className="text-xl font-black text-blue-700">₹{(room.monthlyPrice || room.price).toLocaleString()}<span className="text-[10px] text-gray-400 ml-1">/mo</span></p>
+            <p className="text-xs font-bold text-gray-400">₹{(room.dailyPrice || room.price).toLocaleString()}/day</p>
+          </div>
+          <Button 
+            className="px-8 font-black uppercase tracking-widest shadow-lg shadow-blue-100 rounded-xl"
+            onClick={handleBookNow}
+            disabled={isAdmin}
+          >
+            {isAdmin ? "Admin Restricted" : "Book Room"}
+          </Button>
         </div>
-        <Button 
-          className="px-8 font-black uppercase tracking-widest shadow-lg shadow-blue-100 rounded-xl"
-          onClick={handleBookNow}
-          disabled={isOccupied || isAdmin}
-        >
-          {isAdmin 
-            ? "Admin Restricted" 
-            : !isOccupied 
-              ? 'Book Now' 
-              : 'Occupied'
-          }
-        </Button>
-      </div>
+      )}
     </div>
   )
 }

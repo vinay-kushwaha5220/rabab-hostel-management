@@ -15,7 +15,7 @@ import contactRoutes from "./routes/contactRoutes.js"
 const app = express()
 
 // CORS configuration to allow credentials (cookies)
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
+const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',')
   : [];
 
@@ -36,7 +36,7 @@ app.use(cors({
       // Allow requests with no origin (like mobile apps, Postman, curl)
       callback(null, true);
     } else if (
-      origin.includes("localhost") || 
+      origin.includes("localhost") ||
       origin.includes("127.0.0.1") ||
       origin.match(/^http:\/\/192\.168\.\d{1,3}\.\d{1,3}/) || // 192.168.x.x
       origin.match(/^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}/) || // 10.x.x.x
@@ -103,4 +103,4 @@ setTimeout(async () => {
   } catch (err) {
     console.error("⏰ Background Scheduler Startup Error:", err)
   }
-}, 10000) // 10 seconds startup delay
+}, 10000) // 10 seconds startup delay

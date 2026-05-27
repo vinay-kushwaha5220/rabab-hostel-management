@@ -310,7 +310,7 @@ const BookingPage = () => {
                 </section>
 
                 <div className="pt-6 border-t border-gray-100">
-                  <Button type="submit" variant="success" size="lg" className="w-full text-xs font-bold uppercase tracking-widest shadow-lg" isLoading={submitting}>
+                  <Button type="submit" variant="primary" size="lg" className="w-full text-xs font-bold uppercase tracking-widest shadow-lg" isLoading={submitting}>
                     {submitting ? 'Confirming...' : 'CONFIRM & PAY NOW'}
                   </Button>
                 </div>

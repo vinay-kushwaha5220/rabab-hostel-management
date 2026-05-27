@@ -114,7 +114,7 @@ const LoginPageV2 = () => {
           <p className="text-gray-600 mb-4">
             Don't have an account?
           </p>
-          <Link 
+          <Link
             to={`/register${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ""}`}
             className="w-full block bg-gray-100 text-gray-900 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors text-center"
           >

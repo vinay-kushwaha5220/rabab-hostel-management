@@ -1,8 +1,29 @@
 import type { Response } from "express"
+import bcrypt from "bcryptjs"
 import prisma from "../config/prisma.js"
 import type { AuthRequest } from "../middleware/authMiddleware.js"
 import { BookingStatus, PaymentStatus, StayStatus, BookingType, NotificationType, NotificationPriority, VerificationStatus, MonthlyBillStatus, MonthlyRenterStatus, PaymentMethod } from "@prisma/client"
 import { calculateBookingPrice } from "../services/pricingEngine.js"
+
+// Standardized locale-independent cycle helpers to prevent duplicate billing
+export function getCycleMonthString(start: Date, end: Date): string {
+  const formatDateISO = (d: Date): string => {
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+  return `Cycle: ${formatDateISO(start)} to ${formatDateISO(end)}`
+}
+
+export function calculateCycleEnd(start: Date): Date {
+  const end = new Date(start)
+  end.setMonth(end.getMonth() + 1)
+  // Real hostel rule: if you join Apr 27, your last day is May 27 (exactly 1 month)
+  // Do NOT subtract 1 day — that would make Apr 27 end on May 26 (wrong)
+  end.setHours(23, 59, 59, 999)
+  return end
+}
 
 // ==========================================
 // CREATE BOOKING
@@ -63,10 +84,39 @@ export const createBooking = async (
       return res.status(400).json({ message: "Room is already at full capacity" })
     }
 
+    // 2.5. Determine target user ID (if admin is booking for a customer)
+    const requestingUser = await prisma.user.findUnique({
+      where: { id: req.userId! },
+    })
+
+    let targetUserId = req.userId!
+
+    if (requestingUser?.role === "ADMIN" && customerEmail) {
+      let guestUser = await prisma.user.findUnique({
+        where: { email: customerEmail.toLowerCase() },
+      })
+
+      if (!guestUser) {
+        console.log(`👤 Auto-registering new resident: ${customerEmail}`)
+        const defaultPassword = "User@12345"
+        const hashedPassword = await bcrypt.hash(defaultPassword, 10)
+        guestUser = await prisma.user.create({
+          data: {
+            name: customerName,
+            email: customerEmail.toLowerCase(),
+            password: hashedPassword,
+            phone: customerPhone || null,
+            role: "USER",
+          },
+        })
+      }
+      targetUserId = guestUser.id
+    }
+
     // 3. Check existing booking (Modified to prevent ANY duplicate active booking)
     const existingActiveBooking = await prisma.booking.findFirst({
       where: {
-        userId: req.userId!,
+        userId: targetUserId,
         status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
         stayStatus: { in: [StayStatus.BOOKED, StayStatus.CHECKED_IN, StayStatus.STAYING] },
         isDeleted: false,
@@ -74,9 +124,11 @@ export const createBooking = async (
     })
 
     if (existingActiveBooking) {
-      console.log(`❌ Validation failed: User ${req.userId} already has active booking ${existingActiveBooking.bookingId}`)
+      console.log(`❌ Validation failed: User ${targetUserId} already has active booking ${existingActiveBooking.bookingId}`)
       return res.status(400).json({
-        message: "You already have an active room booking",
+        message: requestingUser?.role === "ADMIN" 
+          ? "This resident already has an active room booking"
+          : "You already have an active room booking",
         existingBookingId: existingActiveBooking.bookingId
       })
     }
@@ -127,7 +179,7 @@ export const createBooking = async (
       const booking = await tx.booking.create({
         data: {
           bookingId,
-          userId: req.userId!,
+          userId: targetUserId,
           customerName: customerName,
           customerEmail: customerEmail,
           customerPhone: customerPhone,
@@ -176,7 +228,7 @@ export const createBooking = async (
 
         await tx.monthlyRenter.create({
           data: {
-            userId: req.userId!,
+            userId: targetUserId,
             bookingId: booking.id,
             roomId: Number(roomId),
             joinDate,
@@ -341,6 +393,7 @@ export const getUserBookings = async (
       include: {
         room: true,
         payments: true,
+        monthlyRenter: true, // REQUIRED: popup uses currentCycleStart/End for "Payment Verified" modal
       },
       orderBy: { createdAt: "desc" },
     })
@@ -452,9 +505,7 @@ export const checkInBooking = async (req: AuthRequest, res: Response) => {
       // 2. If MONTHLY stay, initialize cycles & first month's bill as PAID
       if (booking.bookingType === BookingType.MONTHLY) {
         const joinDate = new Date(booking.checkInDate)
-        const firstCycleEnd = new Date(joinDate)
-        firstCycleEnd.setDate(firstCycleEnd.getDate() + 29) // 30-day cycle inclusive
-        firstCycleEnd.setHours(23, 59, 59, 999)
+        const firstCycleEnd = calculateCycleEnd(joinDate)
 
         const rentAmount = booking.room?.monthlyPrice || (booking.room?.dailyPrice * 30) || (booking.room?.price * 30) || 0
 
@@ -500,11 +551,11 @@ export const checkInBooking = async (req: AuthRequest, res: Response) => {
           })
         }
 
-        // Generate the first month's invoice as fully PAID and VERIFIED
-        const firstMonthName = joinDate.toLocaleString("default", { month: "long" }) + " " + joinDate.getFullYear()
+        // Generate the first stay cycle's invoice as fully PAID and VERIFIED
+        const cycleMonthStr = getCycleMonthString(joinDate, firstCycleEnd)
 
         const existingFirstBill = await tx.monthlyBill.findFirst({
-          where: { bookingId: booking.id, month: firstMonthName }
+          where: { bookingId: booking.id, month: cycleMonthStr }
         })
 
         if (existingFirstBill) {
@@ -525,7 +576,7 @@ export const checkInBooking = async (req: AuthRequest, res: Response) => {
           await tx.monthlyBill.create({
             data: {
               bookingId: booking.id,
-              month: firstMonthName,
+              month: cycleMonthStr,
               rentAmount: rentAmount,
               electricityAmount: 0,
               extraCharges: 0,
@@ -540,46 +591,6 @@ export const checkInBooking = async (req: AuthRequest, res: Response) => {
               dueDate: firstCycleEnd
             }
           })
-        }
-
-        // Generate second cycle bill as PENDING if checkout date spans into second cycle
-        const secondCycleStart = new Date(firstCycleEnd)
-        secondCycleStart.setDate(secondCycleStart.getDate() + 1)
-        secondCycleStart.setHours(0, 0, 0, 0)
-
-        const checkoutDate = new Date(booking.checkOutDate)
-        if (checkoutDate > secondCycleStart) {
-          const secondCycleEnd = new Date(secondCycleStart)
-          secondCycleEnd.setMonth(secondCycleEnd.getMonth() + 1)
-          secondCycleEnd.setDate(secondCycleEnd.getDate() - 1)
-          secondCycleEnd.setHours(23, 59, 59, 999)
-
-          const secondMonthName = secondCycleStart.toLocaleString("default", { month: "long" }) + " " + secondCycleStart.getFullYear()
-
-          const existingSecondBill = await tx.monthlyBill.findFirst({
-            where: { bookingId: booking.id, month: secondMonthName }
-          })
-
-          if (!existingSecondBill) {
-            await tx.monthlyBill.create({
-              data: {
-                bookingId: booking.id,
-                month: secondMonthName,
-                rentAmount: rentAmount,
-                electricityAmount: 0,
-                extraCharges: 0,
-                totalAmount: rentAmount,
-                previousDue: 0,
-                totalDue: rentAmount,
-                paidAmount: 0,
-                remainingAmount: rentAmount,
-                isPaid: false,
-                status: MonthlyBillStatus.PENDING,
-                verificationStatus: VerificationStatus.PENDING,
-                dueDate: secondCycleEnd
-              }
-            })
-          }
         }
       }
     })
@@ -819,13 +830,10 @@ export const renewMonthlyStay = async (req: AuthRequest, res: Response) => {
     nextStart.setDate(nextStart.getDate() + 1)
     nextStart.setHours(0, 0, 0, 0)
     
-    const nextEnd = new Date(nextStart)
-    nextEnd.setMonth(nextEnd.getMonth() + 1)
-    nextEnd.setDate(nextEnd.getDate() - 1)
-    nextEnd.setHours(23, 59, 59, 999)
+    const nextEnd = calculateCycleEnd(nextStart)
 
-    // Calculate month name (e.g. "June 2026")
-    const monthName = nextStart.toLocaleString("default", { month: "long" }) + " " + nextStart.getFullYear()
+    // Calculate stay cycle month string
+    const monthName = getCycleMonthString(nextStart, nextEnd)
 
     // 1. Extend checkOutDate on the booking by 30 days
     const currentCheckOut = new Date(booking.checkOutDate)
@@ -840,14 +848,33 @@ export const renewMonthlyStay = async (req: AuthRequest, res: Response) => {
       }
     })
 
-    // 2. Fetch the latest MonthlyBill to see if there are remaining dues (previousPending)
-    const lastBill = await prisma.monthlyBill.findFirst({
-      where: { bookingId: booking.id, isDeleted: false },
-      orderBy: { createdAt: 'desc' }
+    // 2. Fetch all previous unpaid bills to get robust remaining dues sum (Bug #5)
+    const unpaidBills = await prisma.monthlyBill.findMany({
+      where: {
+        bookingId: booking.id,
+        isPaid: false,
+        status: { not: MonthlyBillStatus.DRAFT },
+        isDeleted: false
+      }
     })
-    const previousPending = lastBill ? lastBill.remainingAmount : 0
+    const previousPending = unpaidBills.reduce((sum, b) => sum + b.remainingAmount, 0)
 
-    // 3. Create new bill with Rent + Electricity + Maintenance + Previous Dues
+    // 3. Enforce strict unique stay cycle billing (Bug #1)
+    const existingBill = await prisma.monthlyBill.findFirst({
+      where: {
+        bookingId: booking.id,
+        month: monthName,
+        isDeleted: false
+      }
+    })
+
+    if (existingBill) {
+      return res.status(400).json({
+        message: `A bill already exists for the stay cycle: ${monthName}`
+      })
+    }
+
+    // 4. Create new bill with Rent + Electricity + Maintenance + Previous Dues
     const baseRent = renter.rentAmount
     const billTotal = baseRent + electricityAmount + maintenanceCharge + previousPending
 
@@ -1035,6 +1062,8 @@ export const cancelBooking = async (
     })
   }
 }
+
+
 // ==========================================
 // ADMIN: CONFIRM BOOKING MANUALLY
 // ==========================================
@@ -1103,9 +1132,7 @@ export const confirmBooking = async (
     // Update MonthlyRenter profile to ACTIVE and generate first month invoice
     if (booking.bookingType === BookingType.MONTHLY) {
       const joinDate = new Date(booking.checkInDate)
-      const firstCycleEnd = new Date(joinDate)
-      firstCycleEnd.setDate(firstCycleEnd.getDate() + 29)
-      firstCycleEnd.setHours(23, 59, 59, 999)
+      const firstCycleEnd = calculateCycleEnd(joinDate)
 
       const rentAmount = booking.room?.monthlyPrice || (booking.room?.dailyPrice * 30) || (booking.room?.price * 30) || 0
 
@@ -1125,11 +1152,11 @@ export const confirmBooking = async (
         }
       })
 
-      // Generate the first month's invoice as fully PAID and VERIFIED
-      const firstMonthName = joinDate.toLocaleString("default", { month: "long" }) + " " + joinDate.getFullYear()
+      // Generate the first month's invoice as fully PAID and VERIFIED based on stay cycle dates
+      const cycleMonthStr = getCycleMonthString(joinDate, firstCycleEnd)
 
       const existingFirstBill = await prisma.monthlyBill.findFirst({
-        where: { bookingId: booking.id, month: firstMonthName }
+        where: { bookingId: booking.id, month: cycleMonthStr }
       })
 
       if (existingFirstBill) {
@@ -1150,7 +1177,7 @@ export const confirmBooking = async (
         await prisma.monthlyBill.create({
           data: {
             bookingId: booking.id,
-            month: firstMonthName,
+            month: cycleMonthStr,
             rentAmount,
             electricityAmount: 0,
             extraCharges: 0,
@@ -1258,11 +1285,12 @@ export const checkExtensionAvailability = async (
       })
     }
 
-    // Check for conflicting confirmed bookings for the same room in the extended range
-    const conflict = await prisma.booking.findFirst({
+    // Check for conflicting confirmed bookings for the same room in the extended range (respecting room capacity)
+    const overlappingBookings = await prisma.booking.findMany({
       where: {
         roomId: booking.roomId,
         id: { not: booking.id },
+        userId: { not: booking.userId },
         status: BookingStatus.CONFIRMED,
         isDeleted: false,
         checkInDate: { lt: newCheckOut },
@@ -1270,7 +1298,25 @@ export const checkExtensionAvailability = async (
       }
     })
 
-    if (conflict) {
+    let hasConflict = false
+    const d = new Date(currentCheckOut)
+    while (d < newCheckOut) {
+      const activeOtherBookingsCount = overlappingBookings.filter(b => {
+        const bCheckIn = new Date(b.checkInDate)
+        bCheckIn.setHours(0, 0, 0, 0)
+        const bCheckOut = new Date(b.checkOutDate)
+        bCheckOut.setHours(0, 0, 0, 0)
+        return bCheckIn <= d && bCheckOut > d
+      }).length
+
+      if (activeOtherBookingsCount + 1 > booking.room.capacity) {
+        hasConflict = true
+        break
+      }
+      d.setDate(d.getDate() + 1)
+    }
+
+    if (hasConflict) {
       return res.status(200).json({
         available: false,
         message: "The room is already booked by another resident during these extended dates."
@@ -1347,11 +1393,12 @@ export const extendDailyBooking = async (
         throw new Error("New checkout date must be at least 1 day after current checkout date")
       }
 
-      // Re-verify room availability inside the transaction
-      const conflict = await tx.booking.findFirst({
+      // Re-verify room availability inside the transaction (respecting room capacity)
+      const overlappingBookings = await tx.booking.findMany({
         where: {
           roomId: booking.roomId,
           id: { not: booking.id },
+          userId: { not: booking.userId },
           status: BookingStatus.CONFIRMED,
           isDeleted: false,
           checkInDate: { lt: newCheckOut },
@@ -1359,7 +1406,25 @@ export const extendDailyBooking = async (
         }
       })
 
-      if (conflict) {
+      let hasConflict = false
+      const d = new Date(currentCheckOut)
+      while (d < newCheckOut) {
+        const activeOtherBookingsCount = overlappingBookings.filter(b => {
+          const bCheckIn = new Date(b.checkInDate)
+          bCheckIn.setHours(0, 0, 0, 0)
+          const bCheckOut = new Date(b.checkOutDate)
+          bCheckOut.setHours(0, 0, 0, 0)
+          return bCheckIn <= d && bCheckOut > d
+        }).length
+
+        if (activeOtherBookingsCount + 1 > booking.room.capacity) {
+          hasConflict = true
+          break
+        }
+        d.setDate(d.getDate() + 1)
+      }
+
+      if (hasConflict) {
         throw new Error("The room has already been booked by another resident during these extended dates.")
       }
 
@@ -1437,5 +1502,102 @@ export const extendDailyBooking = async (
     return res.status(400).json({
       message: error.message || "Failed to extend stay"
     })
+  }
+}
+
+// ==========================================
+// DELETE BOOKING (ADMIN ONLY)
+// ==========================================
+export const deleteBooking = async (req: AuthRequest, res: Response) => {
+  const { id } = req.params
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: Number(id) },
+    })
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" })
+    }
+
+    // Hard delete - cascades automatically to MonthlyRenter, Payment, MonthlyBill, StayRenewalRequest
+    await prisma.booking.delete({
+      where: { id: Number(id) },
+    })
+
+    console.log(`🗑️ HARD DELETE: Deleted booking ${id} and all cascading data.`)
+    res.status(200).json({ message: "Booking and all associated payments, bills, and renter records deleted successfully." })
+  } catch (error: any) {
+    console.error("Delete booking error:", error)
+    res.status(500).json({ message: error.message })
+  }
+}
+
+// ==========================================
+// RECORD PAYMENT (ADMIN ONLY)
+// ==========================================
+export const recordPayment = async (req: AuthRequest, res: Response) => {
+  const { id } = req.params
+  const { amount, paymentMethod, transactionId, paymentStatus } = req.body
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: Number(id) },
+    })
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" })
+    }
+
+    const payment = await prisma.payment.create({
+      data: {
+        bookingId: booking.id,
+        amount: parseFloat(amount),
+        paymentMethod: paymentMethod as PaymentMethod,
+        transactionId: transactionId || `PAY-${Date.now()}`,
+        paymentStatus: paymentStatus as PaymentStatus,
+        verificationStatus: VerificationStatus.VERIFIED,
+      },
+    })
+
+    // If booking was pending and payment is SUCCESS, confirm it
+    if (paymentStatus === PaymentStatus.SUCCESS && booking.status === BookingStatus.PENDING) {
+      await prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: BookingStatus.CONFIRMED,
+          paymentStatus: PaymentStatus.SUCCESS,
+        }
+      })
+    }
+
+    res.status(201).json({ message: "Payment logged successfully", payment })
+  } catch (error: any) {
+    console.error("Record payment error:", error)
+    res.status(500).json({ message: error.message })
+  }
+}
+
+// ==========================================
+// DELETE PAYMENT (ADMIN ONLY)
+// ==========================================
+export const deletePayment = async (req: AuthRequest, res: Response) => {
+  const { paymentId } = req.params
+  try {
+    const payment = await prisma.payment.findUnique({
+      where: { id: Number(paymentId) },
+    })
+
+    if (!payment) {
+      return res.status(404).json({ message: "Payment not found" })
+    }
+
+    await prisma.payment.delete({
+      where: { id: Number(paymentId) },
+    })
+
+    console.log(`🗑️ DELETE PAYMENT: Deleted payment record ${paymentId}`)
+    res.status(200).json({ message: "Payment record deleted successfully." })
+  } catch (error: any) {
+    console.error("Delete payment error:", error)
+    res.status(500).json({ message: error.message })
   }
 }

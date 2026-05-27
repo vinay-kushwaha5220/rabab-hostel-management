@@ -16,6 +16,9 @@ import {
   renewMonthlyStay,
   checkExtensionAvailability,
   extendDailyBooking,
+  deleteBooking,
+  recordPayment,
+  deletePayment,
 } from "../controllers/bookingController.js"
 
 import { protect } from "../middleware/authMiddleware.js"
@@ -40,6 +43,11 @@ router.put("/:id/check-out", protect, adminOnly, checkOutBooking)
 router.put("/:id/refund", protect, adminOnly, refundBooking)
 router.put("/:id/undo-checkout", protect, adminOnly, undoCheckOutBooking)
 router.put("/:id/renew-stay", protect, adminOnly, renewMonthlyStay)
+
+// New stay/payment admin control endpoints
+router.post("/:id/payment", protect, adminOnly, recordPayment)
+router.delete("/payment/:paymentId", protect, adminOnly, deletePayment)
+router.delete("/:id", protect, adminOnly, deleteBooking)
 
 // Detail routes - Generic parameters MUST be last to avoid catching static routes
 router.get("/:id", protect, getBookingById)

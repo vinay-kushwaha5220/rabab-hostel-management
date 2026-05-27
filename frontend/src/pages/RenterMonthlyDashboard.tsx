@@ -1,9 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import api from "../services/apiV2"
 import { useAuth } from "../context/AuthContextV2"
 import { billingService, paymentService, messagingService } from "../services/billingService"
-import type { BookingType } from "../types/booking"
 import type { MonthlyBill, Message } from "../types/billing"
 import Badge from "../components/ui/Badge"
 import Card from "../components/ui/Card"
@@ -191,7 +189,7 @@ const RenterMonthlyDashboard = () => {
       setPaymentSuccess("")
       setError("")
 
-      const response = await paymentService.processMonthlyPayment({
+      await paymentService.processMonthlyPayment({
         billId: monthlyBill.id,
         paymentMethod: payMethod === 'UPI' ? 'upi' : 'cash'
       })
@@ -227,6 +225,7 @@ const RenterMonthlyDashboard = () => {
       case "EXPIRES_TODAY": return "warning"
       case "PENDING_PAYMENT": return "warning"
       case "OVERDUE": return "danger"
+      case "EXPIRED": return "danger"
       case "CONTINUE_REQUESTED": return "warning"
       case "CHECKOUT_REQUESTED": return "secondary"
       case "CHECKED_OUT": return "secondary"
@@ -275,10 +274,31 @@ const RenterMonthlyDashboard = () => {
   }
 
   const renterProfile = activeBooking.monthlyRenter
-  const stayStatus = renterProfile?.status || activeBooking.stayStatus || "ACTIVE"
+  
+  // Calculate dynamic stay status based on strictly start and end dates (Bug #3)
+  const getDynamicStayStatus = () => {
+    let status = renterProfile?.status || activeBooking.stayStatus || "ACTIVE"
+    if (renterProfile?.currentCycleEnd) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const cycleEnd = new Date(renterProfile.currentCycleEnd)
+      cycleEnd.setHours(0, 0, 0, 0)
+      
+      // Check if latest monthly bill is unpaid
+      const hasUnpaid = monthlyBill && !monthlyBill.isPaid
+      
+      if (cycleEnd < today && hasUnpaid) {
+        return "EXPIRED"
+      } else if (!hasUnpaid && status !== "CHECKED_OUT") {
+        return "ACTIVE"
+      }
+    }
+    return status
+  }
+  
+  const stayStatus = getDynamicStayStatus()
 
   // Pre-calculations for dashboard overview tab (Total, Current, and Old pays with Time Safe Expiration countdown)
-  const totalPaymentsAllTime = billsHistory.reduce((sum, b) => sum + (b.paidAmount || 0), 0)
   
   // Current month paid amount
   const currentMonthPaid = monthlyBill?.paidAmount || 0
@@ -387,7 +407,7 @@ const RenterMonthlyDashboard = () => {
               <div className="space-y-6 animate-in fade-in duration-200">
                 
                 {/* PROFESSIONAL STAY RENEWAL & CHECKOUT ACTION CENTER */}
-                {['DUE_SOON', 'EXPIRES_TODAY', 'PAYMENT_PENDING', 'OVERDUE', 'CONTINUE_REQUESTED', 'CHECKOUT_REQUESTED'].includes(stayStatus) && (
+                {['DUE_SOON', 'EXPIRES_TODAY', 'PAYMENT_PENDING', 'OVERDUE', 'EXPIRED', 'CONTINUE_REQUESTED', 'CHECKOUT_REQUESTED'].includes(stayStatus) && (
                   <Card className="p-6 border-l-4 border-l-blue-600 bg-white shadow-sm rounded-2xl animate-in slide-in-from-top-4 duration-300">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       <div className="flex items-start gap-3.5">
@@ -398,13 +418,13 @@ const RenterMonthlyDashboard = () => {
                           <h3 className="text-sm font-extrabold text-slate-900 tracking-tight">
                             {stayStatus === 'CONTINUE_REQUESTED' && 'Continue Stay Request Pending'}
                             {stayStatus === 'CHECKOUT_REQUESTED' && 'Checkout Request Pending'}
-                            {['PAYMENT_PENDING', 'OVERDUE'].includes(stayStatus) && 'Your Monthly Stay Has Expired'}
+                            {['PAYMENT_PENDING', 'OVERDUE', 'EXPIRED'].includes(stayStatus) && 'Your Monthly Stay Has Expired'}
                             {['DUE_SOON', 'EXPIRES_TODAY'].includes(stayStatus) && 'Stay Cycle Expiring Soon'}
                           </h3>
                           <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-1 max-w-xl">
                             {stayStatus === 'CONTINUE_REQUESTED' && 'Your request to continue your stay is awaiting administrative approval. A new statement will be generated once approved.'}
                             {stayStatus === 'CHECKOUT_REQUESTED' && 'Your request to checkout is awaiting administrative approval. Please coordinate with the hostel manager for inspection.'}
-                            {['PAYMENT_PENDING', 'OVERDUE'].includes(stayStatus) && 'Your monthly hostel stay has officially expired. Please decide below if you want to request stay continuation or submit a checkout request.'}
+                            {['PAYMENT_PENDING', 'OVERDUE', 'EXPIRED'].includes(stayStatus) && 'Your monthly hostel stay has officially expired. Please decide below if you want to request stay continuation or submit a checkout request.'}
                             {['DUE_SOON', 'EXPIRES_TODAY'].includes(stayStatus) && 'Your current monthly hostel stay cycle is nearing its end. You can request stay continuation or checkout early.'}
                           </p>
                         </div>
@@ -412,7 +432,7 @@ const RenterMonthlyDashboard = () => {
                       
                       {/* Dynamic Action Buttons or Badges based on status */}
                       <div className="flex flex-wrap items-center gap-2 self-end sm:self-center">
-                        {['DUE_SOON', 'EXPIRES_TODAY', 'PAYMENT_PENDING', 'OVERDUE'].includes(stayStatus) && (
+                        {['DUE_SOON', 'EXPIRES_TODAY', 'PAYMENT_PENDING', 'OVERDUE', 'EXPIRED'].includes(stayStatus) && (
                           <>
                             <Button
                               onClick={handleRequestContinueStay}
@@ -816,8 +836,27 @@ const RenterMonthlyDashboard = () => {
                             <button
                               type="button"
                               onClick={async () => {
-                                if (window.confirm("Are you absolutely sure you want to request CHECKOUT? This will notify administration to inspect your room and release booking, preventing future cycles.")) {
-                                  await handleRequestCheckout()
+                                const confirmCheckout = window.confirm("Are you absolutely sure you want to request CHECKOUT? This will notify administration to inspect your room and release booking, preventing future cycles.")
+                                if (confirmCheckout) {
+                                  const reason = window.prompt("Please enter the reason for checking out:") || "Not specified"
+                                  const dateStr = window.prompt("Please enter the expected checkout date (YYYY-MM-DD):") || new Date().toISOString().split('T')[0]
+                                  
+                                  try {
+                                    setLoading(true)
+                                    setError("")
+                                    setSuccess("")
+                                    const res = await billingService.requestCheckoutNew({
+                                      reason,
+                                      expectedCheckoutDate: dateStr
+                                    })
+                                    setSuccess(res.message || "Checkout request submitted. Awaiting admin approval.")
+                                    await fetchDashboardData()
+                                  } catch (err: any) {
+                                    console.error("Failed to request checkout:", err)
+                                    setError(err.response?.data?.message || "Failed to submit checkout request.")
+                                  } finally {
+                                    setLoading(false)
+                                  }
                                 }
                               }}
                               className="p-3.5 bg-white border border-slate-200 hover:border-rose-400 rounded-xl text-left shadow-sm flex flex-col justify-between transition-all active:scale-[0.98] cursor-pointer"
