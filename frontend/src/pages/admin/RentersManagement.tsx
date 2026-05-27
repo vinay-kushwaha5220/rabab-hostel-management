@@ -750,7 +750,7 @@ const RentersManagement = () => {
             <div className="flex border-b border-slate-100 bg-slate-50 sticky top-[96px] z-10">
               {[
                 { id: "details", label: "Stay Controls" },
-                { id: "payments", label: `Payment History (${selectedRenter.payments?.length || selectedRenter.payment?.length || 0})` },
+                { id: "payments", label: `Payment History (${selectedRenter.payment?.length || 0})` },
                 ...(selectedRenter.bookingType === 'MONTHLY' ? [{ id: "billing", label: `Monthly Invoices (${selectedRenterBills.length})` }] : []),
               ].map(t => (
                 <button
@@ -909,7 +909,7 @@ const RentersManagement = () => {
                       {/* Payments table list */}
                       <div className="space-y-2.5">
                         {(() => {
-                          const paymentArray = selectedRenter.payments || selectedRenter.payment || []
+                          const paymentArray = selectedRenter.payment || []
                           if (paymentArray.length === 0) {
                             return (
                               <div className="text-center py-10 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
