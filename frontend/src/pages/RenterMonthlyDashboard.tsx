@@ -30,7 +30,7 @@ const RenterMonthlyDashboard = () => {
   const [notifications, setNotifications] = useState<any[]>([])
   
   // Interactive Payment states
-  const [payMethod, setPayMethod] = useState<'UPI' | 'CASH'>('UPI')
+  const [payMethod, setPayMethod] = useState<'UPI' | 'CASH' | 'RAZORPAY'>('RAZORPAY')
   const [utrNumber, setUtrNumber] = useState('')
   const [paymentNotes, setPaymentNotes] = useState('')
   const [payingLoading, setPayingLoading] = useState(false)
@@ -182,8 +182,107 @@ const RenterMonthlyDashboard = () => {
     }
   }
 
+  const loadRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) {
+        resolve(true)
+        return
+      }
+      const script = document.createElement("script")
+      script.src = "https://checkout.razorpay.com/v1/checkout.js"
+      script.onload = () => resolve(true)
+      script.onerror = () => resolve(false)
+      document.body.appendChild(script)
+    })
+  }
+
   const handleProcessPayment = async () => {
     if (!monthlyBill) return
+
+    // RAZORPAY SECURE PAYMENT FLOW
+    if (payMethod === 'RAZORPAY') {
+      try {
+        setPayingLoading(true)
+        setPaymentSuccess("")
+        setError("")
+
+        // 1. Load Razorpay script
+        const isScriptLoaded = await loadRazorpayScript()
+        if (!isScriptLoaded) {
+          setError("Failed to load online payment gateway. Please check your internet connection.")
+          setPayingLoading(false)
+          return
+        }
+
+        // 2. Create online payment order on backend
+        const orderData = await paymentService.createRazorpayOrder({
+          billId: monthlyBill.id
+        })
+
+        const { orderId, amount, currency, keyId } = orderData
+
+        // 3. Launch Checkout Gateway modal
+        const options = {
+          key: keyId,
+          amount: amount,
+          currency: currency,
+          name: "Rabab Stay",
+          description: `Rent Invoice Settle — ${monthlyBill.month}`,
+          image: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=200",
+          order_id: orderId,
+          handler: async function (response: any) {
+            try {
+              setPayingLoading(true)
+              setError("")
+              setPaymentSuccess("")
+
+              // 4. Secure verification request on backend
+              await paymentService.verifyRazorpayPayment({
+                billId: monthlyBill.id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              })
+
+              setPaymentSuccess(`🎉 Online payment of ₹${(amount / 100).toLocaleString()} successfully processed and verified! Your stay is now active.`)
+              
+              // Re-fetch dashboard data
+              await fetchDashboardData()
+              await fetchHistory()
+            } catch (err: any) {
+              setError(err.response?.data?.message || "Failed to verify transaction signature securely.")
+            } finally {
+              setPayingLoading(false)
+            }
+          },
+          prefill: {
+            name: activeBooking.customerName || user?.name || "",
+            email: activeBooking.customerEmail || user?.email || "",
+            contact: activeBooking.customerPhone || user?.phone || "",
+          },
+          notes: {
+            billId: String(monthlyBill.id)
+          },
+          theme: {
+            color: "#1e293b" // Premium slate matching the portal dashboard theme
+          },
+          modal: {
+            ondismiss: function () {
+              setPayingLoading(false)
+            }
+          }
+        }
+
+        const rzp = new (window as any).Razorpay(options)
+        rzp.open()
+      } catch (err: any) {
+        setError(err.response?.data?.message || "Failed to initialize online transaction.")
+        setPayingLoading(false)
+      }
+      return
+    }
+
+    // ORIGINAL CASH/UPI FLOW
     try {
       setPayingLoading(true)
       setPaymentSuccess("")
@@ -879,12 +978,30 @@ const RenterMonthlyDashboard = () => {
                               onChange={(e) => setPayMethod(e.target.value as any)}
                               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 font-semibold text-xs outline-none cursor-pointer"
                             >
-                              <option value="UPI">UPI Payment Option (Scan QR / Pay Online)</option>
+                              <option value="RAZORPAY">Secure Online Payment (Card / UPI / Netbanking)</option>
+                              <option value="UPI">UPI Reference Check (Scan QR & Hand-verify)</option>
                               <option value="CASH">Offline Cash Handover</option>
                             </select>
                           </div>
  
-                          {payMethod === 'UPI' ? (
+                          {payMethod === 'RAZORPAY' ? (
+                            <div className="p-5 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 rounded-2xl border border-slate-800 flex flex-col items-center gap-4 text-white relative overflow-hidden shadow-lg shadow-slate-950/20 group animate-in fade-in duration-300">
+                              <div className="flex flex-col items-center gap-2 relative z-10 text-center">
+                                <div className="w-12 h-12 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-2xl flex items-center justify-center text-xl shadow-inner mb-1.5 animate-pulse">
+                                  💳
+                                </div>
+                                <p className="font-extrabold text-sm tracking-tight text-white">Secure Online Payment Gateway</p>
+                                <p className="text-[10px] text-slate-400 font-semibold leading-relaxed max-w-xs mx-auto">
+                                  Pay instantly using Credit Card, Debit Card, Netbanking, or direct UPI. All transactions are secure and automatically validated.
+                                </p>
+                              </div>
+                              <div className="w-full border-t border-slate-800/80 pt-3 flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest relative z-10">
+                                <span>Gateway Provider:</span>
+                                <span className="text-blue-400 font-extrabold">Razorpay Secure</span>
+                              </div>
+                              <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-blue-500/5 to-transparent pointer-events-none" />
+                            </div>
+                          ) : payMethod === 'UPI' ? (
                             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100/50 flex flex-col items-center gap-4">
                               {/* Dynamic QR Code from free QR API */}
                               <div className="flex flex-col items-center gap-2">
@@ -945,10 +1062,10 @@ const RenterMonthlyDashboard = () => {
                             {payingLoading ? (
                               <>
                                 <span className="animate-spin text-white">🔄</span>
-                                <span>Verifying Payment Notification...</span>
+                                <span>{payMethod === 'RAZORPAY' ? 'Initializing Gateway...' : 'Verifying Payment Notification...'}</span>
                               </>
                             ) : (
-                              <span>Confirm Payment Notification</span>
+                              <span>{payMethod === 'RAZORPAY' ? 'Pay Online with Razorpay' : 'Notify Payment Complete'}</span>
                             )}
                           </Button>
                         </div>

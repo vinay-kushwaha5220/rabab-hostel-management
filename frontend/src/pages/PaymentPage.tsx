@@ -64,16 +64,109 @@ const PaymentPage = () => {
     setShowConfirmModal(true)
   }
 
+  const loadRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) {
+        resolve(true)
+        return
+      }
+      const script = document.createElement("script")
+      script.src = "https://checkout.razorpay.com/v1/checkout.js"
+      script.onload = () => resolve(true)
+      script.onerror = () => resolve(false)
+      document.body.appendChild(script)
+    })
+  }
+
+  const processOnlinePayment = async () => {
+    try {
+      setProcessing(true)
+      setPaymentStatus('processing')
+
+      // 1. Load Razorpay script
+      const isScriptLoaded = await loadRazorpayScript()
+      if (!isScriptLoaded) {
+        alert("Failed to load secure payment gateway. Please check your network connection.")
+        setPaymentStatus('idle')
+        setProcessing(false)
+        return
+      }
+
+      // 2. Create order on backend
+      const orderRes = await api.post("/bookings/razorpay/create-order", {
+        bookingId: Number(bookingId)
+      })
+
+      const { orderId, amount, currency, keyId } = orderRes.data
+
+      // 3. Configure Razorpay options
+      const options = {
+        key: keyId,
+        amount: amount,
+        currency: currency,
+        name: "Rabab Stay",
+        description: `Booking Settle — ${booking.bookingId}`,
+        image: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=200",
+        order_id: orderId,
+        handler: async function (response: any) {
+          try {
+            setProcessing(true)
+            setPaymentStatus('processing')
+
+            // 4. Verify payment on backend
+            await api.post("/bookings/razorpay/verify", {
+              bookingId: Number(bookingId),
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            })
+
+            setPaymentStatus('success')
+            await new Promise(resolve => setTimeout(resolve, 1500))
+            navigate(`/booking-confirmation/${bookingId}`)
+          } catch (err: any) {
+            console.error("Payment verification failure:", err)
+            alert(err.response?.data?.message || "Failed to verify transaction signature securely.")
+            setPaymentStatus('idle')
+          } finally {
+            setProcessing(false)
+          }
+        },
+        prefill: {
+          name: booking.customerName || "",
+          email: booking.customerEmail || "",
+          contact: booking.customerPhone || "",
+        },
+        notes: {
+          bookingId: String(bookingId)
+        },
+        theme: {
+          color: "#1e293b"
+        },
+        modal: {
+          ondismiss: function () {
+            setPaymentStatus('idle')
+            setProcessing(false)
+          }
+        }
+      }
+
+      const rzp = new (window as any).Razorpay(options)
+      rzp.open()
+    } catch (err: any) {
+      console.error("Initialize online transaction failed:", err)
+      alert(err.response?.data?.message || "Failed to initialize online transaction.")
+      setPaymentStatus('idle')
+      setProcessing(false)
+    }
+  }
+
   const handleConfirmAction = async () => {
     setShowConfirmModal(false)
-    if (paymentMethod === "CARD" || paymentMethod === "ONLINE") {
-      setShowComingSoonModal(true)
+    if (paymentMethod === "CARD" || paymentMethod === "ONLINE" || paymentMethod === "UPI") {
+      await processOnlinePayment()
     } else if (paymentMethod === "CASH") {
       await processCashPayment()
-    } else if (paymentMethod === "UPI") {
-      setUtrNumber("")
-      setUtrError("")
-      setShowUPIModal(true)
     }
   }
 

@@ -183,4 +183,19 @@ export const paymentService = {
     const response = await api.get("/monthly-payments/admin/stats")
     return response.data
   },
+
+  createRazorpayOrder: async (data: { billId: number }): Promise<any> => {
+    const response = await api.post("/monthly-payments/razorpay/create-order", data)
+    return response.data
+  },
+
+  verifyRazorpayPayment: async (data: {
+    billId: number
+    razorpay_order_id: string
+    razorpay_payment_id: string
+    razorpay_signature: string
+  }): Promise<any> => {
+    const response = await api.post("/monthly-payments/razorpay/verify", data)
+    return response.data
+  },
 }

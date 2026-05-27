@@ -485,280 +485,119 @@ const MonthlyBillingManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/50 py-6 px-4 sm:px-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-slate-50/40 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Header Title Section */}
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-              <span>💼</span> Admin Monthly Rent Control Panel
-            </h1>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">Professional monthly cycles, invoice audits, checkout controls & status synchronization</p>
+        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.03)] flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-bold shadow-inner">
+                💼
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-slate-900 tracking-tight">
+                  Admin Monthly Rent Control Panel
+                </h1>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">
+                  Professional monthly cycles, invoice audits, checkout controls & status synchronization
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-3">
             <Button
               onClick={handleGenerateBulk}
               variant="outline"
               size="sm"
-              className="shadow-sm border-blue-200 text-blue-600 hover:bg-blue-50 flex items-center gap-1.5 font-bold text-[10px] tracking-wider uppercase"
+              className="shadow-sm border-blue-100 text-blue-600 hover:bg-blue-50 flex items-center gap-2 font-bold text-[10px] tracking-wider uppercase py-2 px-4 rounded-xl transition-all duration-200 active:scale-95"
               disabled={!monthFilter || !yearFilter}
               title={!monthFilter || !yearFilter ? "Select Month & Year in filters to generate statements" : ""}
             >
               <span>⚙️</span> Bulk Generate Bills
             </Button>
-            
-            <button
-              onClick={handleTriggerReminders}
-              className="shadow-sm bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold text-[10px] tracking-wider uppercase active:scale-95 transition-all outline-none"
-            >
-              <span>📢</span> Day 5 stay cycle Alerts
-            </button>
           </div>
         </div>
 
-        {/* Professional Analytics Cards (Business Rule 4) */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-          <Card className="p-3 bg-white border-l-4 border-blue-500 shadow-sm flex flex-col justify-between">
-            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Expected Rent</span>
-            <span className="text-sm font-black text-slate-900 mt-1">₹{stats?.totalExpected?.toLocaleString() || "0"}</span>
-          </Card>
+        {/* Premium Analytics Cards Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {/* Card 1: Expected */}
+          <div className="p-4 bg-white border border-slate-200/50 rounded-2xl shadow-[0_2px_8px_-4px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_25px_-6px_rgba(59,130,246,0.12)] hover:border-blue-200/60 hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between group">
+            <div className="flex justify-between items-start">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Expected Rent</span>
+              <span className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs group-hover:scale-110 transition-transform duration-300">🏦</span>
+            </div>
+            <span className="text-base font-bold text-slate-900 mt-3">₹{stats?.totalExpected?.toLocaleString() || "0"}</span>
+          </div>
           
-          <Card className="p-3 bg-white border-l-4 border-emerald-500 shadow-sm flex flex-col justify-between">
-            <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Collected Rent</span>
-            <span className="text-sm font-black text-emerald-600 mt-1">₹{stats?.totalReceived?.toLocaleString() || "0"}</span>
-          </Card>
+          {/* Card 2: Collected */}
+          <div className="p-4 bg-white border border-slate-200/50 rounded-2xl shadow-[0_2px_8px_-4px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_25px_-6px_rgba(16,185,129,0.12)] hover:border-emerald-200/60 hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between group">
+            <div className="flex justify-between items-start">
+              <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">Collected Rent</span>
+              <span className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs group-hover:scale-110 transition-transform duration-300">💵</span>
+            </div>
+            <span className="text-base font-bold text-emerald-600 mt-3">₹{stats?.totalReceived?.toLocaleString() || "0"}</span>
+          </div>
 
-          <Card className="p-3 bg-white border-l-4 border-rose-500 shadow-sm flex flex-col justify-between">
-            <span className="text-[8px] font-black text-rose-600 uppercase tracking-widest">Pending Dues</span>
-            <span className="text-sm font-black text-rose-600 mt-1">₹{stats?.remainingDues?.toLocaleString() || "0"}</span>
-          </Card>
+          {/* Card 3: Pending Dues */}
+          <div className="p-4 bg-white border border-slate-200/50 rounded-2xl shadow-[0_2px_8px_-4px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_25px_-6px_rgba(244,63,94,0.12)] hover:border-rose-200/60 hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between group">
+            <div className="flex justify-between items-start">
+              <span className="text-[9px] font-bold text-rose-600 uppercase tracking-wider">Pending Dues</span>
+              <span className="w-6 h-6 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center text-xs group-hover:scale-110 transition-transform duration-300">⏳</span>
+            </div>
+            <span className="text-base font-bold text-rose-600 mt-3">₹{stats?.remainingDues?.toLocaleString() || "0"}</span>
+          </div>
 
-          <Card className="p-3 bg-white border-l-4 border-red-500 shadow-sm flex flex-col justify-between">
-            <span className="text-[8px] font-black text-red-500 uppercase tracking-widest">Overdue Renters</span>
-            <span className="text-sm font-black text-red-600 mt-1">{stats?.totalOverdueRenters || "0"} Active</span>
-          </Card>
+          {/* Card 4: Overdue Renters */}
+          <div className="p-4 bg-white border border-slate-200/50 rounded-2xl shadow-[0_2px_8px_-4px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_25px_-6px_rgba(239,68,68,0.12)] hover:border-red-200/60 hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between group">
+            <div className="flex justify-between items-start">
+              <span className="text-[9px] font-bold text-red-500 uppercase tracking-wider">Overdue Renters</span>
+              <span className="w-6 h-6 rounded-lg bg-red-50 text-red-600 flex items-center justify-center text-xs group-hover:scale-110 transition-transform duration-300">⚠️</span>
+            </div>
+            <span className="text-base font-bold text-red-600 mt-3">{stats?.totalOverdueRenters || "0"} Active</span>
+          </div>
 
-          <Card className="p-3 bg-white border-l-4 border-amber-500 shadow-sm flex flex-col justify-between">
-            <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest">Expiring 7 Days</span>
-            <span className="text-sm font-black text-amber-600 mt-1">{stats?.totalExpiringThisWeek || "0"} Renters</span>
-          </Card>
+          {/* Card 5: Expiring 7 Days */}
+          <div className="p-4 bg-white border border-slate-200/50 rounded-2xl shadow-[0_2px_8px_-4px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_25px_-6px_rgba(245,158,11,0.12)] hover:border-amber-200/60 hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between group">
+            <div className="flex justify-between items-start">
+              <span className="text-[9px] font-bold text-amber-500 uppercase tracking-wider">Expiring 7 Days</span>
+              <span className="w-6 h-6 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xs group-hover:scale-110 transition-transform duration-300">📅</span>
+            </div>
+            <span className="text-base font-bold text-amber-600 mt-3">{stats?.totalExpiringThisWeek || "0"} Renters</span>
+          </div>
 
-          <Card className="p-3 bg-white border-l-4 border-slate-700 shadow-sm flex flex-col justify-between">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Occupancy Rate</span>
-            <span className="text-sm font-black text-slate-800 mt-1">{stats?.occupancyPercentage || "0"}% Room Occupied</span>
-          </Card>
+          {/* Card 6: Occupancy Rate */}
+          <div className="p-4 bg-white border border-slate-200/50 rounded-2xl shadow-[0_2px_8px_-4px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_25px_-6px_rgba(71,85,105,0.12)] hover:border-slate-350 hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between group">
+            <div className="flex justify-between items-start">
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Occupancy Rate</span>
+              <span className="w-6 h-6 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center text-xs group-hover:scale-110 transition-transform duration-300">🔑</span>
+            </div>
+            <span className="text-base font-bold text-slate-800 mt-3">{stats?.occupancyPercentage || "0"}% Room Occupied</span>
+          </div>
         </div>
 
-        {/* Renewal Request Queue — Continue Stay */}
-        <Card className="mb-4 p-4 shadow-sm bg-white border border-slate-100/80">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <div>
-              <h2 className="text-sm font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-5 h-5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black">{renewalRequests.length}</span>
-                Pending Continue Stay Requests
-              </h2>
-              <p className="text-[10px] text-slate-500 mt-1">Approve with electricity & charges → renter receives bill → cycle renews on payment.</p>
-            </div>
-          </div>
 
-          {renewalRequests.length === 0 ? (
-            <div className="p-4 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-slate-500 text-xs text-center">
-              ✅ No pending continue stay requests.
-            </div>
-          ) : (
-            <div className="grid gap-3">
-              {renewalRequests.map((request) => {
-                const customerName = request.booking?.customerName || request.monthlyRenter?.user?.name || "Unknown Renter"
-                const customerPhone = request.booking?.customerPhone || "N/A"
-                const roomNumber = request.booking?.room?.roomNumber || "N/A"
-                const nextCycleText = `${formatDate(request.nextCycleStart)} → ${formatDate(request.nextCycleEnd)}`
-                const requestDate = formatDate(request.requestDate)
-                const lastDue = (request.booking as any)?.monthlyBills?.[0]?.remainingAmount ?? 0
-                const rentAmount = request.monthlyRenter?.rentAmount ?? request.booking?.monthlyRenter?.rentAmount ?? 0
-
-                return (
-                  <div key={request.id} className="p-4 bg-amber-50 rounded-2xl border border-amber-200 shadow-sm">
-                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                      <div>
-                        <p className="text-[9px] uppercase tracking-widest font-black text-slate-400">Room</p>
-                        <p className="text-sm font-extrabold text-slate-900">{roomNumber}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase tracking-widest font-black text-slate-400">Renter</p>
-                        <p className="text-sm font-extrabold text-slate-900">{customerName}</p>
-                        <p className="text-[9px] text-slate-500">{customerPhone}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase tracking-widest font-black text-slate-400">Requested</p>
-                        <p className="text-sm font-extrabold text-slate-900">{requestDate}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase tracking-widest font-black text-slate-400">Next Cycle</p>
-                        <p className="text-sm font-extrabold text-slate-900">{nextCycleText}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase tracking-widest font-black text-slate-400">Rent</p>
-                        <p className="text-sm font-extrabold text-slate-800">₹{rentAmount.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase tracking-widest font-black text-slate-400">Previous Due</p>
-                        <p className="text-sm font-extrabold text-rose-600">₹{lastDue.toLocaleString()}</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-2 justify-end">
-                      <button
-                        onClick={() => openRenewalApproval(request)}
-                        disabled={actionLoading === `approve-renewal-${request.id}`}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm"
-                      >
-                        {actionLoading === `approve-renewal-${request.id}` ? "Processing..." : "✓ Approve & Generate Bill"}
-                      </button>
-                      <button
-                        onClick={() => handleRejectRenewal(request)}
-                        disabled={actionLoading === `reject-renewal-${request.id}`}
-                        className="border border-rose-300 hover:bg-rose-50 text-rose-600 px-3 py-1.5 rounded text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm"
-                      >
-                        ✗ Reject
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </Card>
-
-        {/* Checkout Request Queue */}
-        <Card className="mb-5 p-4 shadow-sm bg-white border border-slate-100/80">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <div>
-              <h2 className="text-sm font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-5 h-5 bg-slate-200 text-slate-700 rounded-full text-[10px] font-black">{checkoutRequests.length}</span>
-                Pending Checkout Requests
-              </h2>
-              <p className="text-[10px] text-slate-500 mt-1">Approve to complete booking & release room. Reject to keep renter active.</p>
-            </div>
-          </div>
-
-          {checkoutRequests.length === 0 ? (
-            <div className="p-4 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-slate-500 text-xs text-center">
-              ✅ No pending checkout requests.
-            </div>
-          ) : (
-            <div className="grid gap-3">
-              {checkoutRequests.map((request) => {
-                const customerName = request.booking?.customerName || request.monthlyRenter?.user?.name || "Unknown Renter"
-                const customerPhone = request.booking?.customerPhone || "N/A"
-                const roomNumber = request.booking?.room?.roomNumber || "N/A"
-                const requestDate = formatDate(request.requestDate)
-                const lastBill = (request.booking as any)?.monthlyBills?.[0]
-                const pendingDue = lastBill?.remainingAmount ?? 0
-
-                return (
-                  <div key={request.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-300 shadow-sm">
-                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                      <div>
-                        <p className="text-[9px] uppercase tracking-widest font-black text-slate-400">Room</p>
-                        <p className="text-sm font-extrabold text-slate-900">{roomNumber}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase tracking-widest font-black text-slate-400">Renter</p>
-                        <p className="text-sm font-extrabold text-slate-900">{customerName}</p>
-                        <p className="text-[9px] text-slate-500">{customerPhone}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase tracking-widest font-black text-slate-400">Requested</p>
-                        <p className="text-sm font-extrabold text-slate-900">{requestDate}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase tracking-widest font-black text-slate-400">Pending Dues</p>
-                        <p className={`text-sm font-extrabold ${pendingDue > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                          {pendingDue > 0 ? `₹${pendingDue.toLocaleString()} owed` : 'Clear'}
-                        </p>
-                      </div>
-                    </div>
-
-                    {pendingDue > 0 && (
-                      <div className="mt-3 px-3 py-2 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-semibold">
-                        ⚠️ Renter has ₹{pendingDue.toLocaleString()} in pending dues. Collect before approving checkout.
-                      </div>
-                    )}
-
-                    <div className="mt-4 flex flex-wrap gap-2 justify-end">
-                      <button
-                        onClick={async () => {
-                          if (!window.confirm(`Approve checkout for ${customerName}? Room ${roomNumber} will be released immediately.`)) return
-                          try {
-                            setActionLoading(`approve-checkout-req-${request.id}`)
-                            await billingService.approveCheckout(request.id, {})
-                            setSuccess(`Checkout approved for ${customerName}. Room ${roomNumber} released.`)
-                            await fetchBills()
-                            await fetchStats()
-                            await fetchRenewalRequests()
-                          } catch (err) {
-                            setError(getApiErrorMessage(err, "Failed to approve checkout."))
-                          } finally {
-                            setActionLoading(null)
-                          }
-                        }}
-                        disabled={actionLoading === `approve-checkout-req-${request.id}`}
-                        className="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm"
-                      >
-                        {actionLoading === `approve-checkout-req-${request.id}` ? "Processing..." : "✓ Approve Checkout"}
-                      </button>
-                      <button
-                        onClick={async () => {
-                          const reason = window.prompt(`Reject checkout for ${customerName}. Enter reason:`)
-                          if (reason === null) return
-                          try {
-                            setActionLoading(`reject-checkout-req-${request.id}`)
-                            await billingService.rejectCheckoutRequest(request.id, { reason })
-                            setSuccess(`Checkout rejected for ${customerName}. Renter reverted to active.`)
-                            await fetchBills()
-                            await fetchStats()
-                            await fetchRenewalRequests()
-                          } catch (err) {
-                            setError(getApiErrorMessage(err, "Failed to reject checkout request."))
-                          } finally {
-                            setActionLoading(null)
-                          }
-                        }}
-                        disabled={actionLoading === `reject-checkout-req-${request.id}`}
-                        className="border border-rose-300 hover:bg-rose-50 text-rose-600 px-3 py-1.5 rounded text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm"
-                      >
-                        ✗ Reject
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </Card>
-
-        {/* Global Dues Notifications banner */}
+        {/* Global Dues Notifications Banner */}
         {error && (
-          <div className="mb-4 p-3 bg-rose-50 border-l-4 border-rose-600 rounded-xl text-xs font-semibold text-rose-700">
-            ⚠️ {error}
+          <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-xs font-semibold text-rose-700 flex items-center gap-2 animate-in slide-in-from-top-4 duration-300">
+            <span>⚠️</span> {error}
           </div>
         )}
         {success && (
-          <div className="mb-4 p-3 bg-emerald-50 border-l-4 border-emerald-600 rounded-xl text-xs font-semibold text-emerald-800">
-            ✅ {success}
+          <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-xs font-semibold text-emerald-800 flex items-center gap-2 animate-in slide-in-from-top-4 duration-300">
+            <span>✅</span> {success}
           </div>
         )}
 
         {/* Comprehensive Filters Toolbar */}
-        <Card className="mb-5 p-4 shadow-sm bg-white border border-slate-100/80">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <div>
-              <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Month</label>
+        <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.03)]">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="space-y-1">
+              <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-1">Month</label>
               <select
                 value={monthFilter}
                 onChange={(e) => setMonthFilter(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-100 rounded-lg focus:ring-1 focus:ring-blue-500 font-bold"
+                className="w-full px-3 py-2 text-xs bg-slate-50/70 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-700 transition-all duration-200"
               >
                 <option value="">All Months</option>
                 {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map(m => (
@@ -767,12 +606,12 @@ const MonthlyBillingManagement = () => {
               </select>
             </div>
             
-            <div>
-              <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Year</label>
+            <div className="space-y-1">
+              <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-1">Year</label>
               <select
                 value={yearFilter}
                 onChange={(e) => setYearFilter(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-100 rounded-lg focus:ring-1 focus:ring-blue-500 font-bold"
+                className="w-full px-3 py-2 text-xs bg-slate-50/70 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-700 transition-all duration-200"
               >
                 <option value="">All Years</option>
                 {[2024, 2025, 2026, 2027].map(y => (
@@ -781,12 +620,12 @@ const MonthlyBillingManagement = () => {
               </select>
             </div>
 
-            <div>
-              <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Floor</label>
+            <div className="space-y-1">
+              <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-1">Floor</label>
               <select
                 value={floorFilter}
                 onChange={(e) => setFloorFilter(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-100 rounded-lg focus:ring-1 focus:ring-blue-500 font-bold"
+                className="w-full px-3 py-2 text-xs bg-slate-50/70 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-700 transition-all duration-200"
               >
                 <option value="">All Floors</option>
                 <option value="1">1st Floor</option>
@@ -796,12 +635,12 @@ const MonthlyBillingManagement = () => {
               </select>
             </div>
 
-            <div>
-              <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Room Type</label>
+            <div className="space-y-1">
+              <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-1">Room Type</label>
               <select
                 value={roomTypeFilter}
                 onChange={(e) => setRoomTypeFilter(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-100 rounded-lg focus:ring-1 focus:ring-blue-500 font-bold"
+                className="w-full px-3 py-2 text-xs bg-slate-50/70 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-700 transition-all duration-200"
               >
                 <option value="">All Types</option>
                 <option value="AC">AC Room</option>
@@ -809,31 +648,31 @@ const MonthlyBillingManagement = () => {
               </select>
             </div>
 
-            <div className="col-span-2 md:col-span-1">
-              <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Search Room</label>
+            <div className="col-span-2 md:col-span-1 space-y-1">
+              <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-1">Search Room</label>
               <input
                 type="text"
                 value={roomFilter}
                 onChange={(e) => setRoomFilter(e.target.value)}
                 placeholder="Ex: 220"
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-100 rounded-lg focus:ring-1 focus:ring-blue-500 font-bold"
+                className="w-full px-3 py-2 text-xs bg-slate-50/70 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-700 transition-all duration-200 placeholder:text-slate-300"
               />
             </div>
           </div>
-        </Card>
+        </div>
 
-        {/* Tab Filters Tabs Selector */}
-        <div className="flex overflow-x-auto gap-1.5 pb-2 mb-4 scrollbar-thin">
+        {/* Tab Filters Tabs Selector Selector */}
+        <div className="flex overflow-x-auto gap-2 pb-1 scrollbar-none">
           {(['ALL', 'ACTIVE', 'DUE SOON', 'OVERDUE', 'PAYMENT PENDING', 'VERIFY PAYMENT', 'CHECKOUT REQUEST'] as TabFilterType[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-3 py-1.5 rounded-lg text-[9px] font-extrabold uppercase tracking-wider transition-all whitespace-nowrap ${
+              className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all duration-200 whitespace-nowrap active:scale-95 ${
                 activeTab === tab
-                  ? tab === 'PAYMENT PENDING' ? 'bg-rose-600 text-white shadow-sm'
-                  : tab === 'CHECKOUT REQUEST' ? 'bg-slate-700 text-white shadow-sm'
-                  : 'bg-slate-900 text-white shadow-sm'
-                  : 'bg-white hover:bg-slate-50 text-slate-500 border border-slate-100'
+                  ? tab === 'PAYMENT PENDING' ? 'bg-rose-650 text-white shadow-md shadow-rose-600/10'
+                  : tab === 'CHECKOUT REQUEST' ? 'bg-slate-700 text-white shadow-md shadow-slate-700/10'
+                  : 'bg-slate-900 text-white shadow-md shadow-slate-900/10'
+                  : 'bg-white hover:bg-slate-50 text-slate-500 border border-slate-200/50 shadow-sm'
               }`}
             >
               {tab}
@@ -843,34 +682,34 @@ const MonthlyBillingManagement = () => {
 
         {/* Renter Records Table Grid */}
         {loading ? (
-          <div className="flex justify-center py-20">
+          <div className="flex justify-center py-24 bg-white border border-slate-100 rounded-3xl shadow-[0_2px_12px_-4px_rgba(0,0,0,0.03)]">
             <LoadingSpinner size="lg" text="Syncing & Loading monthly stay cycles..." />
           </div>
         ) : filteredBills.length === 0 ? (
-          <Card className="p-20 text-center border-none shadow-sm bg-white">
-            <span className="text-4xl">📁</span>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-4">No matching billing statements found.</p>
-          </Card>
+          <div className="p-20 text-center bg-white border border-slate-100 rounded-3xl shadow-[0_2px_12px_-4px_rgba(0,0,0,0.03)] flex flex-col items-center justify-center space-y-3">
+            <span className="text-3xl">📁</span>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">No matching billing statements found.</p>
+          </div>
         ) : (
-          <Card className="overflow-hidden border-none shadow-sm bg-white p-0">
+          <div className="bg-white border border-slate-150 rounded-3xl overflow-hidden shadow-[0_4px_24px_-8px_rgba(0,0,0,0.04)]">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-900 text-white text-[8px] font-black uppercase tracking-widest">
-                    <th className="py-4 px-4">Room</th>
-                    <th className="py-4 px-4">Renter</th>
-                    <th className="py-4 px-4">Current Cycle</th>
-                    <th className="py-4 px-4">Due Date</th>
-                    <th className="py-4 px-4">Remaining / Overdue</th>
-                    <th className="py-4 px-4 text-right">Rent</th>
-                    <th className="py-4 px-4 text-right">Paid</th>
-                    <th className="py-4 px-4 text-right">Pending</th>
-                    <th className="py-4 px-4">Method</th>
-                    <th className="py-4 px-4">Rent Status</th>
-                    <th className="py-4 px-4 text-right">Controls</th>
+                  <tr className="bg-slate-900 text-white text-[8px] font-bold uppercase tracking-widest border-b border-slate-800">
+                    <th className="py-4 px-4 font-extrabold">Room</th>
+                    <th className="py-4 px-4 font-extrabold">Renter</th>
+                    <th className="py-4 px-4 font-extrabold">Current Cycle</th>
+                    <th className="py-4 px-4 font-extrabold">Due Date</th>
+                    <th className="py-4 px-4 font-extrabold">Remaining / Overdue</th>
+                    <th className="py-4 px-4 text-right font-extrabold">Rent</th>
+                    <th className="py-4 px-4 text-right font-extrabold">Paid</th>
+                    <th className="py-4 px-4 text-right font-extrabold">Pending</th>
+                    <th className="py-4 px-4 font-extrabold">Method</th>
+                    <th className="py-4 px-4 font-extrabold">Rent Status</th>
+                    <th className="py-4 px-4 text-right font-extrabold">Controls</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
+                <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
                   {filteredBills.map((bill: any) => {
                     const renter = bill.booking?.monthlyRenter
                     const rentStatus = getRentStatus(bill)
@@ -878,31 +717,31 @@ const MonthlyBillingManagement = () => {
                     const roomTypeLabel = ((bill.booking?.room as any)?.roomType === "AC" || (bill.booking?.room as any)?.roomType === "NON_AC") ? (bill.booking?.room as any)?.roomType : "N/A"
                     
                     return (
-                      <tr key={bill.id} className="hover:bg-slate-50/50 transition-colors">
+                      <tr key={bill.id} className="hover:bg-slate-50/50 transition-colors duration-150">
                         {/* Room Column */}
-                        <td className="py-3 px-4 font-black text-slate-900">
+                        <td className="py-4 px-4 font-bold text-slate-900">
                           {bill.booking?.room?.roomNumber || "N/A"}
-                          <span className="block text-[8px] font-bold text-slate-400 mt-0.5">{roomTypeLabel}</span>
+                          <span className="block text-[8px] font-semibold text-slate-400 mt-0.5">{roomTypeLabel}</span>
                         </td>
 
                         {/* Renter Column */}
-                        <td className="py-3 px-4 font-bold text-slate-800">
+                        <td className="py-4 px-4 font-semibold text-slate-800">
                           {bill.booking?.customerName || "Unknown"}
-                          <span className="block text-[8px] font-bold text-slate-400 mt-0.5">{bill.booking?.customerPhone || "N/A"}</span>
+                          <span className="block text-[8px] font-semibold text-slate-400 mt-0.5">{bill.booking?.customerPhone || "N/A"}</span>
                         </td>
 
                         {/* Cycle Column */}
-                        <td className="py-3 px-4 text-slate-600 font-semibold">
+                        <td className="py-4 px-4 text-slate-500 font-medium">
                           {formatDate(renter?.currentCycleStart)} → {formatDate(renter?.currentCycleEnd)}
                         </td>
 
                         {/* Due Date Column */}
-                        <td className="py-3 px-4 font-bold text-slate-800">
+                        <td className="py-4 px-4 font-semibold text-slate-850">
                           {formatDate(renter?.dueDate || bill.dueDate)}
                         </td>
 
                         {/* Days remaining / overdue Days */}
-                        <td className="py-3 px-4 font-bold">
+                        <td className="py-4 px-4 font-bold">
                           <span className={
                             rentStatus === "OVERDUE" ? "text-rose-600" : 
                             (rentStatus === "EXPIRES TODAY" || rentStatus === "DUE SOON" ? "text-amber-600" : "text-emerald-600")
@@ -912,42 +751,42 @@ const MonthlyBillingManagement = () => {
                         </td>
 
                         {/* Rent Column */}
-                        <td className="py-3 px-4 text-right font-semibold text-slate-600">
+                        <td className="py-4 px-4 text-right font-medium text-slate-500">
                           ₹{(renter?.rentAmount || bill.rentAmount).toLocaleString()}
                         </td>
 
                         {/* Paid Amount Column */}
-                        <td className="py-3 px-4 text-right font-black text-emerald-600">
+                        <td className="py-4 px-4 text-right font-bold text-emerald-600">
                           ₹{bill.paidAmount.toLocaleString()}
                         </td>
 
                         {/* Pending Amount Column */}
-                        <td className="py-3 px-4 text-right font-black text-rose-600">
+                        <td className="py-4 px-4 text-right font-bold text-rose-600">
                           ₹{bill.remainingAmount.toLocaleString()}
                         </td>
 
                         {/* Payment Method Column */}
-                        <td className="py-3 px-4 font-bold text-slate-500 uppercase tracking-widest text-[9px]">
+                        <td className="py-4 px-4 font-bold text-slate-400 uppercase tracking-widest text-[8px]">
                           {bill.payments?.[0]?.paymentMethod || bill.paymentMethod || "UPI"}
                         </td>
 
                         {/* Rent Status Badge */}
-                        <td className="py-3 px-4">
-                          <Badge variant={getStatusBadgeVariant(rentStatus)} size="sm" className="text-[8px] font-black uppercase tracking-wider">
+                        <td className="py-4 px-4">
+                          <Badge variant={getStatusBadgeVariant(rentStatus)} size="sm" className="text-[8px] font-extrabold uppercase tracking-wider rounded-lg px-2 py-0.5">
                             {rentStatus.replace(/_/g, " ")}
                           </Badge>
                         </td>
 
-                        {/* Admin Action Buttons (Business Rule 5 & Actions) */}
-                        <td className="py-3 px-4 text-right">
+                        {/* Admin Action Buttons */}
+                        <td className="py-4 px-4 text-right">
                           <div className="flex gap-1.5 justify-end">
                             
-                            {/* Verify button (for verify payment filter/status) */}
+                            {/* Verify button */}
                             {rentStatus === "PENDING_VERIFICATION" && (
                               <button
                                 onClick={() => handleVerifyClick(bill)}
                                 disabled={actionLoading === `verify-${bill.id}`}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm"
+                                className="bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 px-2.5 py-1 rounded-xl text-[8px] font-extrabold uppercase tracking-wider transition-all duration-200 shadow-sm active:scale-95"
                               >
                                 {actionLoading === `verify-${bill.id}` ? "Verifying..." : "Verify Payment"}
                               </button>
@@ -958,18 +797,19 @@ const MonthlyBillingManagement = () => {
                               <button
                                 onClick={() => handleOpenSendInvoiceModal(bill)}
                                 disabled={actionLoading === `send-${bill.id}`}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm"
+                                className="bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100 px-2.5 py-1 rounded-xl text-[8px] font-extrabold uppercase tracking-wider transition-all duration-200 shadow-sm active:scale-95"
                               >
                                 {actionLoading === `send-${bill.id}` ? "Sending..." : "✉️ Send Invoice"}
                               </button>
                             )}
  
+
                             {/* Collect Cash Rent button */}
                             {bill.remainingAmount > 0 && rentStatus !== "PENDING_VERIFICATION" && rentStatus !== "DRAFT" && (
                               <button
                                 onClick={() => handleCollectCashRent(bill)}
                                 disabled={actionLoading === `collect-${bill.id}`}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm"
+                                className="bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 px-2.5 py-1 rounded-xl text-[8px] font-extrabold uppercase tracking-wider transition-all duration-200 shadow-sm active:scale-95"
                               >
                                 💵 Cash
                               </button>
@@ -980,38 +820,38 @@ const MonthlyBillingManagement = () => {
                               <button
                                 onClick={() => handleSendReminder(bill.bookingId, bill.booking?.customerName)}
                                 disabled={actionLoading === `reminder-${bill.bookingId}`}
-                                className="bg-amber-500 hover:bg-amber-600 text-white px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm"
+                                className="bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 px-2.5 py-1 rounded-xl text-[8px] font-extrabold uppercase tracking-wider transition-all duration-200 shadow-sm active:scale-95"
                               >
                                 ✉️ Remind
                               </button>
                             )}
 
-                            {/* Approve Checkout (If pending request) */}
+                            {/* Approve Checkout */}
                             {rentStatus === "CHECKOUT_REQUESTED" && (
-                              <>
+                              <div className="flex items-center gap-1">
                                 <button
                                   onClick={() => handleCheckoutRenter(bill.bookingId, false)}
                                   disabled={actionLoading === `checkout-${bill.bookingId}`}
-                                  className="bg-slate-700 hover:bg-slate-800 text-white px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm"
+                                  className="bg-slate-900 text-white hover:bg-slate-800 px-2.5 py-1 rounded-xl text-[8px] font-extrabold uppercase tracking-wider transition-all duration-200 shadow-sm active:scale-95"
                                 >
                                   Approve Checkout
                                 </button>
                                 <button
                                   onClick={() => handleRejectCheckout(bill.bookingId, bill.booking?.customerName)}
                                   disabled={actionLoading === `reject-${bill.bookingId}`}
-                                  className="border border-rose-300 hover:bg-rose-50 text-rose-600 px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm ml-1.5"
+                                  className="bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 px-2.5 py-1 rounded-xl text-[8px] font-extrabold uppercase tracking-wider transition-all duration-200 shadow-sm active:scale-95"
                                 >
-                                  Reject Checkout
+                                  Reject
                                 </button>
-                              </>
+                              </div>
                             )}
 
-                            {/* Force Checkout (If Overdue Renter) */}
+                            {/* Force Checkout */}
                             {rentStatus === "OVERDUE" && (
                               <button
                                 onClick={() => handleCheckoutRenter(bill.bookingId, true)}
                                 disabled={actionLoading === `checkout-${bill.bookingId}`}
-                                className="bg-rose-600 hover:bg-rose-700 text-white px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm"
+                                className="bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 px-2.5 py-1 rounded-xl text-[8px] font-extrabold uppercase tracking-wider transition-all duration-200 shadow-sm active:scale-95"
                               >
                                 Force Evict
                               </button>
@@ -1024,7 +864,7 @@ const MonthlyBillingManagement = () => {
                 </tbody>
               </table>
             </div>
-          </Card>
+          </div>
         )}
 
         {/* Sleek Verify Payment Modal */}
