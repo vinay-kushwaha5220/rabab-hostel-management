@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import api from "../../services/apiV2"
-import type { BookingType } from "../../types/booking"
+
+type CycleFilterType = 'all' | 'current' | 'past'
+type StatusFilterType = 'all' | 'success' | 'pending' | 'failed'
 
 const PaymentsManagement = () => {
   const navigate = useNavigate()
-  const [bookings, setBookings] = useState<BookingType[]>([])
+  const [payments, setPayments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState<StatusFilterType>("all")
+  const [cycleFilter, setCycleFilter] = useState<CycleFilterType>("all")
   const [search, setSearch] = useState("")
+  const [error, setError] = useState("")
 
   useEffect(() => {
     fetchPayments()
@@ -16,250 +20,402 @@ const PaymentsManagement = () => {
 
   const fetchPayments = async () => {
     try {
-      const response = await api.get("/bookings")
-      setBookings(response.data)
-    } catch (error) {
-      console.error('Error:', error)
+      setLoading(true)
+      const response = await api.get("/monthly-payments/admin/all")
+      setPayments(response.data || [])
+      setError("")
+    } catch (err: any) {
+      console.error('Error fetching payments:', err)
+      setError("Failed to fetch payment transactions. Please make sure the backend is active.")
     } finally {
       setLoading(false)
     }
   }
 
-  const getTotalPaid = () => {
-    return bookings
-      .filter(b => b.paymentStatus === "SUCCESS")
-      .reduce((sum, b) => sum + b.totalAmount, 0)
-  }
+  const isPaymentHistorical = (payment: any): boolean => {
+    const renter = payment.booking?.monthlyRenter
+    if (!renter) return false // Daily stays don't have monthly cycles, so consider them active/current
+    if (!renter.currentCycleStart) return false
 
-  const getTotalPending = () => {
-    return bookings
-      .filter(b => b.paymentStatus === "PENDING")
-      .reduce((sum, b) => sum + b.totalAmount, 0)
-  }
+    // Compare via monthly bill due date if available
+    const bill = payment.monthlyBill
+    if (bill) {
+      const billDueDate = new Date(bill.dueDate)
+      const cycleStart = new Date(renter.currentCycleStart)
+      
+      billDueDate.setHours(0, 0, 0, 0)
+      cycleStart.setHours(0, 0, 0, 0)
+      
+      return billDueDate.getTime() < cycleStart.getTime()
+    }
 
-  const filteredBookings = bookings.filter(booking => {
-    // Filter by payment status
-    if (filter === "paid" && booking.paymentStatus !== "SUCCESS") return false
-    if (filter === "pending" && booking.paymentStatus !== "PENDING") return false
-    if (filter === "failed" && booking.paymentStatus !== "FAILED") return false
+    // Fallback: compare payment transaction date
+    const paymentDate = new Date(payment.createdAt)
+    const cycleStart = new Date(renter.currentCycleStart)
     
-    // Search
+    paymentDate.setHours(0, 0, 0, 0)
+    cycleStart.setHours(0, 0, 0, 0)
+    
+    return paymentDate.getTime() < cycleStart.getTime()
+  }
+
+  const getTotalPaid = (items: any[]) => {
+    return items
+      .filter(p => p.paymentStatus === "SUCCESS")
+      .reduce((sum, p) => sum + (p.amount || 0), 0)
+  }
+
+  const getTotalPending = (items: any[]) => {
+    return items
+      .filter(p => p.paymentStatus === "PENDING" || p.paymentStatus === "VERIFICATION_PENDING")
+      .reduce((sum, p) => sum + (p.amount || 0), 0)
+  }
+
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case "SUCCESS":
+        return "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+      case "PENDING":
+        return "bg-amber-50 text-amber-700 border border-amber-200/60"
+      case "VERIFICATION_PENDING":
+        return "bg-blue-50 text-blue-700 border border-blue-200/60"
+      case "FAILED":
+      case "REFUNDED":
+        return "bg-rose-50 text-rose-700 border border-rose-200/60"
+      default:
+        return "bg-slate-50 text-slate-600 border border-slate-200"
+    }
+  }
+
+  const getStatusLabel = (status: string) => {
+    if (status === "VERIFICATION_PENDING") return "PENDING VERIFICATION"
+    return status
+  }
+
+  // Comprehensive filter pipeline
+  const filteredPayments = payments.filter(payment => {
+    // 1. Status Filter
+    if (statusFilter === "success" && payment.paymentStatus !== "SUCCESS") return false
+    if (statusFilter === "pending" && payment.paymentStatus !== "PENDING" && payment.paymentStatus !== "VERIFICATION_PENDING") return false
+    if (statusFilter === "failed" && payment.paymentStatus !== "FAILED" && payment.paymentStatus !== "REFUNDED") return false
+    
+    // 2. Cycle Filter (Current vs Past)
+    const isHistorical = isPaymentHistorical(payment)
+    if (cycleFilter === "current" && isHistorical) return false
+    if (cycleFilter === "past" && !isHistorical) return false
+
+    // 3. Text Search (Booking ID, Renter Name, Phone No, Transaction ID)
     if (search) {
       const searchLower = search.toLowerCase()
-      return (
-        booking.bookingId.toLowerCase().includes(searchLower) ||
-        booking.customerName.toLowerCase().includes(searchLower) ||
-        booking.customerPhone.includes(search) ||
-        booking.payment?.[0]?.transactionId?.toLowerCase().includes(searchLower)
-      )
+      const bookingId = payment.booking?.bookingId || ""
+      const customerName = payment.booking?.customerName || ""
+      const customerPhone = payment.booking?.customerPhone || ""
+      const txId = payment.transactionId || ""
+      const roomNum = payment.booking?.room?.roomNumber || ""
+      
+      const matchBooking = bookingId.toLowerCase().includes(searchLower)
+      const matchName = customerName.toLowerCase().includes(searchLower)
+      const matchPhone = customerPhone.includes(search)
+      const matchTx = txId.toLowerCase().includes(searchLower)
+      const matchRoom = roomNum.toLowerCase().includes(searchLower)
+      
+      return matchBooking || matchName || matchPhone || matchTx || matchRoom
     }
     
     return true
   })
 
-  if (loading) return <div className="p-8">Loading...</div>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50/50 flex flex-col items-center justify-center p-6">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="mt-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Loading transactions ledger...</p>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <button
-            onClick={() => navigate('/admin/dashboard')}
-            className="text-blue-600 hover:underline mb-2 text-sm"
-          >
-            ← Back to Dashboard
-          </button>
-          <h1 className="text-3xl font-bold text-gray-900">Payments Management</h1>
-          <p className="text-gray-600">Track all payments and pending dues</p>
-        </div>
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-4 rounded border border-gray-200">
-            <div className="text-2xl font-bold text-gray-900">{bookings.length}</div>
-            <div className="text-sm text-gray-600">Total Transactions</div>
-          </div>
-          <div className="bg-white p-4 rounded border border-gray-200">
-            <div className="text-2xl font-bold text-green-600">
-              ₹{getTotalPaid().toLocaleString()}
-            </div>
-            <div className="text-sm text-gray-600">Total Paid</div>
-          </div>
-          <div className="bg-white p-4 rounded border border-gray-200">
-            <div className="text-2xl font-bold text-red-600">
-              ₹{getTotalPending().toLocaleString()}
-            </div>
-            <div className="text-sm text-gray-600">Total Pending</div>
-          </div>
-          <div className="bg-white p-4 rounded border border-gray-200">
-            <div className="text-2xl font-bold text-yellow-600">
-              {bookings.filter(b => b.paymentStatus === "PENDING").length}
-            </div>
-            <div className="text-sm text-gray-600">Pending Count</div>
+    <div className="min-h-screen bg-slate-50/40 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        
+        {/* Header Block */}
+        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.03)] flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="space-y-1">
+            <button
+              onClick={() => navigate('/admin/dashboard')}
+              className="group text-[10px] font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1 hover:text-blue-700 transition-colors"
+            >
+              <span className="group-hover:-translate-x-0.5 transition-transform">←</span> Back to Dashboard
+            </button>
+            <h1 className="text-xl font-extrabold text-slate-900 tracking-tight mt-1">
+              Payments Ledger Management
+            </h1>
+            <p className="text-xs text-slate-400 font-medium">
+              Track and audit all booking deposits, monthly stay cycles, cash receipts, and online transactions
+            </p>
           </div>
         </div>
 
-        {/* Search and Filters */}
-        <div className="bg-white p-4 rounded border border-gray-200 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by booking ID, name, phone, or transaction ID..."
-              className="px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+        {/* Global Error Notice */}
+        {error && (
+          <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-xs font-semibold text-rose-700 flex items-center gap-2">
+            <span>⚠️</span> {error}
           </div>
-          <div className="flex gap-2 flex-wrap">
+        )}
+
+        {/* Metrics Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Total Volume */}
+          <div className="p-5 bg-white border border-slate-150 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group">
+            <div className="flex justify-between items-start">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Volume</span>
+              <span className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs group-hover:scale-110 transition-transform">📈</span>
+            </div>
+            <div className="mt-4">
+              <div className="text-lg font-black text-slate-900">{payments.length}</div>
+              <div className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Records in Ledger</div>
+            </div>
+          </div>
+
+          {/* Card 2: Total Paid */}
+          <div className="p-5 bg-white border border-slate-150 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group">
+            <div className="flex justify-between items-start">
+              <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">Total Collected</span>
+              <span className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs group-hover:scale-110 transition-transform">💰</span>
+            </div>
+            <div className="mt-4">
+              <div className="text-lg font-black text-emerald-600">₹{getTotalPaid(payments).toLocaleString()}</div>
+              <div className="text-[9px] font-semibold text-emerald-500 uppercase tracking-wider mt-0.5">Fully Verified</div>
+            </div>
+          </div>
+
+          {/* Card 3: Total Pending */}
+          <div className="p-5 bg-white border border-slate-150 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group">
+            <div className="flex justify-between items-start">
+              <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wider">Pending Dues</span>
+              <span className="w-6 h-6 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xs group-hover:scale-110 transition-transform">⏳</span>
+            </div>
+            <div className="mt-4">
+              <div className="text-lg font-black text-amber-600">₹{getTotalPending(payments).toLocaleString()}</div>
+              <div className="text-[9px] font-semibold text-amber-500 uppercase tracking-wider mt-0.5">Pending verification</div>
+            </div>
+          </div>
+
+          {/* Card 4: Action Count */}
+          <div className="p-5 bg-white border border-slate-150 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group">
+            <div className="flex justify-between items-start">
+              <span className="text-[9px] font-bold text-blue-600 uppercase tracking-wider">Awaiting Verification</span>
+              <span className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs group-hover:scale-110 transition-transform">⚙️</span>
+            </div>
+            <div className="mt-4">
+              <div className="text-lg font-black text-blue-600">
+                {payments.filter(p => p.paymentStatus === "VERIFICATION_PENDING").length}
+              </div>
+              <div className="text-[9px] font-semibold text-blue-500 uppercase tracking-wider mt-0.5">Online UTRs Awaiting Audit</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters and Search Toolbar */}
+        <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.03)] space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            {/* Search Input Box */}
+            <div className="md:col-span-2 space-y-1">
+              <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-1">Search Directory</label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none text-xs">🔍</span>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by Renter Name, Phone No, Booking ID, Room No, Transaction ID..."
+                  className="w-full pl-9 pr-4 py-2.5 text-xs bg-slate-50/70 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-700 placeholder:text-slate-350 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Cycle Filters Toggle */}
+            <div className="space-y-1">
+              <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-1">Stays Cycle Filter</label>
+              <select
+                value={cycleFilter}
+                onChange={(e) => setCycleFilter(e.target.value as CycleFilterType)}
+                className="w-full px-3 py-2.5 text-xs bg-slate-50/70 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-700 transition-all"
+              >
+                <option value="all">All Stays (Current & Historical)</option>
+                <option value="current">Current Stay Cycle Payments Only</option>
+                <option value="past">Past Stay Cycles (Historical) Only</option>
+              </select>
+            </div>
+          </div>
+
+          <hr className="border-slate-100" />
+
+          {/* Status Quick Tabs */}
+          <div className="flex overflow-x-auto gap-2 pb-1 scrollbar-none">
             <button
-              onClick={() => setFilter("all")}
-              className={`px-4 py-2 rounded text-sm font-semibold ${
-                filter === "all" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              onClick={() => setStatusFilter("all")}
+              className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all duration-200 whitespace-nowrap active:scale-95 border ${
+                statusFilter === "all"
+                  ? "bg-slate-900 text-white border-slate-950 shadow-sm shadow-slate-950/15"
+                  : "bg-white hover:bg-slate-50 text-slate-500 border-slate-200/60"
               }`}
             >
-              All ({bookings.length})
+              All Transactions ({payments.length})
             </button>
             <button
-              onClick={() => setFilter("paid")}
-              className={`px-4 py-2 rounded text-sm font-semibold ${
-                filter === "paid" ? "bg-green-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              onClick={() => setStatusFilter("success")}
+              className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all duration-200 whitespace-nowrap active:scale-95 border ${
+                statusFilter === "success"
+                  ? "bg-emerald-600 text-white border-emerald-700 shadow-sm shadow-emerald-600/15"
+                  : "bg-white hover:bg-slate-50 text-slate-500 border-slate-200/60"
               }`}
             >
-              Paid ({bookings.filter(b => b.paymentStatus === "SUCCESS").length})
+              Success ({payments.filter(p => p.paymentStatus === "SUCCESS").length})
             </button>
             <button
-              onClick={() => setFilter("pending")}
-              className={`px-4 py-2 rounded text-sm font-semibold ${
-                filter === "pending" ? "bg-yellow-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              onClick={() => setStatusFilter("pending")}
+              className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all duration-200 whitespace-nowrap active:scale-95 border ${
+                statusFilter === "pending"
+                  ? "bg-amber-500 text-white border-amber-600 shadow-sm shadow-amber-500/15"
+                  : "bg-white hover:bg-slate-50 text-slate-500 border-slate-200/60"
               }`}
             >
-              Pending ({bookings.filter(b => b.paymentStatus === "PENDING").length})
+              Pending / Verification ({payments.filter(p => p.paymentStatus === "PENDING" || p.paymentStatus === "VERIFICATION_PENDING").length})
             </button>
             <button
-              onClick={() => setFilter("failed")}
-              className={`px-4 py-2 rounded text-sm font-semibold ${
-                filter === "failed" ? "bg-red-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              onClick={() => setStatusFilter("failed")}
+              className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all duration-200 whitespace-nowrap active:scale-95 border ${
+                statusFilter === "failed"
+                  ? "bg-rose-600 text-white border-rose-700 shadow-sm shadow-rose-600/15"
+                  : "bg-white hover:bg-slate-50 text-slate-500 border-slate-200/60"
               }`}
             >
-              Failed ({bookings.filter(b => b.paymentStatus === "FAILED").length})
+              Failed / Refunded ({payments.filter(p => p.paymentStatus === "FAILED" || p.paymentStatus === "REFUNDED").length})
             </button>
           </div>
         </div>
 
-        {/* Payments Table */}
-        <div className="bg-white rounded border border-gray-200 overflow-hidden">
+        {/* Ledger Records Table Container */}
+        <div className="bg-white border border-slate-150 rounded-3xl overflow-hidden shadow-[0_4px_24px_-8px_rgba(0,0,0,0.04)]">
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Booking ID</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Customer</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Room</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Amount</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Payment Method</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Transaction ID</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-900 text-white text-[8px] font-bold uppercase tracking-widest border-b border-slate-800">
+                  <th className="py-4 px-4 font-extrabold">Booking ID</th>
+                  <th className="py-4 px-4 font-extrabold">Customer / Phone</th>
+                  <th className="py-4 px-4 font-extrabold">Room</th>
+                  <th className="py-4 px-4 font-extrabold">Amount</th>
+                  <th className="py-4 px-4 font-extrabold">Payment Method</th>
+                  <th className="py-4 px-4 font-extrabold">Transaction ID</th>
+                  <th className="py-4 px-4 font-extrabold">Cycle Scope</th>
+                  <th className="py-4 px-4 font-extrabold">Status</th>
+                  <th className="py-4 px-4 font-extrabold">Date</th>
+                  <th className="py-4 px-4 text-right font-extrabold">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredBookings.length === 0 ? (
+              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                {filteredPayments.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                      No payments found
+                    <td colSpan={10} className="py-12 text-center text-slate-400 uppercase font-bold tracking-widest text-[9px]">
+                      📁 No matching transactions found in database ledger
                     </td>
                   </tr>
                 ) : (
-                  filteredBookings.map((booking) => (
-                    <tr key={booking.id} className={`hover:bg-gray-50 ${
-                      booking.paymentStatus === "PENDING" ? "bg-yellow-50" : ""
-                    }`}>
-                      <td className="px-4 py-3 text-sm font-mono font-bold text-blue-600">
-                        {booking.bookingId}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <div className="font-semibold text-gray-900">{booking.customerName}</div>
-                        <div className="text-gray-600 text-xs">{booking.customerPhone}</div>
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        {booking.room && (
-                          <>
-                            <div className="font-semibold text-gray-900">Room {booking.room.roomNumber}</div>
-                            <div className="text-gray-600 text-xs">{booking.room.title}</div>
-                          </>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-bold text-gray-900">
-                        ₹{booking.totalAmount.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {booking.payment?.[0]?.paymentMethod || "N/A"}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-mono text-gray-600">
-                        {booking.payment?.[0]?.transactionId || "N/A"}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          booking.paymentStatus === 'SUCCESS' ? 'bg-green-100 text-green-800' :
-                          booking.paymentStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                          booking.paymentStatus === 'FAILED' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {booking.paymentStatus.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {new Date(booking.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => navigate(`/booking-confirmation/${booking.id}`)}
-                            className="text-blue-600 hover:underline text-xs"
-                          >
-                            View
-                          </button>
-                          {booking.paymentStatus === "PENDING" && (
-                            <button
-                              onClick={() => alert('Mark as paid feature coming soon')}
-                              className="text-green-600 hover:underline text-xs"
-                            >
-                              Mark Paid
-                            </button>
+                  filteredPayments.map((payment) => {
+                    const isHistorical = isPaymentHistorical(payment)
+                    return (
+                      <tr key={payment.id} className="hover:bg-slate-50/50 transition-colors">
+                        {/* Booking ID */}
+                        <td className="py-4 px-4 font-bold text-slate-900 font-mono">
+                          {payment.booking?.bookingId || "N/A"}
+                        </td>
+
+                        {/* Customer */}
+                        <td className="py-4 px-4">
+                          <div className="font-bold text-slate-800">{payment.booking?.customerName || "Unknown"}</div>
+                          <div className="text-slate-400 text-[8px] font-semibold mt-0.5">{payment.booking?.customerPhone || "N/A"}</div>
+                        </td>
+
+                        {/* Room */}
+                        <td className="py-4 px-4 font-semibold text-slate-800">
+                          {payment.booking?.room ? `Room ${payment.booking.room.roomNumber}` : "N/A"}
+                          <span className="block text-[8px] font-semibold text-slate-400 mt-0.5">{payment.booking?.room?.roomType || "NON_AC"}</span>
+                        </td>
+
+                        {/* Amount */}
+                        <td className="py-4 px-4 font-black text-slate-900">
+                          ₹{(payment.amount || 0).toLocaleString()}
+                        </td>
+
+                        {/* Payment Method */}
+                        <td className="py-4 px-4 font-bold text-slate-500 uppercase tracking-wider text-[9px]">
+                          {payment.paymentMethod || "UPI"}
+                        </td>
+
+                        {/* Transaction ID */}
+                        <td className="py-4 px-4 font-semibold text-slate-500 font-mono text-[10px]">
+                          {payment.transactionId || "N/A"}
+                        </td>
+
+                        {/* Cycle Scope Indicator */}
+                        <td className="py-4 px-4 font-bold text-[9px]">
+                          {isHistorical ? (
+                            <span className="text-slate-400 font-semibold bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">Past Stay</span>
+                          ) : (
+                            <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">Current Stay</span>
                           )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+
+                        {/* Status Badge */}
+                        <td className="py-4 px-4">
+                          <span className={`px-2.5 py-0.5 rounded-lg text-[8px] font-extrabold uppercase tracking-wider ${getStatusBadgeClass(payment.paymentStatus)}`}>
+                            {getStatusLabel(payment.paymentStatus)}
+                          </span>
+                        </td>
+
+                        {/* Date */}
+                        <td className="py-4 px-4 font-medium text-slate-500">
+                          {new Date(payment.createdAt).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-4 px-4 text-right">
+                          <button
+                            onClick={() => navigate(`/booking-confirmation/${payment.bookingId}`)}
+                            className="bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 px-2.5 py-1 rounded-xl text-[8px] font-extrabold uppercase tracking-wider transition-all shadow-sm active:scale-95"
+                          >
+                            View Contract
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Summary */}
-        <div className="mt-6 bg-white p-4 rounded border border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <div className="text-sm text-gray-600">Showing Transactions</div>
-              <div className="text-lg font-bold text-gray-900">{filteredBookings.length} of {bookings.length}</div>
+        {/* Ledger Bottom Summary Panel */}
+        <div className="bg-white border border-slate-150 rounded-3xl p-5 shadow-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs text-slate-600">
+            <div className="space-y-1">
+              <div className="font-bold text-slate-400 uppercase tracking-wider text-[8px]">Displaying Ledger Results</div>
+              <div className="text-base font-extrabold text-slate-900">{filteredPayments.length} of {payments.length} Transactions</div>
             </div>
-            <div>
-              <div className="text-sm text-gray-600">Total Amount (Filtered)</div>
-              <div className="text-lg font-bold text-gray-900">
-                ₹{filteredBookings.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString()}
-              </div>
+            <div className="space-y-1">
+              <div className="font-bold text-slate-400 uppercase tracking-wider text-[8px]">Total Volume (Filtered)</div>
+              <div className="text-base font-extrabold text-emerald-600">₹{getTotalPaid(filteredPayments).toLocaleString()}</div>
             </div>
-            <div>
-              <div className="text-sm text-gray-600">Pending Amount (Filtered)</div>
-              <div className="text-lg font-bold text-red-600">
-                ₹{filteredBookings.filter(b => b.paymentStatus === "PENDING").reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString()}
-              </div>
+            <div className="space-y-1">
+              <div className="font-bold text-slate-400 uppercase tracking-wider text-[8px]">Total Pending (Filtered)</div>
+              <div className="text-base font-extrabold text-amber-600">₹{getTotalPending(filteredPayments).toLocaleString()}</div>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   )

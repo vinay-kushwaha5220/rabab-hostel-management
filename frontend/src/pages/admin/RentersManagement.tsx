@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import api from "../../services/apiV2"
-import type { BookingType, PaymentType } from "../../types/booking"
+import type { BookingType } from "../../types/booking"
 import type { RoomType } from "../../types/room"
 
 // Normalize monthly renter status for display

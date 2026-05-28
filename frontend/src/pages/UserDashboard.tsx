@@ -117,7 +117,7 @@ const UserDashboard = () => {
   const bill = billingData?.monthlyBill
 
   // Stay Status Evaluation Logic
-  let dashboardState: 'NO_STAY' | 'ACTIVE' | 'PAYMENT_PENDING' | 'PAYMENT_VERIFICATION' | 'OVERDUE' | 'CHECKOUT_REQUESTED' | 'CHECKOUT_CONFIRMED' = 'NO_STAY'
+  let dashboardState: 'NO_STAY' | 'ACTIVE' | 'BOOKING_PENDING_PAYMENT' | 'BOOKING_PENDING_VERIFICATION' | 'RENEWAL_PENDING_PAYMENT' | 'RENEWAL_PENDING_VERIFICATION' | 'OVERDUE' | 'CHECKOUT_REQUESTED' | 'CHECKOUT_CONFIRMED' = 'NO_STAY'
   const activeBooking = activeBookings[0]
 
   if (!activeBooking) {
@@ -127,51 +127,57 @@ const UserDashboard = () => {
       dashboardState = 'NO_STAY'
     }
   } else {
-    if (activeBooking.bookingType === 'MONTHLY' && activeBooking.monthlyRenter) {
-      const mrStatus = activeBooking.monthlyRenter.status
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const cycleEnd = activeBooking.monthlyRenter.currentCycleEnd ? new Date(activeBooking.monthlyRenter.currentCycleEnd) : null
-      if (cycleEnd) cycleEnd.setHours(0, 0, 0, 0)
-      
-      const hasUnpaid = bill && !bill.isPaid
-      const dynamicExpired = cycleEnd && cycleEnd < today && hasUnpaid
-
-      if ((mrStatus as string) === 'CHECKOUT_REQUESTED') {
-        dashboardState = 'CHECKOUT_REQUESTED'
-      } else if (mrStatus === 'CHECKED_OUT') {
-        dashboardState = 'CHECKOUT_CONFIRMED'
-      } else if (bill && !bill.isPaid && (bill.status === 'VERIFICATION_PENDING' || mrStatus === 'CONTINUE_REQUESTED' || mrStatus === 'PENDING_ADMIN_APPROVAL')) {
-        dashboardState = 'PAYMENT_VERIFICATION'
-      } else if (dynamicExpired || (bill && !bill.isPaid && bill.status === 'OVERDUE')) {
-        dashboardState = 'OVERDUE'
-      } else if (bill && !bill.isPaid && (bill.status === 'PENDING' || bill.status === 'PARTIAL' || mrStatus === 'PENDING_PAYMENT' || mrStatus === 'DUE_SOON' || mrStatus === 'EXPIRES_TODAY')) {
-        dashboardState = 'PAYMENT_PENDING'
+    // If the booking itself is PENDING (not confirmed by admin yet)
+    if (activeBooking.status === 'PENDING') {
+      if (activeBooking.paymentStatus === 'VERIFICATION_PENDING') {
+        dashboardState = 'BOOKING_PENDING_VERIFICATION'
       } else {
-        dashboardState = 'ACTIVE'
+        dashboardState = 'BOOKING_PENDING_PAYMENT'
       }
     } else {
-      // Daily stays fallback
-      if (activeBooking.status === 'PENDING') {
-        dashboardState = 'PAYMENT_VERIFICATION'
+      // Booking is CONFIRMED, now check monthly renter or daily active status
+      if (activeBooking.bookingType === 'MONTHLY' && activeBooking.monthlyRenter) {
+        const mrStatus = activeBooking.monthlyRenter.status
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const cycleEnd = activeBooking.monthlyRenter.currentCycleEnd ? new Date(activeBooking.monthlyRenter.currentCycleEnd) : null
+        if (cycleEnd) cycleEnd.setHours(0, 0, 0, 0)
+        
+        const hasUnpaid = bill && !bill.isPaid
+        const dynamicExpired = cycleEnd && cycleEnd < today && hasUnpaid
+
+        if ((mrStatus as string) === 'CHECKOUT_REQUESTED') {
+          dashboardState = 'CHECKOUT_REQUESTED'
+        } else if (mrStatus === 'CHECKED_OUT') {
+          dashboardState = 'CHECKOUT_CONFIRMED'
+        } else if (bill && !bill.isPaid && (bill.status === 'VERIFICATION_PENDING' || mrStatus === 'CONTINUE_REQUESTED' || mrStatus === 'PENDING_ADMIN_APPROVAL')) {
+          dashboardState = 'RENEWAL_PENDING_VERIFICATION'
+        } else if (dynamicExpired || (bill && !bill.isPaid && bill.status === 'OVERDUE')) {
+          dashboardState = 'OVERDUE'
+        } else if (bill && !bill.isPaid && (bill.status === 'PENDING' || bill.status === 'PARTIAL' || mrStatus === 'PENDING_PAYMENT' || mrStatus === 'DUE_SOON' || mrStatus === 'EXPIRES_TODAY')) {
+          dashboardState = 'RENEWAL_PENDING_PAYMENT'
+        } else {
+          dashboardState = 'ACTIVE'
+        }
       } else {
+        // Daily stays confirmed
         dashboardState = 'ACTIVE'
       }
     }
   }
 
   // Trigger transition verification flag and success confetti modal
-  // ONLY show the "Payment Verified" modal when transitioning from PAYMENT_VERIFICATION → ACTIVE
+  // ONLY show the "Payment Verified" modal when transitioning from verification status to ACTIVE
   // (i.e. renter submitted payment, admin verified it). Do NOT show on fresh first-booking login.
   useEffect(() => {
     if (activeBooking && activeBooking.bookingType === 'MONTHLY') {
       const verifyKey = 'stay_verifying_' + activeBooking.id
-      if (dashboardState === 'PAYMENT_VERIFICATION') {
+      if (dashboardState === 'BOOKING_PENDING_VERIFICATION' || dashboardState === 'RENEWAL_PENDING_VERIFICATION') {
         // Renter has a bill in VERIFICATION_PENDING — mark that we're in verifying state
         localStorage.setItem(verifyKey, 'true')
       } else if (dashboardState === 'ACTIVE') {
         if (localStorage.getItem(verifyKey) === 'true') {
-          // Transitioned from PAYMENT_VERIFICATION to ACTIVE — show success modal
+          // Transitioned from verification to ACTIVE — show success modal
           setShowSuccessModal(true)
         }
         // If there is no bill at all (brand-new booking just approved) — clear any stale flag silently
@@ -287,7 +293,7 @@ const UserDashboard = () => {
           </div>
         )}
 
-        {dashboardState === 'PAYMENT_PENDING' && activeBooking && bill && (
+        {dashboardState === 'BOOKING_PENDING_PAYMENT' && activeBooking && (
           <div className="relative overflow-hidden bg-gradient-to-br from-amber-950/80 via-slate-900/90 to-amber-950/80 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-amber-950/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
             <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-amber-500/5 to-transparent pointer-events-none" />
             <div className="space-y-3 flex-1">
@@ -296,11 +302,76 @@ const UserDashboard = () => {
                   ⚠️ Action Required
                 </span>
                 <span className="bg-slate-800 text-slate-300 text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider">
-                  PAYMENT PENDING
+                  BOOKING PENDING PAYMENT
                 </span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-none">
-                Payment Required 🟠
+                Room Reserved — Awaiting Payment 🟠
+              </h1>
+              <div className="flex items-baseline gap-2.5">
+                <span className="text-4xl font-black text-amber-400">₹{activeBooking.totalAmount.toLocaleString()}</span>
+                <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Security Deposit & Rental Fee</span>
+              </div>
+              <p className="text-xs text-amber-400/90 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                ✨ Pay now to secure your stay and activate your room access!
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto self-stretch md:self-center">
+              <button
+                onClick={() => navigate(`/payment/${activeBooking.id}`)}
+                className="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-[11px] uppercase tracking-wider px-7 py-4 rounded-2xl shadow-xl shadow-amber-500/10 active:scale-95 duration-200 transition-all cursor-pointer text-center"
+              >
+                Complete Payment
+              </button>
+            </div>
+          </div>
+        )}
+
+        {dashboardState === 'BOOKING_PENDING_VERIFICATION' && activeBooking && (
+          <div className="relative overflow-hidden bg-gradient-to-br from-amber-950/80 via-slate-900/95 to-amber-950/80 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-amber-950/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-amber-500/5 to-transparent pointer-events-none" />
+            <div className="space-y-3 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="bg-amber-500/10 text-amber-400 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider border border-amber-500/20 flex items-center gap-1 shadow-inner shadow-amber-500/5 animate-pulse">
+                  ⏳ Awaiting Approval
+                </span>
+                <span className="bg-amber-500/10 text-amber-400 text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border border-amber-500/20">
+                  BOOKING PENDING VERIFICATION
+                </span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-none flex items-center gap-2">
+                Payment Verification Pending ⏳
+              </h1>
+              <p className="text-sm text-slate-300 font-medium leading-relaxed">
+                Your initial booking payment is undergoing administrator verification.<br/>
+                <span className="text-slate-400 text-xs font-semibold">Once verified, your contract will be finalized and stay activated.</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-3.5 self-stretch md:self-center">
+              <button
+                onClick={() => navigate(`/booking-confirmation/${activeBooking.id}`)}
+                className="flex-1 md:flex-initial bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-[11px] uppercase tracking-wider px-6 py-3.5 rounded-2xl shadow-lg shadow-amber-500/10 active:scale-95 duration-200 transition-all cursor-pointer text-center animate-pulse"
+              >
+                Track Booking Details
+              </button>
+            </div>
+          </div>
+        )}
+
+        {dashboardState === 'RENEWAL_PENDING_PAYMENT' && activeBooking && bill && (
+          <div className="relative overflow-hidden bg-gradient-to-br from-amber-950/80 via-slate-900/90 to-amber-950/80 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-amber-950/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-amber-500/5 to-transparent pointer-events-none" />
+            <div className="space-y-3 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="bg-amber-500/10 text-amber-400 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider border border-amber-500/20 flex items-center gap-1 shadow-inner shadow-amber-500/5">
+                  ⚠️ Action Required
+                </span>
+                <span className="bg-slate-800 text-slate-300 text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                  RENEWAL PAYMENT PENDING
+                </span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-none">
+                Renewal Stay Payment Required 🟠
               </h1>
               <div className="flex items-baseline gap-2.5">
                 <span className="text-4xl font-black text-amber-400">₹{bill.remainingAmount.toLocaleString()}</span>
@@ -327,7 +398,7 @@ const UserDashboard = () => {
           </div>
         )}
 
-        {dashboardState === 'PAYMENT_VERIFICATION' && activeBooking && (
+        {dashboardState === 'RENEWAL_PENDING_VERIFICATION' && activeBooking && (
           <div className="relative overflow-hidden bg-gradient-to-br from-amber-950/80 via-slate-900/95 to-amber-950/80 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-amber-950/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
             <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-amber-500/5 to-transparent pointer-events-none" />
             <div className="space-y-3 flex-1">
@@ -336,14 +407,14 @@ const UserDashboard = () => {
                   ⏳ Awaiting Approval
                 </span>
                 <span className="bg-amber-500/10 text-amber-400 text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border border-amber-500/20">
-                  PENDING VERIFICATION
+                  RENEWAL PENDING VERIFICATION
                 </span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-none flex items-center gap-2">
-                Payment Under Verification ⏳
+                Renewal Under Verification ⏳
               </h1>
               <p className="text-sm text-slate-300 font-medium leading-relaxed">
-                We have received your payment submission. Our administration is currently reviewing it. <br/>
+                We have received your renewal stay payment submission. Our administration is currently reviewing it. <br/>
                 <span className="text-slate-400 text-xs font-semibold">Usually verified within a few minutes.</span>
               </p>
             </div>
@@ -401,11 +472,11 @@ const UserDashboard = () => {
         )}
 
         {dashboardState === 'CHECKOUT_REQUESTED' && activeBooking && (
-          <div className="relative overflow-hidden bg-gradient-to-br from-violet-950/80 via-slate-900/90 to-violet-950/80 border border-violet-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-violet-950/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
-            <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-violet-500/5 to-transparent pointer-events-none" />
+          <div className="relative overflow-hidden bg-gradient-to-br from-rose-950/80 via-slate-900/90 to-rose-950/80 border border-rose-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-rose-950/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-rose-500/5 to-transparent pointer-events-none" />
             <div className="space-y-3 flex-1">
               <div className="flex items-center gap-2">
-                <span className="bg-violet-500/10 text-violet-400 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider border border-violet-500/20 flex items-center gap-1 shadow-inner shadow-violet-500/5">
+                <span className="bg-rose-500/10 text-rose-400 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider border border-rose-500/20 flex items-center gap-1 shadow-inner shadow-rose-500/5">
                   🏢 Under Admin Review
                 </span>
                 <span className="bg-slate-800 text-slate-300 text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider">
@@ -413,7 +484,7 @@ const UserDashboard = () => {
                 </span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-none">
-                Checkout Request Submitted 🟣
+                Checkout Request Submitted 🔴
               </h1>
               <p className="text-sm text-slate-300 font-medium leading-relaxed">
                 Your checkout request is undergoing final review by our administrative team.<br/>
@@ -423,7 +494,7 @@ const UserDashboard = () => {
             <div className="flex items-center gap-3.5 self-stretch md:self-center">
               <button
                 onClick={() => navigate("/renter-monthly-dashboard?tab=dashboard")}
-                className="flex-1 md:flex-initial bg-violet-500 hover:bg-violet-600 text-slate-950 font-black text-[11px] uppercase tracking-wider px-6 py-3.5 rounded-2xl shadow-lg active:scale-95 duration-200 transition-all cursor-pointer text-center"
+                className="flex-1 md:flex-initial bg-rose-500 hover:bg-rose-600 text-white font-black text-[11px] uppercase tracking-wider px-6 py-3.5 rounded-2xl shadow-lg active:scale-95 duration-200 transition-all cursor-pointer text-center"
               >
                 Track Request
               </button>

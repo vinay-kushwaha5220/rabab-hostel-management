@@ -1628,6 +1628,25 @@ export const approveContinueStay = async (req, res) => {
         }
         const booking = renewalRequest.booking;
         const renter = renewalRequest.monthlyRenter;
+        // Format cycle dates as dynamic month string
+        const nextCycleStart = renewalRequest.nextCycleStart;
+        const nextCycleEnd = renewalRequest.nextCycleEnd;
+        const monthName = getCycleMonthString(nextCycleStart, nextCycleEnd);
+        // Check if there are any other unpaid bills (isPaid: false) for this booking (excluding the new cycle bill being approved)
+        const unpaidBillsCount = await prisma.monthlyBill.count({
+            where: {
+                bookingId: booking.id,
+                isPaid: false,
+                status: { not: MonthlyBillStatus.DRAFT },
+                isDeleted: false,
+                month: { not: monthName }
+            }
+        });
+        if (unpaidBillsCount > 0) {
+            return res.status(400).json({
+                message: "Cannot approve stay renewal: There is a pending or unpaid rent invoice for this resident. Please settle all outstanding dues first."
+            });
+        }
         // Calculate penalty dynamically based on stays expiry
         let penalty = 0;
         if (renter.currentCycleEnd) {
@@ -1653,10 +1672,6 @@ export const approveContinueStay = async (req, res) => {
             }
         });
         const previousPending = unpaidBills.reduce((sum, b) => sum + b.remainingAmount, 0);
-        // Format cycle dates as dynamic month string
-        const nextCycleStart = renewalRequest.nextCycleStart;
-        const nextCycleEnd = renewalRequest.nextCycleEnd;
-        const monthName = getCycleMonthString(nextCycleStart, nextCycleEnd);
         // Calculate bill total: Rent + Electricity + Extra/Other charges + Penalty + Previous carryover
         const billTotal = renter.rentAmount + parseFloat(String(electricityAmount || 0)) + previousPending + penalty + parseFloat(String(otherCharges || 0));
         // Set bill due date exactly to grace limit (currentCycleEnd + 5 days)

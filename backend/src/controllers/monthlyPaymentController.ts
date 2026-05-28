@@ -471,6 +471,30 @@ export const verifyRazorpayPayment = async (req: AuthRequest, res: Response) => 
       }
     })
 
+    // If this bill is fully paid, also mark all previous unpaid bills as PAID and settled (Self-healing ledger)
+    const previousUnpaidBills = await prisma.monthlyBill.findMany({
+      where: {
+        bookingId: bill.bookingId,
+        isPaid: false,
+        status: { not: MonthlyBillStatus.DRAFT },
+        id: { lt: billId }
+      }
+    })
+    for (const prevBill of previousUnpaidBills) {
+      await prisma.monthlyBill.update({
+        where: { id: prevBill.id },
+        data: {
+          isPaid: true,
+          paidAmount: prevBill.totalDue,
+          remainingAmount: 0,
+          paidDate: new Date(),
+          status: MonthlyBillStatus.PAID,
+          verificationStatus: VerificationStatus.VERIFIED
+        }
+      })
+    }
+    console.log(`⚡ verifyRazorpayPayment: Auto-marked ${previousUnpaidBills.length} previous unpaid bills as PAID.`)
+
     // 3. Update the MonthlyRenter ledger outstanding amounts
     const monthlyRenter = await prisma.monthlyRenter.findUnique({
       where: { bookingId: bill.bookingId }

@@ -52,6 +52,12 @@ const MonthlyBillingManagement = () => {
     fetchRenewalRequests()
   }, [monthFilter, yearFilter, roomFilter])
 
+  useEffect(() => {
+    if (renewalRequests.length > 0 || checkoutRequests.length > 0) {
+      console.log(`ℹ️ Pending requests loaded: continue=${renewalRequests.length}, checkout=${checkoutRequests.length}`)
+    }
+  }, [renewalRequests, checkoutRequests])
+
   const fetchRenewalRequests = async () => {
     try {
       // Fetch CONTINUE_STAY requests
@@ -117,6 +123,37 @@ const MonthlyBillingManagement = () => {
     }
   }
 
+  const isBillHistorical = (bill: any): boolean => {
+    const renter = bill.booking?.monthlyRenter
+    if (!renter) return false
+    if (!renter.currentCycleStart) return false
+    
+    const billDueDate = new Date(bill.dueDate)
+    const cycleStart = new Date(renter.currentCycleStart)
+    
+    billDueDate.setHours(0, 0, 0, 0)
+    cycleStart.setHours(0, 0, 0, 0)
+    
+    return billDueDate.getTime() < cycleStart.getTime()
+  }
+
+  const formatBillCycle = (bill: any) => {
+    const monthStr = bill.month || ""
+    if (monthStr.startsWith("Cycle: ")) {
+      const parts = monthStr.replace("Cycle: ", "").split(" to ")
+      if (parts.length === 2) {
+        return `${formatDate(parts[0])} → ${formatDate(parts[1])}`
+      }
+    }
+    
+    const renter = bill.booking?.monthlyRenter
+    if (renter?.currentCycleStart && renter?.currentCycleEnd) {
+      return `${formatDate(renter.currentCycleStart)} → ${formatDate(renter.currentCycleEnd)}`
+    }
+    
+    return monthStr || "N/A"
+  }
+
   const normalizeMonthlyRenterStatus = (status?: string): string | undefined => {
     if (!status) return undefined
     switch (status) {
@@ -155,8 +192,8 @@ const MonthlyBillingManagement = () => {
       // Renter may have submitted a continue/checkout request after paying
       if (normalizedStatus === "CHECKOUT_REQUESTED") return "CHECKOUT_REQUESTED"
       if (normalizedStatus === "CONTINUE_REQUESTED") return "CONTINUE_REQUESTED"
-      // Bill is paid — stay is ACTIVE regardless of cycle-end proximity
-      return "ACTIVE"
+      // Bill is paid — return PAID
+      return "PAID"
     }
 
     // 4. Bill is UNPAID — check renter request states
@@ -186,13 +223,14 @@ const MonthlyBillingManagement = () => {
       case "DRAFT": return "secondary"
       case "ACTIVE": return "success" // Green
       case "DUE SOON": return "warning" // Yellow
-      case "EXPIRES TODAY": return "warning" // Orange (warning maps to orange/yellow)
+      case "EXPIRES TODAY": return "danger" // Red
       case "OVERDUE": return "danger" // Red
-      case "PAYMENT_PENDING": return "danger" // Red — payment is overdue
+      case "PAYMENT_PENDING": return "warning" // Orange
       case "CONTINUE_REQUESTED": return "warning" // Amber — awaiting admin decision
       case "PENDING_VERIFICATION": return "info" // Blue
       case "CHECKOUT_REQUESTED": return "secondary" // Gray
       case "CHECKED_OUT": return "secondary" // Gray
+      case "PAID": return "success" // Green
       default: return "secondary"
     }
   }
@@ -305,13 +343,13 @@ const MonthlyBillingManagement = () => {
     }
   }
 
-  const openRenewalApproval = (request: StayRenewalRequestType) => {
-    setSelectedRenewalRequest(request)
-    setApprovalElectricity(String(request.monthlyRenter?.lastElectricityAmount ?? request.booking?.monthlyRenter?.lastElectricityAmount ?? 0))
-    setApprovalOtherCharges("0")
-    setApprovalNotes("")
-    setShowRenewalModal(true)
-  }
+  // const openRenewalApproval = (request: StayRenewalRequestType) => {
+  //   setSelectedRenewalRequest(request)
+  //   setApprovalElectricity(String(request.monthlyRenter?.lastElectricityAmount ?? request.booking?.monthlyRenter?.lastElectricityAmount ?? 0))
+  //   setApprovalOtherCharges("0")
+  //   setApprovalNotes("")
+  //   setShowRenewalModal(true)
+  // }
 
   const calculateRenewalTotal = () => {
     if (!selectedRenewalRequest) return 0
@@ -349,27 +387,27 @@ const MonthlyBillingManagement = () => {
     }
   }
 
-  const handleRejectRenewal = async (request: StayRenewalRequestType) => {
-    const reason = window.prompt(`Reject continue stay request for ${request.booking?.customerName || request.monthlyRenter?.user?.name || "renter"}. Please enter a reason:`)
-    if (reason === null) return
+  // const handleRejectRenewal = async (request: StayRenewalRequestType) => {
+  //   const reason = window.prompt(`Reject continue stay request for ${request.booking?.customerName || request.monthlyRenter?.user?.name || "renter"}. Please enter a reason:`)
+  //   if (reason === null) return
 
-    try {
-      setActionLoading(`reject-renewal-${request.id}`)
-      setError("")
-      setSuccess("")
-      
-      await billingService.rejectContinueStay(request.id, { reason })
-      
-      setSuccess(`Continue stay request rejected for ${request.booking?.customerName || request.monthlyRenter?.user?.name || "renter"}.`)
-      await fetchBills()
-      await fetchStats()
-      await fetchRenewalRequests()
-    } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to reject renewal request."))
-    } finally {
-      setActionLoading(null)
-    }
-  }
+  //   try {
+  //     setActionLoading(`reject-renewal-${request.id}`)
+  //     setError("")
+  //     setSuccess("")
+  //     
+  //     await billingService.rejectContinueStay(request.id, { reason })
+  //     
+  //     setSuccess(`Continue stay request rejected for ${request.booking?.customerName || request.monthlyRenter?.user?.name || "renter"}.`)
+  //     await fetchBills()
+  //     await fetchStats()
+  //     await fetchRenewalRequests()
+  //   } catch (err) {
+  //     setError(getApiErrorMessage(err, "Failed to reject renewal request."))
+  //   } finally {
+  //     setActionLoading(null)
+  //   }
+  // }
 
   const handleSendReminder = async (bookingId: number, renterName: string) => {
     try {
@@ -407,47 +445,47 @@ const MonthlyBillingManagement = () => {
     }
   }
 
-  const handleGenerateBulk = async () => {
-    if (!monthFilter || !yearFilter) {
-      alert("Please select both a Month and a Year in the filters first.")
-      return
-    }
+  // const handleGenerateBulk = async () => {
+  //   if (!monthFilter || !yearFilter) {
+  //     alert("Please select both a Month and a Year in the filters first.")
+  //     return
+  //   }
 
-    if (!window.confirm(`Generate monthly bills for ALL active monthly renters for ${monthFilter} ${yearFilter}?`)) return
+  //   if (!window.confirm(`Generate monthly bills for ALL active monthly renters for ${monthFilter} ${yearFilter}?`)) return
 
-    try {
-      setLoading(true)
-      const response = await api.post("/monthly-bills/admin/generate-bulk", {
-        month: monthFilter,
-        year: yearFilter
-      })
-      alert(response.data.message)
-      await fetchBills()
-      await fetchStats()
-    } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to generate bulk bills"))
-    } finally {
-      setLoading(false)
-    }
-  }
+  //   try {
+  //     setLoading(true)
+  //     const response = await api.post("/monthly-bills/admin/generate-bulk", {
+  //       month: monthFilter,
+  //       year: yearFilter
+  //     })
+  //     alert(response.data.message)
+  //     await fetchBills()
+  //     await fetchStats()
+  //   } catch (err) {
+  //     setError(getApiErrorMessage(err, "Failed to generate bulk bills"))
+  //   } finally {
+  //     setLoading(false)
+  //   }
+  // }
 
-  const handleTriggerReminders = async () => {
-    if (!window.confirm("Are you sure you want to trigger the automatic Stay Cycle Day 5 reminders? This will send direct in-app chat messages, system notifications, and emails to ALL renters with unpaid invoices.")) return
+  // const handleTriggerReminders = async () => {
+  //   if (!window.confirm("Are you sure you want to trigger the automatic Stay Cycle Day 5 reminders? This will send direct in-app chat messages, system notifications, and emails to ALL renters with unpaid invoices.")) return
 
-    try {
-      setLoading(true)
-      setError("")
-      setSuccess("")
-      const response = await api.post("/monthly-bills/admin/trigger-reminders")
-      setSuccess(response.data.message || "Stay cycle reminders triggered successfully!")
-      await fetchBills()
-      await fetchStats()
-    } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to trigger billing reminders."))
-    } finally {
-      setLoading(false)
-    }
-  }
+  //   try {
+  //     setLoading(true)
+  //     setError("")
+  //     setSuccess("")
+  //     const response = await api.post("/monthly-bills/admin/trigger-reminders")
+  //     setSuccess(response.data.message || "Stay cycle reminders triggered successfully!")
+  //     await fetchBills()
+  //     await fetchStats()
+  //   } catch (err) {
+  //     setError(getApiErrorMessage(err, "Failed to trigger billing reminders."))
+  //   } finally {
+  //     setLoading(false)
+  //   }
+  // }
 
   // ==========================================
   // FILTERS AND SEARCH
@@ -468,7 +506,18 @@ const MonthlyBillingManagement = () => {
 
     // Tab quick statuses
     const rentStatus = getRentStatus(bill)
-    if (activeTab === 'ACTIVE' && rentStatus !== 'ACTIVE') return false
+    
+    if (activeTab === 'ACTIVE') {
+      // Show currently active unpaid stay cycles or currently active paid stay cycles
+      if (rentStatus !== 'ACTIVE' && rentStatus !== 'PAID' && rentStatus !== 'DUE SOON' && rentStatus !== 'EXPIRES TODAY') {
+        return false
+      }
+      // Filter out historical cycles to avoid duplicates in active view
+      if (isBillHistorical(bill)) {
+        return false
+      }
+    }
+    
     if (activeTab === 'DUE SOON' && rentStatus !== 'DUE SOON' && rentStatus !== 'EXPIRES TODAY') return false
     if (activeTab === 'OVERDUE' && rentStatus !== 'OVERDUE') return false
     if (activeTab === 'PAYMENT PENDING' && rentStatus !== 'PAYMENT_PENDING' && rentStatus !== 'CONTINUE_REQUESTED') return false
@@ -505,18 +554,7 @@ const MonthlyBillingManagement = () => {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={handleGenerateBulk}
-              variant="outline"
-              size="sm"
-              className="shadow-sm border-blue-100 text-blue-600 hover:bg-blue-50 flex items-center gap-2 font-bold text-[10px] tracking-wider uppercase py-2 px-4 rounded-xl transition-all duration-200 active:scale-95"
-              disabled={!monthFilter || !yearFilter}
-              title={!monthFilter || !yearFilter ? "Select Month & Year in filters to generate statements" : ""}
-            >
-              <span>⚙️</span> Bulk Generate Bills
-            </Button>
-          </div>
+
         </div>
 
         {/* Premium Analytics Cards Grid */}
@@ -669,7 +707,7 @@ const MonthlyBillingManagement = () => {
               onClick={() => setActiveTab(tab)}
               className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all duration-200 whitespace-nowrap active:scale-95 ${
                 activeTab === tab
-                  ? tab === 'PAYMENT PENDING' ? 'bg-rose-650 text-white shadow-md shadow-rose-600/10'
+                  ? tab === 'PAYMENT PENDING' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/10'
                   : tab === 'CHECKOUT REQUEST' ? 'bg-slate-700 text-white shadow-md shadow-slate-700/10'
                   : 'bg-slate-900 text-white shadow-md shadow-slate-900/10'
                   : 'bg-white hover:bg-slate-50 text-slate-500 border border-slate-200/50 shadow-sm'
@@ -713,7 +751,7 @@ const MonthlyBillingManagement = () => {
                   {filteredBills.map((bill: any) => {
                     const renter = bill.booking?.monthlyRenter
                     const rentStatus = getRentStatus(bill)
-                    const { text: daysLeftText } = getStayDaysLeft(renter?.dueDate || bill.dueDate)
+                    const { days: stayDays, text: daysLeftText } = getStayDaysLeft(renter?.dueDate || bill.dueDate)
                     const roomTypeLabel = ((bill.booking?.room as any)?.roomType === "AC" || (bill.booking?.room as any)?.roomType === "NON_AC") ? (bill.booking?.room as any)?.roomType : "N/A"
                     
                     return (
@@ -732,22 +770,30 @@ const MonthlyBillingManagement = () => {
 
                         {/* Cycle Column */}
                         <td className="py-4 px-4 text-slate-500 font-medium">
-                          {formatDate(renter?.currentCycleStart)} → {formatDate(renter?.currentCycleEnd)}
+                          {formatBillCycle(bill)}
                         </td>
 
                         {/* Due Date Column */}
                         <td className="py-4 px-4 font-semibold text-slate-850">
-                          {formatDate(renter?.dueDate || bill.dueDate)}
+                          {formatDate(bill.dueDate)}
                         </td>
 
                         {/* Days remaining / overdue Days */}
                         <td className="py-4 px-4 font-bold">
-                          <span className={
-                            rentStatus === "OVERDUE" ? "text-rose-600" : 
-                            (rentStatus === "EXPIRES TODAY" || rentStatus === "DUE SOON" ? "text-amber-600" : "text-emerald-600")
-                          }>
-                            {daysLeftText}
-                          </span>
+                          {bill.isPaid ? (
+                            isBillHistorical(bill) ? (
+                              <span className="text-slate-400 font-medium">Settled (Past)</span>
+                            ) : (
+                              <span className="text-emerald-600 font-medium">Settled (Current)</span>
+                            )
+                          ) : (
+                            <span className={
+                              stayDays < 0 || rentStatus === "OVERDUE" || rentStatus === "EXPIRES TODAY" ? "text-rose-600" : 
+                              (stayDays >= 1 && stayDays <= 9) || rentStatus === "DUE SOON" || rentStatus === "PAYMENT_PENDING" ? "text-amber-600" : "text-emerald-600"
+                            }>
+                              {daysLeftText}
+                            </span>
+                          )}
                         </td>
 
                         {/* Rent Column */}

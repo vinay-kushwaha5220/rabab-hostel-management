@@ -21,6 +21,7 @@ import RenterMonthlyDashboard from "./pages/RenterMonthlyDashboard"
 import MyBookingsPage from "./pages/MyBookingsPage"
 import PaymentHistoryPage from "./pages/PaymentHistoryPage"
 import NotificationsPage from "./pages/NotificationsPage"
+import AdminNotificationsPage from "./pages/admin/NotificationsPage"
 import MessagesPage from "./pages/MessagesPage"
 import SettingsPage from "./pages/SettingsPage"
 import AnalyticsPage from "./pages/AnalyticsPage"
@@ -85,7 +86,7 @@ const router = createBrowserRouter([
           { path: "/admin/renters", element: <ProtectedRoute adminOnly><RentersManagement /></ProtectedRoute> },
           { path: "/admin/payments", element: <ProtectedRoute adminOnly><PaymentsManagement /></ProtectedRoute> },
           { path: "/admin/electricity", element: <ProtectedRoute adminOnly><ElectricityBills /></ProtectedRoute> },
-          { path: "/admin/notifications", element: <ProtectedRoute adminOnly><NotificationsPage /></ProtectedRoute> },
+          { path: "/admin/notifications", element: <ProtectedRoute adminOnly><AdminNotificationsPage /></ProtectedRoute> },
           { path: "/admin/monthly-billing", element: <ProtectedRoute adminOnly><MonthlyBillingManagement /></ProtectedRoute> },
           { path: "/admin/renter-chat", element: <ProtectedRoute adminOnly><RenterChatManagement /></ProtectedRoute> },
           { path: "/admin/payment-tracking", element: <ProtectedRoute adminOnly><PaymentTracking /></ProtectedRoute> },

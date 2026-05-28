@@ -79,6 +79,10 @@ const PaymentPage = () => {
   }
 
   const processOnlinePayment = async () => {
+    if (!booking) {
+      alert("Booking details not loaded yet. Please wait.")
+      return
+    }
     try {
       setProcessing(true)
       setPaymentStatus('processing')

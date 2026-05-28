@@ -102,8 +102,43 @@ export const createElectricityBill = async (
     })
 
     if (existingBill) {
-      return res.status(400).json({
-        message: "Bill already exists for this room and month",
+      // Gracefully update the existing bill instead of throwing a 400 error
+      const updatedBill = await prisma.electricityBill.update({
+        where: { id: existingBill.id },
+        data: {
+          units: Number(units),
+          amount: Number(amount),
+          dueDate: new Date(dueDate),
+          bookingId: bookingId ? Number(bookingId) : null,
+          notes: notes || null,
+        },
+        include: {
+          room: true,
+        },
+      })
+
+      if (bookingId) {
+        const booking = await prisma.booking.findUnique({
+          where: { id: Number(bookingId) },
+        })
+
+        if (booking) {
+          await prisma.notification.create({
+            data: {
+              bookingId: Number(bookingId),
+              title: "Electricity Bill Updated",
+              message: `Electricity bill of ₹${amount} for ${month} has been updated for Room ${room.roomNumber}`,
+              type: "BILL",
+            },
+          })
+        }
+      }
+
+      console.log(`✅ Electricity bill updated for Room ${room.roomNumber}`)
+
+      return res.status(200).json({
+        message: "Electricity bill updated successfully",
+        bill: updatedBill,
       })
     }
 

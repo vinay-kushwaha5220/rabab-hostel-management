@@ -1,11 +1,13 @@
 import express from "express";
-import { createBooking, processPayment, getUserBookings, getAllBookings, getMonthlyActiveBookings, getBookingById, cancelBooking, confirmBooking, checkInBooking, checkOutBooking, refundBooking, undoCheckOutBooking, renewMonthlyStay, checkExtensionAvailability, extendDailyBooking, deleteBooking, recordPayment, deletePayment, } from "../controllers/bookingController.js";
+import { createBooking, processPayment, getUserBookings, getAllBookings, getMonthlyActiveBookings, getBookingById, cancelBooking, confirmBooking, checkInBooking, checkOutBooking, refundBooking, undoCheckOutBooking, renewMonthlyStay, checkExtensionAvailability, extendDailyBooking, deleteBooking, recordPayment, deletePayment, createBookingRazorpayOrder, verifyBookingRazorpayPayment, } from "../controllers/bookingController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { adminOnly } from "../middleware/adminMiddleware.js";
 const router = express.Router();
 // Customer routes
 router.post("/", protect, createBooking);
 router.post("/payment", protect, processPayment);
+router.post("/razorpay/create-order", protect, createBookingRazorpayOrder);
+router.post("/razorpay/verify", protect, verifyBookingRazorpayPayment);
 router.get("/my-bookings", protect, getUserBookings);
 router.post("/:id/extend-check", protect, checkExtensionAvailability);
 router.post("/:id/extend", protect, extendDailyBooking);

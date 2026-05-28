@@ -36,6 +36,11 @@ const RenterMonthlyDashboard = () => {
   const [payingLoading, setPayingLoading] = useState(false)
   const [paymentSuccess, setPaymentSuccess] = useState('')
 
+  // Custom Stay Checkout Modal States
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false)
+  const [checkoutReason, setCheckoutReason] = useState("")
+  const [checkoutDate, setCheckoutDate] = useState(new Date().toISOString().split('T')[0])
+
   // Support Chat states
   const [chatMessage, setChatMessage] = useState("")
   const [sendingChat, setSendingChat] = useState(false)
@@ -166,19 +171,25 @@ const RenterMonthlyDashboard = () => {
     }
   }
 
-  const handleRequestCheckout = async () => {
+  const handleSubmitCheckoutModal = async (e: React.FormEvent) => {
+    e.preventDefault()
     try {
-      setLoading(true)
+      setPayingLoading(true)
       setError("")
       setSuccess("")
-      const res = await billingService.requestCheckoutNew()
-      setSuccess(res.message || "Checkout request submitted. Awaiting admin approval.")
+      const res = await billingService.requestCheckoutNew({
+        reason: checkoutReason,
+        expectedCheckoutDate: checkoutDate
+      })
+      setSuccess(res.message || "Checkout request submitted successfully. Awaiting administrative approval.")
+      setShowCheckoutModal(false)
       await fetchDashboardData()
+      await fetchHistory()
     } catch (err: any) {
       console.error("Failed to request checkout:", err)
       setError(err.response?.data?.message || "Failed to submit checkout request.")
     } finally {
-      setLoading(false)
+      setPayingLoading(false)
     }
   }
 
@@ -541,7 +552,11 @@ const RenterMonthlyDashboard = () => {
                               Continue Stay
                             </Button>
                             <Button
-                              onClick={handleRequestCheckout}
+                              onClick={() => {
+                                setCheckoutDate(new Date().toISOString().split('T')[0])
+                                setCheckoutReason("")
+                                setShowCheckoutModal(true)
+                              }}
                               variant="outline"
                               size="sm"
                               className="border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-[9px] uppercase tracking-widest px-4 py-2"
@@ -934,29 +949,10 @@ const RenterMonthlyDashboard = () => {
 
                             <button
                               type="button"
-                              onClick={async () => {
-                                const confirmCheckout = window.confirm("Are you absolutely sure you want to request CHECKOUT? This will notify administration to inspect your room and release booking, preventing future cycles.")
-                                if (confirmCheckout) {
-                                  const reason = window.prompt("Please enter the reason for checking out:") || "Not specified"
-                                  const dateStr = window.prompt("Please enter the expected checkout date (YYYY-MM-DD):") || new Date().toISOString().split('T')[0]
-                                  
-                                  try {
-                                    setLoading(true)
-                                    setError("")
-                                    setSuccess("")
-                                    const res = await billingService.requestCheckoutNew({
-                                      reason,
-                                      expectedCheckoutDate: dateStr
-                                    })
-                                    setSuccess(res.message || "Checkout request submitted. Awaiting admin approval.")
-                                    await fetchDashboardData()
-                                  } catch (err: any) {
-                                    console.error("Failed to request checkout:", err)
-                                    setError(err.response?.data?.message || "Failed to submit checkout request.")
-                                  } finally {
-                                    setLoading(false)
-                                  }
-                                }
+                              onClick={() => {
+                                setCheckoutDate(new Date().toISOString().split('T')[0])
+                                setCheckoutReason("")
+                                setShowCheckoutModal(true)
                               }}
                               className="p-3.5 bg-white border border-slate-200 hover:border-rose-400 rounded-xl text-left shadow-sm flex flex-col justify-between transition-all active:scale-[0.98] cursor-pointer"
                             >
@@ -1269,6 +1265,78 @@ const RenterMonthlyDashboard = () => {
           </div>
 
       </div>
+
+      {/* Premium Custom Checkout Request Modal Overlay */}
+      {showCheckoutModal && activeBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-in fade-in duration-300">
+          <div className="relative overflow-hidden w-full max-w-md bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col gap-6 text-center">
+            {/* Ambient background glow */}
+            <div className="absolute -top-12 -right-12 w-32 h-32 bg-rose-500/10 rounded-full blur-2xl pointer-events-none" />
+            
+            <div className="space-y-2">
+              <span className="text-4xl inline-block animate-bounce duration-1000">🚪</span>
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-2 leading-tight">
+                Request Room Checkout
+              </h2>
+              <p className="text-[10px] text-rose-400/90 font-bold uppercase tracking-widest">
+                Room {activeBooking.room?.roomNumber || "N/A"} stay contract checkout
+              </p>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed font-semibold">
+              Are you absolutely sure you want to request checkout? This will notify administration to inspect your room and release your booking, stopping future billing statements.
+            </p>
+
+            <form onSubmit={handleSubmitCheckoutModal} className="space-y-4 text-left">
+              <div className="space-y-3.5">
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                    Expected Checkout Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={checkoutDate}
+                    onChange={(e) => setCheckoutDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-semibold text-white outline-none focus:border-blue-500 transition-colors"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                    Reason for Checking Out
+                  </label>
+                  <textarea
+                    required
+                    rows={3}
+                    value={checkoutReason}
+                    onChange={(e) => setCheckoutReason(e.target.value)}
+                    placeholder="Specify reason (e.g., job shift, course completion)"
+                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-semibold text-white outline-none focus:border-blue-500 transition-colors resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  type="submit"
+                  disabled={payingLoading}
+                  className="flex-1 bg-rose-500 hover:bg-rose-600 disabled:bg-rose-500/50 text-white font-black text-[11px] uppercase tracking-wider h-11 rounded-2xl active:scale-98 transition-all duration-200 cursor-pointer shadow-lg shadow-rose-500/10 flex items-center justify-center"
+                >
+                  {payingLoading ? "Submitting..." : "Confirm Checkout"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCheckoutModal(false)}
+                  className="flex-1 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-200 font-extrabold text-[11px] uppercase tracking-wider h-11 rounded-2xl active:scale-98 transition-all duration-200 cursor-pointer flex items-center justify-center"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

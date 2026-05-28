@@ -595,6 +595,17 @@ export const checkInBooking = async (req: AuthRequest, res: Response) => {
           })
         }
       }
+
+      // 3. Update room occupancy ONLY if guest is not already staying/checked-in
+      if (booking.stayStatus !== StayStatus.CHECKED_IN && booking.stayStatus !== StayStatus.STAYING) {
+        await tx.room.update({
+          where: { id: booking.roomId },
+          data: { 
+            currentOccupancy: { increment: 1 },
+          }
+        })
+        console.log(`🏨 Occupancy incremented for room ${booking.room?.roomNumber}`)
+      }
     })
     
     res.status(200).json({ message: "Guest checked in successfully" })
@@ -823,6 +834,22 @@ export const renewMonthlyStay = async (req: AuthRequest, res: Response) => {
           securityAmount: SECURITY_DEPOSIT,
           status: "ACTIVE" as const
         }
+      })
+    }
+
+    // Check if there are any unpaid bills (isPaid: false) before renewing stay
+    const unpaidBillsCount = await prisma.monthlyBill.count({
+      where: {
+        bookingId: booking.id,
+        isPaid: false,
+        status: { not: MonthlyBillStatus.DRAFT },
+        isDeleted: false
+      }
+    })
+
+    if (unpaidBillsCount > 0) {
+      return res.status(400).json({
+        message: "Cannot renew stay: There is an outstanding or unpaid rent invoice for this resident. Please settle all previous dues first."
       })
     }
 

@@ -114,6 +114,10 @@ const BookingsManagement = () => {
   const [showRenewModal, setShowRenewModal] = useState(false)
   const [selectedBookingForRenewal, setSelectedBookingForRenewal] = useState<BookingType | null>(null)
   const [renewalElectricity, setRenewalElectricity] = useState("0")
+  const [renewalUnits, setRenewalUnits] = useState("")
+  const [renewalRate, setRenewalRate] = useState("10")
+  const [renewalMonth, setRenewalMonth] = useState("")
+  const [renewalDueDate, setRenewalDueDate] = useState("")
   const [renewalMaintenance, setRenewalMaintenance] = useState("0")
   const [renewalNotes, setRenewalNotes] = useState("")
   const [actionLoading, setActionLoading] = useState<string | null>(null)
@@ -202,28 +206,86 @@ const BookingsManagement = () => {
   }
 
   const openRenewalModal = (booking: BookingType) => {
+    const renterStatus = booking.monthlyRenter?.status
+    if (renterStatus === 'PENDING_PAYMENT' || renterStatus === 'OVERDUE') {
+      alert("Cannot renew stay: There is a pending payment or unpaid rent invoice for this resident. Please settle all outstanding dues first.")
+      return
+    }
+    if (renterStatus === 'PENDING_ADMIN_APPROVAL' || renterStatus === 'RENEWAL_PENDING') {
+      alert("Cannot renew stay: There is an active stay renewal request pending admin approval. Please approve or reject that request instead.")
+      return
+    }
+
     setSelectedBookingForRenewal(booking)
-    setRenewalElectricity("0")
+    setRenewalElectricity("")
+    setRenewalUnits("")
+    setRenewalRate("10")
     setRenewalMaintenance("0")
     setRenewalNotes("")
+    
+    // Set default month to current month YYYY-MM
+    const currentMonth = new Date().toISOString().substring(0, 7)
+    setRenewalMonth(currentMonth)
+    
+    // Set default due date to 5 days from now YYYY-MM-DD
+    const fiveDaysFromNow = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10)
+    setRenewalDueDate(fiveDaysFromNow)
+    
     setShowRenewModal(true)
+  }
+
+  const handleRenewUnitsChange = (val: string) => {
+    const units = parseFloat(val) || 0
+    const rate = parseFloat(renewalRate) || 0
+    const calculatedAmount = (units * rate).toFixed(2)
+    setRenewalUnits(val)
+    setRenewalElectricity(calculatedAmount)
+  }
+
+  const handleRenewRateChange = (val: string) => {
+    const units = parseFloat(renewalUnits) || 0
+    const rate = parseFloat(val) || 0
+    const calculatedAmount = (units * rate).toFixed(2)
+    setRenewalRate(val)
+    setRenewalElectricity(calculatedAmount)
   }
 
   const handleRenewStaySubmit = async () => {
     if (!selectedBookingForRenewal) return
+    
+    if (!renewalMonth || !renewalUnits || !renewalElectricity || !renewalDueDate) {
+      alert('Please fill all required electricity fields (Units, Rate, Month, Due Date)')
+      return
+    }
+
     try {
       setActionLoading(`renew-${selectedBookingForRenewal.id}`)
+      
+      // 1. Create the electricity bill so it shows up in `/admin/electricity`
+      await api.post("/electricity", {
+        roomId: Number(selectedBookingForRenewal.roomId),
+        month: renewalMonth,
+        units: Number(renewalUnits),
+        amount: Number(renewalElectricity),
+        dueDate: renewalDueDate,
+        bookingId: Number(selectedBookingForRenewal.id),
+        notes: renewalNotes || null
+      })
+
+      // 2. Renew the stay cycle
       await api.put(`/bookings/${selectedBookingForRenewal.id}/renew-stay`, {
         electricityAmount: parseFloat(renewalElectricity) || 0,
         maintenanceCharge: parseFloat(renewalMaintenance) || 0,
         notes: renewalNotes
       })
-      alert('Stay extended and monthly rent invoice sent to renter successfully!')
+
+      alert('Stay extended, monthly rent invoice generated, and electricity bill registered successfully!')
       setShowRenewModal(false)
       setSelectedBookingForRenewal(null)
       fetchBookings()
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to renew stay')
+      console.error('Error during stay renewal:', error)
+      alert(error.response?.data?.message || 'Failed to renew stay and register electricity bill')
     } finally {
       setActionLoading(null)
     }
@@ -378,9 +440,18 @@ const BookingsManagement = () => {
                   filteredBookings.map((booking) => (
                     <tr key={booking.id} className="hover:bg-blue-50/30 transition-all group">
                       <td className="px-4 py-3">
-                        <span className="text-sm font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">
-                          {booking.room?.roomNumber || 'N/A'}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-sm font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg w-fit">
+                            {booking.room?.roomNumber || 'N/A'}
+                          </span>
+                          <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded w-fit border ${
+                            booking.bookingType === 'MONTHLY' 
+                              ? 'bg-purple-50 text-purple-600 border-purple-100' 
+                              : 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                          }`}>
+                            {booking.bookingType}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-[11px] font-black text-gray-900 font-mono tracking-tighter opacity-80">
@@ -400,10 +471,25 @@ const BookingsManagement = () => {
                           <span className="text-gray-300 font-black">→</span>
                           <span>{new Date(booking.checkOutDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                         </div>
-                        <div className="text-[9px] text-gray-400 font-bold uppercase">{booking.totalDays} Days</div>
+                        {booking.bookingType === 'MONTHLY' && booking.monthlyRenter?.currentCycleStart ? (
+                          <div className="mt-1.5 text-[9px] text-emerald-650 bg-emerald-50 px-1.5 py-0.5 rounded font-black border border-emerald-100 uppercase tracking-tight flex items-center gap-1 w-fit">
+                            <span>🔄 Pay Cycle:</span>
+                            <span>{new Date(booking.monthlyRenter.currentCycleStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                            <span>→</span>
+                            <span>{new Date(booking.monthlyRenter.currentCycleEnd!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                          </div>
+                        ) : (
+                          <div className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">{booking.totalDays} Days</div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <div className="text-xs font-black text-gray-900">₹{booking.totalAmount.toLocaleString()}</div>
+                        <div className="text-xs font-black text-slate-900">₹{booking.totalAmount.toLocaleString()}</div>
+                        {booking.bookingType === 'MONTHLY' && booking.monthlyRenter && (
+                          <div className="text-[9px] text-slate-400 font-bold mt-1 leading-normal uppercase tracking-tight">
+                            <div>Rent: ₹{booking.monthlyRenter.rentAmount.toLocaleString()}/mo</div>
+                            <div>Deposit: ₹{booking.monthlyRenter.securityAmount.toLocaleString()}</div>
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <Badge 
@@ -516,74 +602,168 @@ const BookingsManagement = () => {
         {/* Stay Renewal Modal */}
         {showRenewModal && selectedBookingForRenewal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <Card className="w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200 relative overflow-hidden bg-white border border-slate-100">
-              <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Renew Stay & Send Rent Invoice</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">
-                {selectedBookingForRenewal.customerName} — Room {selectedBookingForRenewal.room?.roomNumber || "N/A"}
-              </p>
-
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black mb-1">Room Rent</p>
-                    <p className="text-sm font-extrabold text-slate-900">
-                      ₹{(selectedBookingForRenewal.monthlyRenter?.rentAmount || selectedBookingForRenewal.room?.monthlyPrice || selectedBookingForRenewal.room?.price || 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black mb-1">Stay Period</p>
-                    <p className="text-xs font-bold text-slate-700">30 Days Stay</p>
-                  </div>
-                </div>
-
+            <Card className="w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200 relative overflow-hidden bg-white border border-slate-100 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-start justify-between mb-2">
                 <div>
-                  <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Electricity Amount (₹)</label>
-                  <input
-                    type="number"
-                    value={renewalElectricity}
-                    onChange={(e) => setRenewalElectricity(e.target.value)}
-                    placeholder="Enter electric bill amount"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg focus:ring-1 focus:ring-blue-500 font-black text-xs outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Maintenance Charge (₹)</label>
-                  <input
-                    type="number"
-                    value={renewalMaintenance}
-                    onChange={(e) => setRenewalMaintenance(e.target.value)}
-                    placeholder="Enter maintenance charge"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg focus:ring-1 focus:ring-blue-500 font-black text-xs outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Notes (Optional)</label>
-                  <textarea
-                    value={renewalNotes}
-                    onChange={(e) => setRenewalNotes(e.target.value)}
-                    rows={2}
-                    placeholder="Add renewal notes"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg focus:ring-1 focus:ring-blue-500 font-black text-xs outline-none"
-                  />
-                </div>
-
-                <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estimated Total</p>
-                  <p className="text-lg font-extrabold text-slate-900 mt-1">
-                    ₹{((selectedBookingForRenewal.monthlyRenter?.rentAmount || selectedBookingForRenewal.room?.monthlyPrice || selectedBookingForRenewal.room?.price || 0) + 
-                      (parseFloat(renewalElectricity) || 0) + 
-                      (parseFloat(renewalMaintenance) || 0)).toLocaleString()}
+                  <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Renew Stay & Create Electricity Bill</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+                    {selectedBookingForRenewal.customerName} — Room {selectedBookingForRenewal.room?.roomNumber || "N/A"}
                   </p>
                 </div>
+                <span className="text-xs bg-indigo-50 text-indigo-700 font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Room {selectedBookingForRenewal.room?.roomNumber || "N/A"}
+                </span>
               </div>
 
-              <div className="flex gap-2.5 mt-6">
+              <div className="space-y-4 mt-2">
+                <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] text-blue-500 uppercase tracking-widest font-black">Base Monthly Rent</p>
+                    <p className="text-sm font-extrabold text-blue-900 mt-0.5">
+                      ₹{(selectedBookingForRenewal.monthlyRenter?.rentAmount || selectedBookingForRenewal.room?.monthlyPrice || (selectedBookingForRenewal.room?.price || 0) * 30 || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Stay Cycle</p>
+                    <p className="text-xs font-bold text-slate-700 mt-0.5">30-Days Extension</p>
+                  </div>
+                </div>
+
+                {/* Electricity details form */}
+                <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-3">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200 pb-1 flex items-center gap-1">
+                    <span>⚡</span> Electricity Billing
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-0.5">Units Used (kWh) *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={renewalUnits}
+                        onChange={(e) => handleRenewUnitsChange(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 text-xs font-bold text-slate-800 bg-white outline-none"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-0.5">Rate per Unit (₹) *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={renewalRate}
+                        onChange={(e) => handleRenewRateChange(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 text-xs font-bold text-slate-800 bg-white outline-none"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-0.5">Electricity Cost (₹) *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={renewalElectricity}
+                        onChange={(e) => setRenewalElectricity(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 text-xs font-black text-rose-600 bg-white outline-none"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-0.5">Maintenance Charge (₹)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={renewalMaintenance}
+                        onChange={(e) => setRenewalMaintenance(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 text-xs font-bold text-slate-800 bg-white outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Period & Grace Due Dates */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-0.5">Billing Month *</label>
+                    <input
+                      type="month"
+                      value={renewalMonth}
+                      onChange={(e) => setRenewalMonth(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 text-xs font-semibold text-slate-800 bg-white outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-0.5">Due Date *</label>
+                    <input
+                      type="date"
+                      value={renewalDueDate}
+                      onChange={(e) => setRenewalDueDate(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 text-xs font-semibold text-slate-800 bg-white outline-none"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-0.5">Notes (Optional)</label>
+                  <input
+                    type="text"
+                    value={renewalNotes}
+                    onChange={(e) => setRenewalNotes(e.target.value)}
+                    placeholder="Add renewal notes"
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 text-xs font-medium text-slate-700 bg-white outline-none"
+                  />
+                </div>
+
+                {/* Real-time statement preview */}
+                {(() => {
+                  const rentAmount = selectedBookingForRenewal.monthlyRenter?.rentAmount || selectedBookingForRenewal.room?.monthlyPrice || (selectedBookingForRenewal.room?.price || 0) * 30 || 0
+                  const elecAmount = parseFloat(renewalElectricity) || 0
+                  const maintAmount = parseFloat(renewalMaintenance) || 0
+                  const grandTotal = rentAmount + elecAmount + maintAmount
+
+                  return (
+                    <div className="rounded-xl border border-gray-200 overflow-hidden shadow-inner">
+                      <div className="bg-slate-900 px-3 py-2 flex items-center justify-between">
+                        <p className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">Statement Estimations Preview</p>
+                        <span className="text-[8px] bg-amber-500 text-white font-extrabold px-1.5 py-0.5 rounded uppercase">New Cycle</span>
+                      </div>
+                      <div className="divide-y divide-gray-100 text-xs">
+                        <div className="flex items-center justify-between px-3.5 py-2 bg-white">
+                          <span className="font-semibold text-gray-600">🏠 Room Monthly Rent</span>
+                          <span className="font-bold text-gray-900">₹{rentAmount.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between px-3.5 py-2 bg-white">
+                          <span className="font-semibold text-gray-600">⚡ Electricity Charges</span>
+                          <span className="font-bold text-gray-900">₹{elecAmount.toLocaleString()}</span>
+                        </div>
+                        {maintAmount > 0 && (
+                          <div className="flex items-center justify-between px-3.5 py-2 bg-white">
+                            <span className="font-semibold text-gray-600">🔧 Maintenance Fee</span>
+                            <span className="font-bold text-gray-900">₹{maintAmount.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between px-3.5 py-2.5 bg-emerald-50">
+                          <span className="font-black text-emerald-800 uppercase tracking-widest text-[10px]">Estimated Due Amount</span>
+                          <span className="font-black text-emerald-800 text-base">₹{grandTotal.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+
+              <div className="flex gap-2.5 mt-5 border-t border-gray-100 pt-3">
                 <button
                   onClick={handleRenewStaySubmit}
                   disabled={actionLoading === `renew-${selectedBookingForRenewal.id}`}
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold tracking-widest text-[9px] uppercase py-2.5 rounded-lg transition-all active:scale-95 shadow-sm"
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold tracking-widest text-[9px] uppercase py-2.5 rounded-lg transition-all active:scale-95 shadow-sm"
                 >
                   {actionLoading === `renew-${selectedBookingForRenewal.id}` ? "Sending..." : "Send Invoice & Renew"}
                 </button>
