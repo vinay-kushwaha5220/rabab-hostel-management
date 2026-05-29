@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { contactService, type ContactInfo } from "../services/contactService"
 import Button from "../components/ui/Button"
 import Card from "../components/ui/Card"
 
 const ContactPage = () => {
+  const formRef = useRef<HTMLDivElement>(null)
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -13,7 +14,20 @@ const ContactPage = () => {
     sendSms: false,
   })
 
-  const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null)
+  const [contactInfo, setContactInfo] = useState<ContactInfo>({
+    email: "radhey8542@gmail.com",
+    phone: "+91-8542876495",
+    address: "Rabab Complex, Manauli, Mohali, Panjab - 140308",
+    hours: {
+      weekdays: "9:00 AM - 6:00 PM",
+      weekends: "9:00 AM - 6:00 PM"
+    },
+    socialMedia: {
+      facebook: "",
+      instagram: "",
+      twitter: ""
+    }
+  })
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState("")
@@ -25,7 +39,12 @@ const ContactPage = () => {
     const fetchContactInfo = async () => {
       try {
         const info = await contactService.getContactInfo()
-        setContactInfo(info)
+        if (info) {
+          setContactInfo({
+            ...info,
+            address: info.address || "Rabab Complex, Manauli, Mohali, Panjab - 140308"
+          })
+        }
       } catch (err) {
         console.error("Failed to fetch contact info:", err)
       } finally {
@@ -147,10 +166,13 @@ const ContactPage = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
           {/* Contact Information Cards */}
-          {!fetchingInfo && contactInfo && (
+          {contactInfo && (
             <>
               {/* Email Card */}
-              <Card className="p-6 text-center hover:shadow-lg transition-shadow">
+              <Card 
+                className="p-6 text-center hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => formRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              >
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <svg
                     className="w-6 h-6 text-blue-600"
@@ -168,12 +190,16 @@ const ContactPage = () => {
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 mb-2">Email</h3>
                 <p className="text-gray-600 mb-2">{contactInfo.email}</p>
-                <a
-                  href={`mailto:${contactInfo.email}`}
-                  className="text-blue-600 hover:text-blue-700 font-semibold text-sm"
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    formRef.current?.scrollIntoView({ behavior: 'smooth' })
+                  }}
+                  className="text-blue-600 hover:text-blue-700 font-semibold text-sm inline-block focus:outline-none"
                 >
                   Send Email →
-                </a>
+                </button>
               </Card>
 
               {/* Phone Card */}
@@ -197,7 +223,7 @@ const ContactPage = () => {
                 <p className="text-gray-600 mb-2">{contactInfo.phone}</p>
                 <a
                   href={`tel:${contactInfo.phone}`}
-                  className="text-green-600 hover:text-green-700 font-semibold text-sm"
+                  className="text-green-600 hover:text-green-700 font-semibold text-sm inline-block"
                 >
                   Call Now →
                 </a>
@@ -228,16 +254,24 @@ const ContactPage = () => {
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 mb-2">Address</h3>
                 <p className="text-gray-600 mb-2">{contactInfo.address}</p>
-                <p className="text-sm text-gray-500">
-                  {contactInfo.hours.weekdays}
+                <p className="text-sm text-gray-500 mb-2">
+                  {contactInfo.hours?.weekdays || "9:00 AM - 6:00 PM"}
                 </p>
+                <a
+                  href="https://www.google.com/maps/search/?api=1&query=30.645685,76.723291"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-purple-600 hover:text-purple-700 font-semibold text-sm inline-block"
+                >
+                  Open Map →
+                </a>
               </Card>
             </>
           )}
         </div>
 
         {/* Contact Form */}
-        <div className="max-w-2xl mx-auto">
+        <div ref={formRef} className="max-w-2xl mx-auto">
           <Card className="p-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Send us a Message</h2>
 
@@ -440,42 +474,6 @@ const ContactPage = () => {
           </Card>
         </div>
 
-        {/* FAQ Section */}
-        <div className="max-w-2xl mx-auto mt-16">
-          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">
-            Frequently Asked Questions
-          </h2>
-
-          <div className="space-y-4">
-            {[
-              {
-                question: "What are your check-in and check-out times?",
-                answer:
-                  "Check-in is from 2:00 PM and check-out is at 11:00 AM. Early check-in and late check-out may be available upon request.",
-              },
-              {
-                question: "Do you offer cancellation?",
-                answer:
-                  "Yes, we offer free cancellation up to 48 hours before your booking date. Cancellations within 48 hours may incur charges.",
-              },
-              {
-                question: "Are pets allowed?",
-                answer:
-                  "Pets are not allowed in our rooms. However, we can recommend nearby pet-friendly accommodations.",
-              },
-              {
-                question: "Is WiFi included?",
-                answer:
-                  "Yes, high-speed WiFi is complimentary for all our guests. The password is provided at check-in.",
-              },
-            ].map((faq, index) => (
-              <Card key={index} className="p-6">
-                <h3 className="font-semibold text-gray-900 mb-2">{faq.question}</h3>
-                <p className="text-gray-600">{faq.answer}</p>
-              </Card>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   )

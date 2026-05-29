@@ -134,8 +134,8 @@ const AnalyticsPage = () => {
     let pendingVerifyPay = 0
 
     bookings.forEach(b => {
-      if (b.payments && b.payments.length > 0) {
-        b.payments.forEach((p: any) => {
+      if (b.payment && b.payment.length > 0) {
+        b.payment.forEach((p: any) => {
           if (p.paymentStatus === "SUCCESS") {
             if (p.paymentMethod === "CASH") {
               cashPay += (p.amount || 0)
@@ -526,7 +526,7 @@ interface ChannelCardProps {
 const ChannelCard = ({ label, amount, icon, color }: ChannelCardProps) => {
   const colorMap: any = {
     emerald: "bg-emerald-50 text-emerald-650 border-emerald-100",
-    blue: "bg-blue-50 text-blue-650 border-blue-100",
+    blue: "bg-blue-50 text-blue-600 border-blue-100",
     orange: "bg-orange-50 text-orange-655 border-orange-100",
   }
   return (

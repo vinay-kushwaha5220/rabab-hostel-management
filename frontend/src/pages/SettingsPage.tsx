@@ -483,7 +483,7 @@ const SettingsPage = () => {
                           <tr key={room.id} className="hover:bg-slate-50/50 transition-colors">
                             {/* Room Number */}
                             <td className="py-4 px-4 font-bold text-slate-900">
-                              <span className="text-sm font-black text-blue-650 bg-blue-50/60 px-2.5 py-1 rounded-lg">
+                              <span className="text-sm font-black text-blue-600 bg-blue-50/60 px-2.5 py-1 rounded-lg">
                                 {room.roomNumber}
                               </span>
                             </td>

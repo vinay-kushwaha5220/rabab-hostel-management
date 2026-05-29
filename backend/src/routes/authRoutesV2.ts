@@ -7,6 +7,9 @@ import {
   logoutAllDevices,
   getCurrentUser,
   getActiveSessions,
+  forgotPassword,
+  verifyOtp,
+  resetPassword,
 } from "../controllers/authControllerV2.js"
 import { protect } from "../middleware/authMiddlewareV2.js"
 
@@ -27,6 +30,15 @@ router.post("/refresh", refreshAccessToken)
 
 // POST /api/auth/logout - Logout user (clear refresh token)
 router.post("/logout", logout)
+
+// POST /api/auth/forgot-password - Send reset OTP
+router.post("/forgot-password", forgotPassword)
+
+// POST /api/auth/verify-otp - Check reset OTP
+router.post("/verify-otp", verifyOtp)
+
+// POST /api/auth/reset-password - Reset password using OTP
+router.post("/reset-password", resetPassword)
 
 // ==========================================
 // PROTECTED ROUTES (Authentication required)

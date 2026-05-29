@@ -12,6 +12,7 @@ import RoomsPage from "./pages/RoomsPage"
 import RoomDetailsPage from "./pages/RoomDetailsPage"
 import ContactPage from "./pages/ContactPage"
 import LoginPageV2 from "./pages/LoginPageV2"
+import ForgotPasswordPage from "./pages/ForgotPasswordPage"
 import RegisterPageV2 from "./pages/RegisterPageV2"
 import DashboardPage from "./pages/DashboardPage"
 import BookingPage from "./pages/BookingPage"
@@ -55,6 +56,7 @@ const router = createBrowserRouter([
           { path: "/contact", element: <ContactPage /> },
           { path: "/login", element: <LoginPageV2 /> },
           { path: "/register", element: <RegisterPageV2 /> },
+          { path: "/forgot-password", element: <ForgotPasswordPage /> },
         ]
       },
 

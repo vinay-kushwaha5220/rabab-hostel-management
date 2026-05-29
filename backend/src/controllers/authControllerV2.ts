@@ -428,3 +428,244 @@ export const getActiveSessions = async (req: AuthRequest, res: Response) => {
     })
   }
 }
+
+// ==========================================
+// PASSWORD RESET PASSWORD & OTP SERVICE
+// ==========================================
+
+import nodemailer from "nodemailer"
+
+// Helper function to create Nodemailer transporter dynamically with active config and hardcoded fallbacks
+const getTransporter = () => {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER || "radhey8542@gmail.com",
+      pass: process.env.EMAIL_PASSWORD || "ldydnuvopzvrqdgb",
+    },
+  })
+}
+
+// In-memory cache for OTP codes (Expires in 10 minutes)
+interface OTPSession {
+  code: string
+  expiresAt: Date
+}
+const otpCache = new Map<string, OTPSession>()
+
+// POST /api/v2/auth/forgot-password - Send reset OTP
+export const forgotPassword = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body
+
+    if (!email) {
+      return res.status(400).json({
+        message: "Email address is required",
+      })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+    })
+
+    if (!user) {
+      return res.status(404).json({
+        message: "No registered user found with this email address",
+      })
+    }
+
+    // Generate random 6-digit code
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
+
+    // Store in cache with 10-minute expiry
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
+    otpCache.set(email.toLowerCase().trim(), { code: otpCode, expiresAt })
+
+    // Print a high-visibility terminal banner for easy developer copy-paste & test debugging
+    console.log("\n==============================================================")
+    console.log("🔑 DEVELOPER OTP TEST BANNER")
+    console.log(`👤 Recipient: ${email}`)
+    console.log(`⚡ OTP Code:  ${otpCode}`)
+    console.log("==============================================================\n")
+
+    let emailSent = false
+    try {
+      const mailTransporter = getTransporter()
+      await mailTransporter.sendMail({
+        from: process.env.EMAIL_USER || "radhey8542@gmail.com",
+        to: email.toLowerCase().trim(),
+        subject: `Your Password Reset Verification OTP [${otpCode}] - Rabab Stay`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 500px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #fafbfc; color: #1e293b;">
+            <h2 style="color: #2563eb; text-align: center; margin-bottom: 24px; font-weight: 800;">Rabab Stay Co-Living</h2>
+            <p style="font-size: 14px; line-height: 1.6; color: #475569;">Hello,</p>
+            <p style="font-size: 14px; line-height: 1.6; color: #475569;">We received a request to recover your account password. Use the following 6-digit One-Time Password (OTP) to verify your identity and finalize your password reset. This code is valid for <strong>10 minutes</strong>.</p>
+            <div style="background-color: #eff6ff; border: 1px dashed #bfdbfe; border-radius: 12px; padding: 20px; margin: 24px 0; text-align: center;">
+              <span style="font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #1d4ed8; font-family: monospace;">${otpCode}</span>
+            </div>
+            <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-top: 32px;">If you did not make this request, you can safely disregard this message. Your password will remain unchanged.</p>
+          </div>
+        `,
+      })
+      emailSent = true
+      console.log(`✉️ Recovery OTP successfully dispatched to email: ${email}`)
+    } catch (mailError: any) {
+      console.error("❌ Failed to dispatch SMTP email:", mailError.message)
+      console.log("ℹ️ Dev Mode fallback active: OTP was logged to the terminal successfully. Continuing recovery process.")
+    }
+
+    res.status(200).json({
+      message: emailSent 
+        ? "Verification OTP code has been dispatched to your email" 
+        : "Verification OTP code has been logged to the terminal console! (SMTP bypass active)",
+    })
+  } catch (error) {
+    console.error("Forgot password error:", error)
+    res.status(500).json({
+      message: "Failed to dispatch recovery email. Please verify connection credentials.",
+      error: error instanceof Error ? error.message : "Unknown error",
+    })
+  }
+}
+
+// POST /api/v2/auth/verify-otp - Check reset OTP
+export const verifyOtp = async (req: Request, res: Response) => {
+  try {
+    const { email, otp } = req.body
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        message: "Email and OTP verification code are required",
+      })
+    }
+
+    const session = otpCache.get(email.toLowerCase().trim())
+
+    if (!session) {
+      return res.status(400).json({
+        message: "No active recovery request found or OTP has expired",
+      })
+    }
+
+    if (session.code !== otp.trim()) {
+      return res.status(400).json({
+        message: "Invalid verification code",
+      })
+    }
+
+    if (new Date() > session.expiresAt) {
+      otpCache.delete(email.toLowerCase().trim())
+      return res.status(400).json({
+        message: "Verification OTP code has expired",
+      })
+    }
+
+    res.status(200).json({
+      message: "OTP successfully verified",
+      success: true,
+    })
+  } catch (error) {
+    console.error("Verify OTP error:", error)
+    res.status(500).json({
+      message: "Server verification error",
+      error: error instanceof Error ? error.message : "Unknown error",
+    })
+  }
+}
+
+// POST /api/v2/auth/reset-password - Reset password using OTP
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { email, otp, newPassword } = req.body
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({
+        message: "Email, OTP code, and new password are required",
+      })
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        message: "New password must be at least 6 characters long",
+      })
+    }
+
+    const session = otpCache.get(email.toLowerCase().trim())
+
+    if (!session) {
+      return res.status(400).json({
+        message: "No active recovery request found or OTP has expired",
+      })
+    }
+
+    if (session.code !== otp.trim()) {
+      return res.status(400).json({
+        message: "Invalid verification code",
+      })
+    }
+
+    if (new Date() > session.expiresAt) {
+      otpCache.delete(email.toLowerCase().trim())
+      return res.status(400).json({
+        message: "Verification OTP code has expired",
+      })
+    }
+
+    // Verify user exists in database
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+    })
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      })
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10)
+
+    // Update user password in Prisma database
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    })
+
+    // Clean up OTP cache session
+    otpCache.delete(email.toLowerCase().trim())
+
+    console.log(`✅ Password successfully reset for user: ${email}`)
+
+    // Send confirmation email of password reset to notify the user
+    try {
+      const mailTransporter = getTransporter()
+      await mailTransporter.sendMail({
+        from: process.env.EMAIL_USER || "radhey8542@gmail.com",
+        to: email.toLowerCase().trim(),
+        subject: "Your Password Has Been Reset Successfully - Rabab Stay",
+        html: `
+          <div style="font-family: sans-serif; max-width: 500px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #fafbfc; color: #1e293b;">
+            <h2 style="color: #2563eb; text-align: center; margin-bottom: 24px; font-weight: 800;">Rabab Stay Co-Living</h2>
+            <p style="font-size: 14px; line-height: 1.6; color: #475569;">Hello,</p>
+            <p style="font-size: 14px; line-height: 1.6; color: #475569;">This is to confirm that the password for your Rabab Stay account <strong>${email.toLowerCase().trim()}</strong> was successfully changed.</p>
+            <p style="font-size: 14px; line-height: 1.6; color: #475569;">If you did not make this change, please contact our support team immediately.</p>
+            <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-top: 32px;">Best regards,<br>Rabab Stay Team</p>
+          </div>
+        `,
+      })
+      console.log(`✉️ Password reset confirmation email successfully sent to: ${email}`)
+    } catch (mailError: any) {
+      console.error("❌ Failed to send password reset confirmation email:", mailError.message)
+    }
+
+    res.status(200).json({
+      message: "Your password has been successfully reset. You can now log in.",
+    })
+  } catch (error) {
+    console.error("Reset password error:", error)
+    res.status(500).json({
+      message: "Server password reset error",
+      error: error instanceof Error ? error.message : "Unknown error",
+    })
+  }
+}

@@ -70,17 +70,6 @@ const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
           </Badge>
         </div>
 
-        {/* Pricing Overlay - Side-by-side on Mobile */}
-        <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3 z-10 flex flex-row sm:flex-col gap-1 flex-wrap">
-          <div className="px-1.5 py-0.5 sm:px-2 sm:py-1 bg-white/95 backdrop-blur-md rounded-md sm:rounded-lg shadow-md inline-flex items-baseline gap-0.5 sm:gap-1">
-            <span className="text-[7px] sm:text-[8px] font-bold text-gray-500 uppercase">Day:</span>
-            <span className="text-[10px] sm:text-xs font-black text-gray-900">₹{(room.dailyPrice || room.price).toLocaleString()}</span>
-          </div>
-          <div className="px-1.5 py-0.5 sm:px-2 sm:py-1 bg-blue-600 rounded-md sm:rounded-lg shadow-md inline-flex items-baseline gap-0.5 sm:gap-1">
-            <span className="text-[7px] sm:text-[8px] font-bold text-white/80 uppercase">Month:</span>
-            <span className="text-[10px] sm:text-sm font-black text-white">₹{(room.monthlyPrice || room.price).toLocaleString()}</span>
-          </div>
-        </div>
       </div>
 
       {/* Room Content - Compact Padding on Mobile */}
@@ -92,6 +81,18 @@ const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
           <p className="text-[8px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
             {room.capacity} Guests • Floor {room.floor}
           </p>
+        </div>
+
+        {/* Pricing Info Row - Moved down from the image overlay */}
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          <div className="px-2 py-0.5 bg-slate-100 rounded text-[9px] sm:text-[10px] font-medium text-slate-700 inline-flex items-baseline gap-1">
+            <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase">Day:</span>
+            <span className="font-extrabold text-slate-800">₹{(room.dailyPrice || room.price).toLocaleString()}</span>
+          </div>
+          <div className="px-2 py-0.5 bg-blue-50 border border-blue-100/60 rounded text-[9px] sm:text-[10px] font-medium text-blue-700 inline-flex items-baseline gap-1">
+            <span className="text-[7px] sm:text-[8px] font-bold text-blue-400 uppercase">Month:</span>
+            <span className="font-black text-blue-800">₹{(room.monthlyPrice || room.price).toLocaleString()}</span>
+          </div>
         </div>
 
         {/* Live Renter Status Badge - Prominent on AC / Booked Rooms */}

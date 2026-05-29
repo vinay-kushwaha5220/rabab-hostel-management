@@ -270,7 +270,7 @@ const RoomsManagement = () => {
           
           <button
             onClick={openCreateModal}
-            className="bg-blue-650 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-blue-700 active:scale-95 shadow-sm transition-all flex items-center gap-1.5 self-start md:self-auto"
+            className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-blue-700 active:scale-95 shadow-sm transition-all flex items-center gap-1.5 self-start md:self-auto"
           >
             + Create New Room
           </button>
@@ -450,7 +450,7 @@ const RoomsManagement = () => {
                       <tr key={room.id} className="hover:bg-slate-50/50 transition-colors">
                         {/* Room Number */}
                         <td className="py-4 px-4 font-bold text-slate-900">
-                          <span className="text-sm font-black text-blue-650 bg-blue-50/60 px-2.5 py-1 rounded-lg">
+                          <span className="text-sm font-black text-blue-600 bg-blue-50/60 px-2.5 py-1 rounded-lg">
                             {room.roomNumber}
                           </span>
                         </td>
@@ -546,8 +546,8 @@ const RoomsManagement = () => {
             className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
           />
 
-          {/* Modal Container */}
-          <div className="bg-white border border-slate-100 rounded-3xl w-full max-w-lg p-6 shadow-2xl relative z-10 transform transition-all animate-in zoom-in-95 duration-200">
+          {/* Modal Container with scrolling support */}
+          <div className="bg-white border border-slate-100 rounded-3xl w-full max-w-lg p-6 shadow-2xl relative z-10 transform transition-all animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             
             {/* Modal Header */}
             <div className="flex justify-between items-center mb-6 pb-3 border-b border-slate-100">
@@ -731,7 +731,7 @@ const RoomsManagement = () => {
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="flex-1 bg-blue-650 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-wider py-2.5 rounded-xl shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-wider py-2.5 rounded-xl shadow-sm transition-all active:scale-95 disabled:opacity-50"
                 >
                   {actionLoading ? "Processing..." : (modalMode === 'create' ? "Register Room" : "Save Changes")}
                 </button>
