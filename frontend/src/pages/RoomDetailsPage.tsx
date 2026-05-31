@@ -147,7 +147,7 @@ const RoomDetailsPage = () => {
                   <div className="flex items-center gap-1.5 text-gray-400 font-bold uppercase tracking-widest text-[9px]">
                     <span>Unit {room.roomNumber}</span>
                     <span className="w-0.5 h-0.5 rounded-full bg-gray-200"></span>
-                    <span>Level {room.floor}</span>
+                    <span>Level {room.floor === 0 ? "Ground" : room.floor}</span>
                   </div>
                 </div>
               </div>
@@ -175,7 +175,7 @@ const RoomDetailsPage = () => {
                 </div>
                 <div>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Floor</p>
-                  <p className="text-sm font-black text-gray-900">{room.floor === 1 ? '1st' : room.floor === 2 ? '2nd' : `${room.floor}th`}</p>
+                  <p className="text-sm font-black text-gray-900">{room.floor === 0 ? 'Ground' : room.floor === 1 ? '1st' : room.floor === 2 ? '2nd' : room.floor === 3 ? '3rd' : room.floor === 4 ? '4th' : `${room.floor}th`}</p>
                 </div>
               </div>
 

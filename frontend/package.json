@@ -12,6 +12,7 @@
     "network-ip": "node scripts/get-network-ip.js"
   },
   "dependencies": {
+    "@react-oauth/google": "^0.13.5",
     "axios": "^1.16.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.16.0",

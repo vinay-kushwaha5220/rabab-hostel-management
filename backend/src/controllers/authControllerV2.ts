@@ -515,8 +515,8 @@ export const forgotPassword = async (req: Request, res: Response) => {
     }
 
     res.status(200).json({
-      message: emailSent 
-        ? "Verification OTP code has been dispatched to your email" 
+      message: emailSent
+        ? "Verification OTP code has been dispatched to your email"
         : "Verification OTP code has been logged to the terminal console! (SMTP bypass active)",
     })
   } catch (error) {
@@ -665,6 +665,57 @@ export const resetPassword = async (req: Request, res: Response) => {
     console.error("Reset password error:", error)
     res.status(500).json({
       message: "Server password reset error",
+      error: error instanceof Error ? error.message : "Unknown error",
+    })
+  }
+}
+
+// ==========================================
+// UPDATE PROFILE DETAILS (PROTECTED)
+// ==========================================
+export const updateProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId
+    const { name, phone } = req.body
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "Unauthorized",
+      })
+    }
+
+    if (!name) {
+      return res.status(400).json({
+        message: "Name is required",
+      })
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        name,
+        phone: phone || null,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+      }
+    })
+
+    console.log(`✅ User profile updated: ${updatedUser.email}`)
+
+    res.status(200).json({
+      message: "Profile updated successfully",
+      user: updatedUser,
+    })
+  } catch (error) {
+    console.error("Update profile error:", error)
+    res.status(500).json({
+      message: "Server error",
       error: error instanceof Error ? error.message : "Unknown error",
     })
   }

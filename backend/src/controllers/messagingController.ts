@@ -1,7 +1,7 @@
 import type { Request, Response } from "express"
 import prisma from "../config/prisma.js"
 import type { AuthRequest } from "../middleware/authMiddleware.js"
-import { NotificationType, UserRole, BookingStatus } from "@prisma/client"
+import { UserRole, BookingStatus } from "@prisma/client"
 
 // ==========================================
 // SEND MESSAGE
@@ -60,17 +60,10 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
       },
     })
 
-    // Create notification for the receiver
-    await prisma.notification.create({
-      data: {
-        bookingId,
-        title: message.sender.role === UserRole.ADMIN ? "New Message from Admin" : `New Message from ${message.sender.name}`,
-        message: content.length > 50 ? content.substring(0, 47) + "..." : content,
-        type: NotificationType.MESSAGE,
-      },
-    })
-
-    console.log(`✅ Message sent and notification created for ${receiverId}`)
+    // NOTE: No notification is created here intentionally.
+    // Admin-side real-time awareness is handled via WhatsApp-style polling toasts.
+    // Creating DB notifications here would spam the renter's Recent Activity feed.
+    console.log(`✅ Message sent to ${receiverId}`)
 
     res.status(201).json({
       message: "Message sent successfully",
@@ -199,6 +192,8 @@ export const getUnreadCount = async (req: AuthRequest, res: Response) => {
 // ==========================================
 export const getAllConversations = async (req: AuthRequest, res: Response) => {
   try {
+    const adminId = req.userId
+
     const conversations = await prisma.booking.findMany({
       where: {
         status: BookingStatus.CONFIRMED,
@@ -218,18 +213,48 @@ export const getAllConversations = async (req: AuthRequest, res: Response) => {
       },
     })
 
+    // Fetch unread counts for each booking: messages sent by renter not yet read by admin
+    const bookingIds = conversations.map((c) => c.id)
+
+    const unreadMap: Record<number, number> = {}
+
+    if (adminId && bookingIds.length > 0) {
+      const unreadGroups = await prisma.message.groupBy({
+        by: ["bookingId"],
+        where: {
+          bookingId: { in: bookingIds },
+          receiverId: adminId,
+          isRead: false,
+        },
+        _count: {
+          _all: true,
+        },
+      })
+
+      for (const group of unreadGroups) {
+        unreadMap[group.bookingId] = group._count._all
+      }
+    }
+
     const formattedConversations = conversations.map((convo) => {
       const latestMsg = convo.messages[0]
+      const latestTime = latestMsg ? latestMsg.createdAt.toISOString() : convo.createdAt.toISOString()
 
       return {
-        bookingId: convo.id, // Numeric ID for API calls
-        bookingCode: convo.bookingId, // String code for display
+        bookingId: convo.id,
+        bookingCode: convo.bookingId,
         renterName: convo.user.name,
         renterId: convo.userId,
         latestMessage: latestMsg ? latestMsg.content : "No messages yet",
-        latestMessageTime: latestMsg ? latestMsg.createdAt : convo.createdAt,
-        unreadCount: 0, // Simplified for now
+        latestMessageTime: latestTime,
+        unreadCount: unreadMap[convo.id] || 0,
       }
+    })
+
+    // Sort: conversations with unread messages first, then by latest message time
+    formattedConversations.sort((a, b) => {
+      if (b.unreadCount !== a.unreadCount) return b.unreadCount - a.unreadCount
+      return new Date(b.latestMessageTime).getTime() - new Date(a.latestMessageTime).getTime()
     })
 
     res.status(200).json(formattedConversations)

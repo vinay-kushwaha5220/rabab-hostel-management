@@ -5,11 +5,12 @@ import FooterEnhanced from "../components/common/FooterEnhanced"
 const PublicLayout = () => {
   const location = useLocation()
   const isHomePage = location.pathname === "/"
+  const isAuthPage = ["/login", "/register", "/forgot-password"].includes(location.pathname)
 
   return (
     <div className="flex flex-col min-h-screen">
-      <PublicNavbar />
-      <main className="flex-1">
+      {!isAuthPage && <PublicNavbar />}
+      <main className="flex-1 flex flex-col">
         <Outlet />
       </main>
       {isHomePage && <FooterEnhanced />}

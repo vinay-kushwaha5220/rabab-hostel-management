@@ -22,6 +22,7 @@ interface AuthContextType {
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (name: string, email: string, password: string, phone?: string) => Promise<void>
+  loginWithSocial: (email: string, name: string, provider: "google" | "facebook") => Promise<void>
   logout: () => Promise<void>
   logoutAllDevices: () => Promise<void>
   refreshToken: () => Promise<string | null>
@@ -54,7 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (storedToken && storedUser) {
         setAccessToken(storedToken)
         setUser(JSON.parse(storedUser))
-        
+
         // Verify token is still valid by fetching current user
         try {
           const response = await api.get("/v2/auth/me", {
@@ -113,7 +114,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Get redirect URL from query params
       const redirectUrl = searchParams.get("redirect")
-      
+
       // Redirect to booking or dashboard
       if (redirectUrl) {
         navigate(redirectUrl)
@@ -166,6 +167,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   // ==========================================
+  // SOCIAL LOGIN
+  // ==========================================
+  const loginWithSocial = async (email: string, name: string, provider: "google" | "facebook") => {
+    try {
+      const response = await api.post(
+        "/v2/auth/social-login",
+        { email, name, provider },
+        { withCredentials: true }
+      )
+
+      const { accessToken: newAccessToken, user: userData } = response.data
+
+      // Store access token in localStorage
+      localStorage.setItem("accessToken", newAccessToken)
+      localStorage.setItem("user", JSON.stringify(userData))
+
+      setAccessToken(newAccessToken)
+      setUser(userData)
+
+      // Get redirect URL from query params
+      const redirectUrl = searchParams.get("redirect")
+
+      // Redirect based on role and redirect URL
+      if (userData.role === "ADMIN") {
+        navigate("/admin/dashboard")
+      } else if (redirectUrl) {
+        navigate(redirectUrl)
+      } else {
+        navigate("/dashboard")
+      }
+    } catch (error: any) {
+      const message = error.response?.data?.message || "Social login failed"
+      throw new Error(message)
+    }
+  }
+
+  // ==========================================
   // REFRESH ACCESS TOKEN
   // ==========================================
   const refreshToken = async (): Promise<string | null> => {
@@ -187,16 +225,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return newAccessToken
     } catch (error) {
       console.error("❌ Failed to refresh token:", error)
-      
+
       // Clear auth state
       localStorage.removeItem("accessToken")
       localStorage.removeItem("user")
       setAccessToken(null)
       setUser(null)
-      
+
       // Redirect to login
       navigate("/login")
-      
+
       return null
     }
   }
@@ -277,6 +315,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isLoading,
     login,
     register,
+    loginWithSocial,
     logout,
     logoutAllDevices,
     refreshToken,

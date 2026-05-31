@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
+import { Eye, Check, LogIn, LogOut, CreditCard, RefreshCw, CalendarPlus, XCircle, ChevronLeft, ChevronRight, MoreVertical } from "lucide-react"
 import api from "../../services/apiV2"
 import type { BookingType } from "../../types/booking"
 import Badge from "../../components/ui/Badge"
@@ -105,6 +106,13 @@ const BookingsManagement = () => {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState("all")
   const [search, setSearch] = useState("")
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
+
+  // Dropdown State
+  const [activeDropdownId, setActiveDropdownId] = useState<number | string | null>(null)
   
   const currentYear = new Date().getFullYear()
   const [selectedMonth, setSelectedMonth] = useState<string>("all")
@@ -141,6 +149,18 @@ const BookingsManagement = () => {
 
   useEffect(() => {
     fetchBookings()
+  }, [])
+
+  // Reset pagination to first page when search filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filter, search, selectedMonth, selectedYear])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const closeAllDropdowns = () => setActiveDropdownId(null)
+    window.addEventListener('click', closeAllDropdowns)
+    return () => window.removeEventListener('click', closeAllDropdowns)
   }, [])
 
   const fetchBookings = async () => {
@@ -327,6 +347,15 @@ const BookingsManagement = () => {
     return true
   })
 
+  // Calculate total pages
+  const totalPages = Math.ceil(filteredBookings.length / ITEMS_PER_PAGE)
+
+  // Paginated bookings slice
+  const paginatedBookings = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    return filteredBookings.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+  }, [filteredBookings, currentPage])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50/50 flex items-center justify-center">
@@ -414,32 +443,32 @@ const BookingsManagement = () => {
         {/* Bookings Table */}
         <Card className="overflow-hidden border-none shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50/50 border-b border-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest"># Unit</th>
-                  <th className="px-4 py-3 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest">Reservation ID</th>
-                  <th className="px-4 py-3 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest">Client</th>
-                  <th className="px-4 py-3 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest">Contact</th>
-                  <th className="px-4 py-3 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest">Stay Period</th>
-                  <th className="px-4 py-3 text-right text-[9px] font-black text-gray-400 uppercase tracking-widest">Valuation</th>
-                  <th className="px-4 py-3 text-center text-[9px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                  <th className="px-4 py-3 text-center text-[9px] font-black text-gray-400 uppercase tracking-widest">Payment</th>
-                  <th className="px-4 py-3 text-center text-[9px] font-black text-gray-400 uppercase tracking-widest">Stay</th>
-                  <th className="px-4 py-3 text-right text-[9px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
+            <table className="w-full text-left border-collapse">
+              <thead className="sticky top-0 bg-slate-50 border-b border-slate-200/80 z-10">
+                <tr className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                  <th className="py-3.5 px-5 font-bold"># Unit</th>
+                  <th className="py-3.5 px-5 font-bold">Reservation ID</th>
+                  <th className="py-3.5 px-5 font-bold">Client</th>
+                  <th className="py-3.5 px-5 font-bold">Contact</th>
+                  <th className="py-3.5 px-5 font-bold">Stay Period</th>
+                  <th className="py-3.5 px-5 text-right font-bold">Valuation</th>
+                  <th className="py-3.5 px-5 text-center font-bold">Status</th>
+                  <th className="py-3.5 px-5 text-center font-bold">Payment</th>
+                  <th className="py-3.5 px-5 text-center font-bold">Stay</th>
+                  <th className="py-3.5 px-5 text-right font-bold">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50 bg-white">
-                {filteredBookings.length === 0 ? (
+              <tbody className="divide-y divide-gray-150 bg-white text-xs text-slate-700">
+                {paginatedBookings.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-12 text-center">
+                    <td colSpan={10} className="px-5 py-12 text-center">
                       <p className="text-gray-300 font-black text-[10px] uppercase tracking-widest">No records for this period</p>
                     </td>
                   </tr>
                 ) : (
-                  filteredBookings.map((booking) => (
+                  paginatedBookings.map((booking) => (
                     <tr key={booking.id} className="hover:bg-blue-50/30 transition-all group">
-                      <td className="px-4 py-3">
+                      <td className="py-3.5 px-5">
                         <div className="flex flex-col gap-1">
                           <span className="text-sm font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg w-fit">
                             {booking.room?.roomNumber || 'N/A'}
@@ -453,19 +482,19 @@ const BookingsManagement = () => {
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="py-3.5 px-5">
                         <span className="text-[11px] font-black text-gray-900 font-mono tracking-tighter opacity-80">
                           {booking.bookingId}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="py-3.5 px-5">
                         <div className="font-bold text-xs text-gray-900 leading-tight">{booking.customerName}</div>
-                        <div className="text-[9px] text-gray-400 font-bold uppercase tracking-tight">{booking.customerEmail}</div>
+                        <div className="text-[9px] text-gray-450 font-bold uppercase tracking-tight mt-0.5">{booking.customerEmail}</div>
                       </td>
-                      <td className="px-4 py-3 text-xs font-bold text-gray-600">
+                      <td className="py-3.5 px-5 font-bold text-gray-650">
                         {booking.customerPhone}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="py-3.5 px-5">
                         <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-700">
                           <span>{new Date(booking.checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                           <span className="text-gray-300 font-black">→</span>
@@ -479,19 +508,19 @@ const BookingsManagement = () => {
                             <span>{new Date(booking.monthlyRenter.currentCycleEnd!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                           </div>
                         ) : (
-                          <div className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">{booking.totalDays} Days</div>
+                          <div className="text-[9px] text-gray-450 font-bold uppercase mt-1 w-fit">{booking.totalDays} Days</div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="py-3.5 px-5 text-right">
                         <div className="text-xs font-black text-slate-900">₹{booking.totalAmount.toLocaleString()}</div>
                         {booking.bookingType === 'MONTHLY' && booking.monthlyRenter && (
-                          <div className="text-[9px] text-slate-400 font-bold mt-1 leading-normal uppercase tracking-tight">
+                          <div className="text-[9px] text-slate-400 font-bold mt-1.5 leading-normal uppercase tracking-tight text-right">
                             <div>Rent: ₹{booking.monthlyRenter.rentAmount.toLocaleString()}/mo</div>
                             <div>Deposit: ₹{booking.monthlyRenter.securityAmount.toLocaleString()}</div>
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="py-3.5 px-5 text-center">
                         <Badge 
                           variant={getStatusVariant(getBookingStatusLabel(booking))}
                           size="sm"
@@ -500,7 +529,7 @@ const BookingsManagement = () => {
                           {getBookingStatusLabel(booking).replace(/_/g, ' ')}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="py-3.5 px-5 text-center">
                         <Badge 
                           variant={getPaymentStatusVariant(booking.paymentStatus)}
                           size="sm"
@@ -509,7 +538,7 @@ const BookingsManagement = () => {
                           {booking.paymentStatus}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="py-3.5 px-5 text-center">
                         {(() => {
                           const dateBasedStatus = getDateBasedStayStatus(booking.checkOutDate, booking.stayStatus)
                           return (
@@ -523,71 +552,110 @@ const BookingsManagement = () => {
                           )
                         })()}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-1.5 justify-end">
+                      <td className="py-3.5 px-5 text-right">
+                        <div className="relative inline-block text-left">
                           <button
-                            onClick={() => navigate(`/booking-confirmation/${booking.id}`)}
-                            className="bg-gray-100 hover:bg-gray-200 text-gray-600 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider transition-all"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDropdownId(activeDropdownId === booking.id ? null : booking.id);
+                            }}
+                            className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-all duration-150 active:scale-95 border border-transparent hover:border-slate-200/50 shadow-none cursor-pointer"
+                            aria-label="Action Menu"
                           >
-                            View
+                            <MoreVertical size={16} className="stroke-[2.5]" />
                           </button>
-                          {booking.status === 'PENDING' && booking.paymentStatus === 'PENDING' && (
-                            <button
-                              onClick={() => confirmBookingPayment(booking.id)}
-                              className="bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
-                            >
-                              Verify Payment
-                            </button>
-                          )}
-                          {booking.status === 'CONFIRMED' && booking.stayStatus !== 'CHECKED_IN' && booking.stayStatus !== 'CHECKED_OUT' && (
-                            <button
-                              onClick={() => checkInBooking(booking.id)}
-                              className="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
-                            >
-                              Check In
-                            </button>
-                          )}
-                          {booking.stayStatus === 'CHECKED_IN' && (
-                            <button
-                              onClick={() => checkOutBooking(booking.id)}
-                              className="bg-orange-600 hover:bg-orange-700 text-white px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
-                            >
-                              Check Out
-                            </button>
-                          )}
-                          {booking.status === 'CANCELLED' && booking.paymentStatus === 'SUCCESS' && (
-                            <button
-                              onClick={() => refundBooking(booking.id)}
-                              className="bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider shadow-sm transition-all active:scale-95"
-                            >
-                              Refund
-                            </button>
-                          )}
-                          {booking.stayStatus === 'CHECKED_OUT' && (
-                            <button
-                              onClick={() => undoCheckOutBooking(booking.id)}
-                              className="bg-white hover:bg-slate-50 text-slate-400 border border-slate-100 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-all"
-                              title="Available for 24h after checkout"
-                            >
-                              Restore Stay
-                            </button>
-                          )}
-                          {booking.status === 'CONFIRMED' && booking.stayStatus === 'CHECKED_IN' && booking.bookingType === 'MONTHLY' && (
-                            <button
-                              onClick={() => openRenewalModal(booking)}
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-all"
-                              title="Extend stay by 30 days"
-                            >
-                              Renew Stay
-                            </button>
-                          )}
-                          {booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED' && booking.stayStatus !== 'CHECKED_OUT' && (
-                            <button
-                              onClick={() => cancelBooking(booking.id)}
-                              className="bg-white hover:bg-red-50 text-red-400 border border-red-50 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider transition-all"
-                            >
-                              Cancel
-                            </button>
+
+                          {activeDropdownId === booking.id && (
+                            <div className="absolute right-0 mt-1 w-48 bg-white border border-slate-100 rounded-xl shadow-xl z-30 py-1.5 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                              {/* View details */}
+                              <button
+                                onClick={() => navigate(`/booking-confirmation/${booking.id}`)}
+                                className="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-650 hover:bg-slate-50 transition-colors flex items-center gap-2 cursor-pointer"
+                              >
+                                <Eye size={13} className="text-slate-500 stroke-[2.5]" />
+                                <span>View Details</span>
+                              </button>
+
+                              {/* Verify Payment */}
+                              {booking.status === 'PENDING' && booking.paymentStatus === 'PENDING' && (
+                                <button
+                                  onClick={() => confirmBookingPayment(booking.id)}
+                                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center gap-2 cursor-pointer"
+                                >
+                                  <Check size={13} className="text-emerald-500 stroke-[2.5]" />
+                                  <span>Verify Payment</span>
+                                </button>
+                              )}
+
+                              {/* Check In guest */}
+                              {booking.status === 'CONFIRMED' && booking.stayStatus !== 'CHECKED_IN' && booking.stayStatus !== 'CHECKED_OUT' && (
+                                <button
+                                  onClick={() => checkInBooking(booking.id)}
+                                  className="w-full text-left px-3.5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50/50 transition-colors flex items-center gap-2 cursor-pointer"
+                                >
+                                  <LogIn size={13} className="text-blue-500 stroke-[2.5]" />
+                                  <span>Check In</span>
+                                </button>
+                              )}
+
+                              {/* Check Out guest */}
+                              {booking.stayStatus === 'CHECKED_IN' && (
+                                <button
+                                  onClick={() => checkOutBooking(booking.id)}
+                                  className="w-full text-left px-3.5 py-2 text-xs font-semibold text-orange-600 hover:bg-orange-50/50 transition-colors flex items-center gap-2 cursor-pointer"
+                                >
+                                  <LogOut size={13} className="text-orange-500 stroke-[2.5]" />
+                                  <span>Check Out</span>
+                                </button>
+                              )}
+
+                              {/* Refund payment */}
+                              {booking.status === 'CANCELLED' && booking.paymentStatus === 'SUCCESS' && (
+                                <button
+                                  onClick={() => refundBooking(booking.id)}
+                                  className="w-full text-left px-3.5 py-2 text-xs font-semibold text-purple-650 hover:bg-purple-50 transition-colors flex items-center gap-2 cursor-pointer"
+                                >
+                                  <CreditCard size={13} className="text-purple-500 stroke-[2.5]" />
+                                  <span>Process Refund</span>
+                                </button>
+                              )}
+
+                              {/* Restore Checkout Stays */}
+                              {booking.stayStatus === 'CHECKED_OUT' && (
+                                <button
+                                  onClick={() => undoCheckOutBooking(booking.id)}
+                                  className="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-550 hover:bg-slate-50 transition-colors flex items-center gap-2 cursor-pointer"
+                                >
+                                  <RefreshCw size={13} className="text-slate-400 stroke-[2.5]" />
+                                  <span>Restore Stay</span>
+                                </button>
+                              )}
+
+                              {/* Renew monthly stays */}
+                              {booking.status === 'CONFIRMED' && booking.stayStatus === 'CHECKED_IN' && booking.bookingType === 'MONTHLY' && (
+                                <button
+                                  onClick={() => openRenewalModal(booking)}
+                                  className="w-full text-left px-3.5 py-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-50/50 transition-colors flex items-center gap-2 cursor-pointer"
+                                >
+                                  <CalendarPlus size={13} className="text-indigo-500 stroke-[2.5]" />
+                                  <span>Renew Stay (30d)</span>
+                                </button>
+                              )}
+
+                              {/* Cancel Stay reservation */}
+                              {booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED' && booking.stayStatus !== 'CHECKED_OUT' && (
+                                <>
+                                  <div className="border-t border-slate-100 my-1" />
+                                  <button
+                                    onClick={() => cancelBooking(booking.id)}
+                                    className="w-full text-left px-3.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50/50 transition-colors flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <XCircle size={13} className="text-rose-500 stroke-[2.5]" />
+                                    <span>Cancel Stay</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           )}
                         </div>
                       </td>
@@ -598,6 +666,61 @@ const BookingsManagement = () => {
             </table>
           </div>
         </Card>
+
+        {/* Bottom pagination & summary */}
+        <div className="bg-white border border-slate-150 rounded-2xl p-4 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.02)] flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+          {/* Summary stats */}
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            Showing <span className="text-slate-700 font-extrabold">{filteredBookings.length > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0}</span> to{" "}
+            <span className="text-slate-700 font-extrabold">
+              {Math.min(currentPage * ITEMS_PER_PAGE, filteredBookings.length)}
+            </span>{" "}
+            of <span className="text-slate-700 font-extrabold">{filteredBookings.length}</span> bookings found
+            {bookings.length !== filteredBookings.length && (
+              <span className="normal-case font-medium text-slate-400"> (filtered from {bookings.length} total)</span>
+            )}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              {/* Prev Button */}
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg border border-slate-200/70 hover:bg-slate-50 text-slate-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:text-slate-300 transition-all duration-150"
+                aria-label="Previous Page"
+              >
+                <ChevronLeft size={16} className="stroke-[2.5]" />
+              </button>
+
+              {/* Number Buttons */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-8 h-8 rounded-lg text-xs font-extrabold transition-all duration-150 ${
+                    currentPage === page
+                      ? "bg-slate-900 text-white shadow-sm scale-105"
+                      : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200/70"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+
+              {/* Next Button */}
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg border border-slate-200/70 hover:bg-slate-50 text-slate-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:text-slate-300 transition-all duration-150"
+                aria-label="Next Page"
+              >
+                <ChevronRight size={16} className="stroke-[2.5]" />
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Stay Renewal Modal */}
         {showRenewModal && selectedBookingForRenewal && (

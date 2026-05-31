@@ -61,115 +61,16 @@ const PaymentPage = () => {
       alert("Please select a payment method")
       return
     }
-    setShowConfirmModal(true)
-  }
-
-  const loadRazorpayScript = (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      if ((window as any).Razorpay) {
-        resolve(true)
-        return
-      }
-      const script = document.createElement("script")
-      script.src = "https://checkout.razorpay.com/v1/checkout.js"
-      script.onload = () => resolve(true)
-      script.onerror = () => resolve(false)
-      document.body.appendChild(script)
-    })
-  }
-
-  const processOnlinePayment = async () => {
-    if (!booking) {
-      alert("Booking details not loaded yet. Please wait.")
-      return
-    }
-    try {
-      setProcessing(true)
-      setPaymentStatus('processing')
-
-      // 1. Load Razorpay script
-      const isScriptLoaded = await loadRazorpayScript()
-      if (!isScriptLoaded) {
-        alert("Failed to load secure payment gateway. Please check your network connection.")
-        setPaymentStatus('idle')
-        setProcessing(false)
-        return
-      }
-
-      // 2. Create order on backend
-      const orderRes = await api.post("/bookings/razorpay/create-order", {
-        bookingId: Number(bookingId)
-      })
-
-      const { orderId, amount, currency, keyId } = orderRes.data
-
-      // 3. Configure Razorpay options
-      const options = {
-        key: keyId,
-        amount: amount,
-        currency: currency,
-        name: "Rabab Stay",
-        description: `Booking Settle — ${booking.bookingId}`,
-        image: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=200",
-        order_id: orderId,
-        handler: async function (response: any) {
-          try {
-            setProcessing(true)
-            setPaymentStatus('processing')
-
-            // 4. Verify payment on backend
-            await api.post("/bookings/razorpay/verify", {
-              bookingId: Number(bookingId),
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature
-            })
-
-            setPaymentStatus('success')
-            await new Promise(resolve => setTimeout(resolve, 1500))
-            navigate(`/booking-confirmation/${bookingId}`)
-          } catch (err: any) {
-            console.error("Payment verification failure:", err)
-            alert(err.response?.data?.message || "Failed to verify transaction signature securely.")
-            setPaymentStatus('idle')
-          } finally {
-            setProcessing(false)
-          }
-        },
-        prefill: {
-          name: booking.customerName || "",
-          email: booking.customerEmail || "",
-          contact: booking.customerPhone || "",
-        },
-        notes: {
-          bookingId: String(bookingId)
-        },
-        theme: {
-          color: "#1e293b"
-        },
-        modal: {
-          ondismiss: function () {
-            setPaymentStatus('idle')
-            setProcessing(false)
-          }
-        }
-      }
-
-      const rzp = new (window as any).Razorpay(options)
-      rzp.open()
-    } catch (err: any) {
-      console.error("Initialize online transaction failed:", err)
-      alert(err.response?.data?.message || "Failed to initialize online transaction.")
-      setPaymentStatus('idle')
-      setProcessing(false)
+    if (paymentMethod === "UPI") {
+      setShowUPIModal(true)
+    } else if (paymentMethod === "CASH") {
+      setShowConfirmModal(true)
     }
   }
 
   const handleConfirmAction = async () => {
     setShowConfirmModal(false)
-    if (paymentMethod === "CARD" || paymentMethod === "ONLINE" || paymentMethod === "UPI") {
-      await processOnlinePayment()
-    } else if (paymentMethod === "CASH") {
+    if (paymentMethod === "CASH") {
       await processCashPayment()
     }
   }
@@ -419,9 +320,7 @@ const PaymentPage = () => {
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
-                  { id: 'CARD', label: 'Card Payment', sub: 'Credit/Debit', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' },
                   { id: 'UPI', label: 'UPI Instant', sub: 'GPay, PhonePe, Paytm', icon: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z' },
-                  { id: 'ONLINE', label: 'Net Banking', sub: 'All major banks', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
                   { id: 'CASH', label: 'Pay at Property', sub: 'At check-in', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' }
                 ].map((method) => (
                   <button
@@ -478,7 +377,7 @@ const PaymentPage = () => {
                   <div className="space-y-0.5">
                     <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Property</p>
                     <p className="font-bold text-gray-900 text-sm">{booking.room?.title}</p>
-                    <p className="text-[10px] font-medium text-gray-500">Room {booking.room?.roomNumber} • Floor {booking.room?.floor}</p>
+                    <p className="text-[10px] font-medium text-gray-500">Room {booking.room?.roomNumber} • {booking.room?.floor === 0 ? "Ground Floor" : `Floor ${booking.room?.floor}`}</p>
                   </div>
                   
                   <div className="space-y-0.5">

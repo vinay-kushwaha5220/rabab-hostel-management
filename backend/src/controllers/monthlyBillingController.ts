@@ -866,6 +866,7 @@ export const getRenterDashboardData = async (req: AuthRequest, res: Response) =>
     const notifications = await prisma.notification.findMany({
       where: {
         bookingId: activeBooking.id,
+        type: { not: NotificationType.MESSAGE }
       },
       orderBy: {
         createdAt: "desc",

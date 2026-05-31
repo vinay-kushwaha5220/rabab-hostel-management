@@ -1,27 +1,34 @@
 import { useEffect, useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
+import { Pencil, Wrench, Trash2, ChevronLeft, ChevronRight, MoreVertical } from "lucide-react"
 import api from "../../services/apiV2"
 import type { RoomType } from "../../types/room"
 import Card from "../../components/ui/Card"
 import Badge from "../../components/ui/Badge"
-import Button from "../../components/ui/Button"
 import LoadingSpinner from "../../components/ui/LoadingSpinner"
 
 const RoomsManagement = () => {
   const navigate = useNavigate()
-  
+
   // State
   const [rooms, setRooms] = useState<RoomType[]>([])
   const [loading, setLoading] = useState(true)
   const [roomSearch, setRoomSearch] = useState("")
   const [roomFilter, setRoomFilter] = useState("all")
   const [floorFilter, setFloorFilter] = useState("all")
-  
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
+
+  // Dropdown State
+  const [activeDropdownId, setActiveDropdownId] = useState<number | string | null>(null)
+
   // Modal states
   const [showRoomModal, setShowRoomModal] = useState(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
   const [selectedRoom, setSelectedRoom] = useState<RoomType | null>(null)
-  
+
   // Form State
   const [roomForm, setRoomForm] = useState({
     roomNumber: "",
@@ -47,6 +54,18 @@ const RoomsManagement = () => {
     fetchRooms()
   }, [])
 
+  // Reset pagination to first page when search filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [roomSearch, roomFilter, floorFilter])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const closeAllDropdowns = () => setActiveDropdownId(null)
+    window.addEventListener('click', closeAllDropdowns)
+    return () => window.removeEventListener('click', closeAllDropdowns)
+  }, [])
+
   const fetchRooms = async () => {
     try {
       setLoading(true)
@@ -67,7 +86,7 @@ const RoomsManagement = () => {
     const maintenance = rooms.filter(r => !r.isAvailable).length
     const availableBeds = rooms.filter(r => r.isAvailable).reduce((sum, r) => sum + (r.capacity - r.currentOccupancy), 0)
     const occupancyRate = totalCapacity > 0 ? Math.round((occupiedBeds / totalCapacity) * 100) : 0
-    
+
     return {
       total,
       totalCapacity,
@@ -104,10 +123,10 @@ const RoomsManagement = () => {
   const openEditModal = (room: RoomType) => {
     setModalMode('edit')
     setSelectedRoom(room)
-    
+
     // Join amenities array back into a comma-separated list for easy editing
-    const amenitiesText = Array.isArray(room.amenities) 
-      ? room.amenities.join(", ") 
+    const amenitiesText = Array.isArray(room.amenities)
+      ? room.amenities.join(", ")
       : String(room.amenities || "Bed, Fan, Wardrobe")
 
     setRoomForm({
@@ -120,7 +139,7 @@ const RoomsManagement = () => {
       capacity: room.capacity || 2,
       roomType: room.roomType || "NON_AC",
       bookingType: room.bookingType || "MONTHLY",
-      floor: room.floor || 1,
+      floor: room.floor !== undefined ? room.floor : 1,
       isAvailable: room.isAvailable !== undefined ? room.isAvailable : true,
       amenities: amenitiesText
     })
@@ -246,10 +265,19 @@ const RoomsManagement = () => {
     })
   }, [rooms, roomSearch, roomFilter, floorFilter])
 
+  // Calculate total pages
+  const totalPages = Math.ceil(filteredRooms.length / ITEMS_PER_PAGE)
+
+  // Paginated rooms slice
+  const paginatedRooms = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    return filteredRooms.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+  }, [filteredRooms, currentPage])
+
   return (
     <div className="min-h-screen bg-slate-50/40 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        
+
         {/* Header Block */}
         <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.03)] flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-1">
@@ -267,7 +295,7 @@ const RoomsManagement = () => {
               Create, edit, toggle maintenance statuses, and inspect all student/renter living quarters in real-time
             </p>
           </div>
-          
+
           <button
             onClick={openCreateModal}
             className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-blue-700 active:scale-95 shadow-sm transition-all flex items-center gap-1.5 self-start md:self-auto"
@@ -278,7 +306,7 @@ const RoomsManagement = () => {
 
         {/* Dashboard Metrics */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          
+
           {/* Stat 1 */}
           <Card className="p-5 border border-slate-100/80 bg-white hover:scale-[1.01] transition-all duration-300">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Inventory</p>
@@ -335,7 +363,7 @@ const RoomsManagement = () => {
         {/* Filters & Actions Bar */}
         <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.03)] space-y-4">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            
+
             {/* Search Box */}
             <div className="relative w-full md:w-80">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none text-xs">🔍</span>
@@ -357,6 +385,7 @@ const RoomsManagement = () => {
                 className="w-full md:w-36 px-3 py-2 text-xs bg-slate-50/70 border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-700 transition-all"
               >
                 <option value="all">All Floors</option>
+                <option value="0">Ground Floor</option>
                 <option value="1">1st Floor</option>
                 <option value="2">2nd Floor</option>
                 <option value="3">3rd Floor</option>
@@ -381,11 +410,10 @@ const RoomsManagement = () => {
               <button
                 key={f.id}
                 onClick={() => setRoomFilter(f.id)}
-                className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all border whitespace-nowrap active:scale-95 ${
-                  roomFilter === f.id
+                className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all border whitespace-nowrap active:scale-95 ${roomFilter === f.id
                     ? "bg-slate-900 text-white border-slate-950 shadow-sm"
                     : "bg-white hover:bg-slate-50 text-slate-500 border-slate-200/60"
-                }`}
+                  }`}
               >
                 {f.label}
               </button>
@@ -414,20 +442,20 @@ const RoomsManagement = () => {
           <div className="bg-white border border-slate-150 rounded-3xl overflow-hidden shadow-[0_4px_24px_-8px_rgba(0,0,0,0.04)]">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-900 text-white text-[8px] font-bold uppercase tracking-widest border-b border-slate-800">
-                    <th className="py-4 px-4 font-extrabold">Room Number</th>
-                    <th className="py-4 px-4 font-extrabold">Descriptor / Title</th>
-                    <th className="py-4 px-4 font-extrabold">Room Class</th>
-                    <th className="py-4 px-4 font-extrabold">Booking Scheme</th>
-                    <th className="py-4 px-4 font-extrabold">Beds Capacity</th>
-                    <th className="py-4 px-4 font-extrabold">Monthly Base Rate</th>
-                    <th className="py-4 px-4 font-extrabold">Status</th>
-                    <th className="py-4 px-4 text-right font-extrabold">Actions</th>
+                <thead className="sticky top-0 bg-slate-50 border-b border-slate-200/80 z-10">
+                  <tr className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                    <th className="py-3.5 px-5 font-bold">Room Number</th>
+                    <th className="py-3.5 px-5 font-bold">Descriptor / Title</th>
+                    <th className="py-3.5 px-5 font-bold">Room Class</th>
+                    <th className="py-3.5 px-5 font-bold">Booking Scheme</th>
+                    <th className="py-3.5 px-5 font-bold">Beds Capacity</th>
+                    <th className="py-3.5 px-5 font-bold">Monthly Base Rate</th>
+                    <th className="py-3.5 px-5 font-bold">Status</th>
+                    <th className="py-3.5 px-5 text-right font-bold">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                  {filteredRooms.map((room) => {
+                  {paginatedRooms.map((room) => {
                     const isMaint = !room.isAvailable
                     const isFull = room.currentOccupancy >= room.capacity
                     const isOccupied = room.currentOccupancy > 0
@@ -449,75 +477,99 @@ const RoomsManagement = () => {
                     return (
                       <tr key={room.id} className="hover:bg-slate-50/50 transition-colors">
                         {/* Room Number */}
-                        <td className="py-4 px-4 font-bold text-slate-900">
+                        <td className="py-3.5 px-5 font-bold text-slate-900">
                           <span className="text-sm font-black text-blue-600 bg-blue-50/60 px-2.5 py-1 rounded-lg">
                             {room.roomNumber}
                           </span>
                         </td>
 
                         {/* Title */}
-                        <td className="py-4 px-4 font-semibold text-slate-800">
+                        <td className="py-3.5 px-5 font-semibold text-slate-800">
                           {room.title}
-                          <span className="block text-[8px] font-semibold text-slate-400 mt-0.5">Floor {room.floor || 1} • {room.currentRenterName ? `Active Tenant: ${room.currentRenterName}` : 'No active checked-in tenant'}</span>
+                          <span className="block text-[8px] font-semibold text-slate-400 mt-0.5">{room.floor === 0 ? "Ground Floor" : `Floor ${room.floor || 1}`} • {room.currentRenterName ? `Active Tenant: ${room.currentRenterName}` : 'No active checked-in tenant'}</span>
                         </td>
 
                         {/* Class */}
-                        <td className="py-4 px-4 font-bold">
-                          <span className={`px-2 py-0.5 rounded text-[8px] uppercase tracking-wider border ${
-                            room.roomType === "AC" 
-                              ? "bg-sky-50 text-sky-700 border-sky-100" 
+                        <td className="py-3.5 px-5 font-bold">
+                          <span className={`px-2 py-0.5 rounded text-[8px] uppercase tracking-wider border ${room.roomType === "AC"
+                              ? "bg-sky-50 text-sky-700 border-sky-100"
                               : "bg-slate-50 text-slate-600 border-slate-100"
-                          }`}>
+                            }`}>
                             {room.roomType === "NON_AC" ? "Non-AC" : "AC Room"}
                           </span>
                         </td>
 
                         {/* Booking Scheme */}
-                        <td className="py-4 px-4 font-bold">
+                        <td className="py-3.5 px-5 font-bold">
                           <Badge variant={room.bookingType === "MONTHLY" ? "success" : "info"} size="sm">
                             {room.bookingType || "MONTHLY"}
                           </Badge>
                         </td>
 
                         {/* Capacity */}
-                        <td className="py-4 px-4 font-bold text-slate-650">
+                        <td className="py-3.5 px-5 font-bold text-slate-650">
                           <span className="font-extrabold">{room.currentOccupancy}</span> / {room.capacity} beds occupied
                         </td>
 
                         {/* Price */}
-                        <td className="py-4 px-4 font-extrabold text-slate-900">
+                        <td className="py-3.5 px-5 font-extrabold text-slate-900">
                           ₹{(room.price || room.monthlyPrice || 0).toLocaleString()}
                           <span className="block text-[8px] font-semibold text-slate-400 mt-0.5">₹{(room.dailyPrice || 500).toLocaleString()}/day rate</span>
                         </td>
 
                         {/* Live Status */}
-                        <td className="py-4 px-4">
+                        <td className="py-3.5 px-5">
                           <span className={`px-2.5 py-0.5 rounded-lg text-[8px] font-extrabold uppercase tracking-wider ${statusColor}`}>
                             {statusLabel}
                           </span>
                         </td>
 
                         {/* Actions */}
-                        <td className="py-4 px-4 text-right">
-                          <div className="flex gap-1.5 justify-end">
+                        <td className="py-3.5 px-5 text-right">
+                          <div className="relative inline-block text-left">
                             <button
-                              onClick={() => openEditModal(room)}
-                              className="bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 px-2.5 py-1 rounded-xl text-[8px] font-extrabold uppercase tracking-wider transition-all shadow-sm active:scale-95"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdownId(activeDropdownId === room.id ? null : room.id);
+                              }}
+                              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-all duration-150 active:scale-95 border border-transparent hover:border-slate-200/50 shadow-none cursor-pointer"
+                              aria-label="Action Menu"
                             >
-                              Edit Room
+                              <MoreVertical size={16} className="stroke-[2.5]" />
                             </button>
-                            <button
-                              onClick={() => toggleRoomMaintenance(room)}
-                              className="bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 px-2.5 py-1 rounded-xl text-[8px] font-extrabold uppercase tracking-wider transition-all shadow-sm active:scale-95"
-                            >
-                              {room.isAvailable ? "Maint" : "Available"}
-                            </button>
-                            <button
-                              onClick={() => handleDeleteRoom(room)}
-                              className="bg-rose-50 text-rose-700 border border-rose-100 hover:bg-rose-100 px-2.5 py-1 rounded-xl text-[8px] font-extrabold uppercase tracking-wider transition-all shadow-sm active:scale-95"
-                            >
-                              Delete
-                            </button>
+
+                            {activeDropdownId === room.id && (
+                              <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-100 rounded-xl shadow-xl z-30 py-1.5 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                                {/* Edit Details */}
+                                <button
+                                  onClick={() => openEditModal(room)}
+                                  className="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-650 hover:bg-slate-50 transition-colors flex items-center gap-2 cursor-pointer"
+                                >
+                                  <Pencil size={13} className="text-blue-500 stroke-[2.5]" />
+                                  <span>Edit Details</span>
+                                </button>
+
+                                {/* Toggle Maintenance */}
+                                <button
+                                  onClick={() => toggleRoomMaintenance(room)}
+                                  className="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-650 hover:bg-slate-50 transition-colors flex items-center gap-2 cursor-pointer"
+                                >
+                                  <Wrench size={13} className={`${room.isAvailable ? "text-amber-500" : "text-emerald-500"} stroke-[2.5]`} />
+                                  <span>{room.isAvailable ? "Set Maintenance" : "Set Available"}</span>
+                                </button>
+
+                                <div className="border-t border-slate-100 my-1" />
+
+                                {/* Delete Room */}
+                                <button
+                                  onClick={() => handleDeleteRoom(room)}
+                                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50/50 transition-colors flex items-center gap-2 cursor-pointer"
+                                >
+                                  <Trash2 size={13} className="text-rose-500 stroke-[2.5]" />
+                                  <span>Delete Room</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -529,9 +581,59 @@ const RoomsManagement = () => {
           </div>
         )}
 
-        {/* Bottom summary */}
-        <div className="bg-white border border-slate-150 rounded-3xl p-4 shadow-sm text-xs font-bold text-slate-400 uppercase tracking-widest">
-          Showing {filteredRooms.length} of {rooms.length} Units in inventory
+        {/* Bottom pagination & summary */}
+        <div className="bg-white border border-slate-150 rounded-3xl p-4 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.02)] flex flex-col sm:flex-row items-center justify-between gap-4">
+          {/* Summary stats */}
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            Showing <span className="text-slate-700 font-extrabold">{filteredRooms.length > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0}</span> to{" "}
+            <span className="text-slate-700 font-extrabold">
+              {Math.min(currentPage * ITEMS_PER_PAGE, filteredRooms.length)}
+            </span>{" "}
+            of <span className="text-slate-700 font-extrabold">{filteredRooms.length}</span> units found
+            {rooms.length !== filteredRooms.length && (
+              <span className="normal-case font-medium text-slate-400"> (filtered from {rooms.length} total inventory)</span>
+            )}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              {/* Prev Button */}
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg border border-slate-200/70 hover:bg-slate-50 text-slate-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:text-slate-300 transition-all duration-150"
+                aria-label="Previous Page"
+              >
+                <ChevronLeft size={16} className="stroke-[2.5]" />
+              </button>
+
+              {/* Number Buttons */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-8 h-8 rounded-lg text-xs font-extrabold transition-all duration-150 ${
+                    currentPage === page
+                      ? "bg-slate-900 text-white shadow-sm scale-105"
+                      : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200/70"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+
+              {/* Next Button */}
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg border border-slate-200/70 hover:bg-slate-50 text-slate-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:text-slate-300 transition-all duration-150"
+                aria-label="Next Page"
+              >
+                <ChevronRight size={16} className="stroke-[2.5]" />
+              </button>
+            </div>
+          )}
         </div>
 
       </div>
@@ -539,16 +641,16 @@ const RoomsManagement = () => {
       {/* ─── ROOMS DIALOG CREATOR & EDITOR MODAL ─── */}
       {showRoomModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          
+
           {/* Backdrop Blur */}
-          <div 
+          <div
             onClick={() => setShowRoomModal(false)}
             className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
           />
 
           {/* Modal Container with scrolling support */}
           <div className="bg-white border border-slate-100 rounded-3xl w-full max-w-lg p-6 shadow-2xl relative z-10 transform transition-all animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-            
+
             {/* Modal Header */}
             <div className="flex justify-between items-center mb-6 pb-3 border-b border-slate-100">
               <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-widest flex items-center gap-1.5 leading-none">
@@ -577,7 +679,7 @@ const RoomsManagement = () => {
             {/* Form */}
             <form onSubmit={handleRoomFormSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                
+
                 {/* Room Number */}
                 <div className="space-y-1">
                   <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest ml-1">Room Number *</label>
@@ -672,9 +774,10 @@ const RoomsManagement = () => {
                   <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest ml-1">Floor Location *</label>
                   <select
                     value={roomForm.floor}
-                    onChange={(e) => setRoomForm(p => ({ ...p, floor: parseInt(e.target.value) || 1 }))}
+                    onChange={(e) => setRoomForm(p => ({ ...p, floor: parseInt(e.target.value) }))}
                     className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-700"
                   >
+                    <option value="0">Ground Floor</option>
                     <option value="1">1st Floor</option>
                     <option value="2">2nd Floor</option>
                     <option value="3">3rd Floor</option>

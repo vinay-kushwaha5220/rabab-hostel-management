@@ -10,6 +10,7 @@ import {
   forgotPassword,
   verifyOtp,
   resetPassword,
+  updateProfile,
 } from "../controllers/authControllerV2.js"
 import { protect } from "../middleware/authMiddlewareV2.js"
 
@@ -52,5 +53,8 @@ router.post("/logout-all", protect, logoutAllDevices)
 
 // GET /api/auth/sessions - Get all active sessions
 router.get("/sessions", protect, getActiveSessions)
+
+// PUT /api/auth/profile - Update user profile (Name and Phone)
+router.put("/profile", protect, updateProfile)
 
 export default router

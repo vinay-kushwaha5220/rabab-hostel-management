@@ -79,7 +79,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
             {room.title}
           </h3>
           <p className="text-[8px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
-            {room.capacity} Guests • Floor {room.floor}
+            {room.capacity} Guests • {room.floor === 0 ? "Ground Floor" : `Floor ${room.floor}`}
           </p>
         </div>
 

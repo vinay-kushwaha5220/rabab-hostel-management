@@ -31,7 +31,6 @@ const ContactPage = () => {
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState("")
-  const [fetchingInfo, setFetchingInfo] = useState(true)
   const [smsSent, setSmsSent] = useState(false)
 
   // Fetch contact information
@@ -47,8 +46,6 @@ const ContactPage = () => {
         }
       } catch (err) {
         console.error("Failed to fetch contact info:", err)
-      } finally {
-        setFetchingInfo(false)
       }
     }
 
@@ -169,7 +166,7 @@ const ContactPage = () => {
           {contactInfo && (
             <>
               {/* Email Card */}
-              <Card 
+              <Card
                 className="p-6 text-center hover:shadow-lg transition-shadow cursor-pointer"
                 onClick={() => formRef.current?.scrollIntoView({ behavior: 'smooth' })}
               >

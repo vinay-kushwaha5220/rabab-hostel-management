@@ -298,7 +298,7 @@ export const updateRoom = async (
         price: price ? Number(price) : room.price,
         roomType: (roomType as RoomType) || room.roomType,
         bookingType: (bookingType as BookingType) || room.bookingType,
-        floor: floor ? Number(floor) : room.floor,
+        floor: (floor !== undefined && floor !== null) ? Number(floor) : room.floor,
         capacity: capacity ? Number(capacity) : room.capacity,
         isAvailable: isAvailable !== undefined ? isAvailable : room.isAvailable,
         images: images ? JSON.stringify(images) : room.images,

@@ -1,12 +1,12 @@
 import { useEffect, useState, useMemo } from "react"
-import { 
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+import {
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, PieChart, Pie, Cell, Legend
 } from 'recharts'
-import { 
-  IndianRupee, Home, Users, LayoutDashboard, Clock, 
+import {
+  IndianRupee, Home, Users, LayoutDashboard, Clock,
   Banknote, ShieldCheck, Zap, Building2,
-  TrendingUp, ArrowUpRight, CheckCircle2, AlertTriangle
+  TrendingUp, ArrowUpRight
 } from 'lucide-react'
 import api from "../services/apiV2"
 import { billingService } from "../services/billingService"
@@ -15,7 +15,6 @@ import type { RoomType } from "../types/room"
 import type { MonthlyBill } from "../types/billing"
 import Card from "../components/ui/Card"
 import Badge from "../components/ui/Badge"
-import LoadingSpinner from "../components/ui/LoadingSpinner"
 
 const BookingStatus = {
   PENDING: 'PENDING',
@@ -29,14 +28,6 @@ const PaymentStatus = {
   SUCCESS: 'SUCCESS',
   FAILED: 'FAILED',
   VERIFICATION_PENDING: 'VERIFICATION_PENDING'
-} as const;
-
-const PaymentMethod = {
-  CASH: 'CASH',
-  ONLINE: 'ONLINE',
-  UPI: 'UPI',
-  CARD: 'CARD',
-  BANK_TRANSFER: 'BANK_TRANSFER'
 } as const;
 
 const BookingTypeEnum = {
@@ -98,29 +89,41 @@ const AnalyticsPage = () => {
     if (!rooms.length) return null
 
     const totalRooms = rooms.length
-    
+
     // OCCUPANCY: Count active stay checked-in bookings to get true occupied units!
-    const occupiedRooms = rooms.filter(r => 
+    const occupiedRooms = rooms.filter(r =>
       bookings.some(b => b.roomId === r.id && b.stayStatus === 'CHECKED_IN')
     ).length
     const availableRooms = totalRooms - occupiedRooms
     const occupancyPercentage = Math.round((occupiedRooms / (totalRooms || 1)) * 100)
 
     // Room Type occupancy breakdowns
-    const acBooked = rooms.filter(r => r.roomType === RoomTypeEnum.AC && 
+    const acBooked = rooms.filter(r => r.roomType === RoomTypeEnum.AC &&
       bookings.some(b => b.roomId === r.id && b.stayStatus === 'CHECKED_IN')
     ).length
-    const nonAcBooked = rooms.filter(r => r.roomType === RoomTypeEnum.NON_AC && 
+    const nonAcBooked = rooms.filter(r => r.roomType === RoomTypeEnum.NON_AC &&
       bookings.some(b => b.roomId === r.id && b.stayStatus === 'CHECKED_IN')
     ).length
 
     // Floor-wise occupancies
+    const floor0Total = rooms.filter(r => r.floor === 0).length
     const floor1Total = rooms.filter(r => r.floor === 1).length
     const floor2Total = rooms.filter(r => r.floor === 2).length
-    const floor1Booked = rooms.filter(r => r.floor === 1 && 
+    const floor3Total = rooms.filter(r => r.floor === 3).length
+    const floor4Total = rooms.filter(r => r.floor === 4).length
+    const floor0Booked = rooms.filter(r => r.floor === 0 &&
       bookings.some(b => b.roomId === r.id && b.stayStatus === 'CHECKED_IN')
     ).length
-    const floor2Booked = rooms.filter(r => r.floor === 2 && 
+    const floor1Booked = rooms.filter(r => r.floor === 1 &&
+      bookings.some(b => b.roomId === r.id && b.stayStatus === 'CHECKED_IN')
+    ).length
+    const floor2Booked = rooms.filter(r => r.floor === 2 &&
+      bookings.some(b => b.roomId === r.id && b.stayStatus === 'CHECKED_IN')
+    ).length
+    const floor3Booked = rooms.filter(r => r.floor === 3 &&
+      bookings.some(b => b.roomId === r.id && b.stayStatus === 'CHECKED_IN')
+    ).length
+    const floor4Booked = rooms.filter(r => r.floor === 4 &&
       bookings.some(b => b.roomId === r.id && b.stayStatus === 'CHECKED_IN')
     ).length
 
@@ -154,7 +157,7 @@ const AnalyticsPage = () => {
     const unpaidDailyDues = bookings
       .filter(b => b.bookingType === BookingTypeEnum.DAILY && b.paymentStatus === PaymentStatus.PENDING && b.status !== BookingStatus.CANCELLED)
       .reduce((sum, b) => sum + (b.totalAmount || 0), 0)
-    
+
     const pendingPay = unpaidBillsDues + unpaidDailyDues
 
     // Unified Bill Paid evaluator
@@ -168,7 +171,7 @@ const AnalyticsPage = () => {
     // Collection trend over months
     const monthData = bills.reduce<Record<string, { month: string; Invoiced: number; Collected: number }>>((acc, bill) => {
       if (!bill || !bill.month) return acc
-      
+
       // Format Cycle labels into a clean "Month Name" (e.g. "Cycle: 2026-05-21 to 2026-06-21" -> "May 2026")
       let displayMonth = bill.month
       if (bill.month.startsWith("Cycle: ")) {
@@ -178,11 +181,11 @@ const AnalyticsPage = () => {
           displayMonth = date.toLocaleDateString("en-US", { month: "short", year: "numeric" })
         }
       }
-      
+
       acc[displayMonth] = acc[displayMonth] || { month: displayMonth, Invoiced: 0, Collected: 0 }
       acc[displayMonth].Invoiced += ((bill.rentAmount || 0) + (bill.electricityAmount || 0) + (bill.extraCharges || 0))
       acc[displayMonth].Collected += (bill.paidAmount || 0)
-      
+
       return acc
     }, {})
 
@@ -198,8 +201,8 @@ const AnalyticsPage = () => {
     return {
       totalRooms, occupiedRooms, availableRooms, occupancyPercentage,
       acBooked, nonAcBooked,
-      floor1Total, floor2Total,
-      floor1Booked, floor2Booked,
+      floor0Total, floor1Total, floor2Total, floor3Total, floor4Total,
+      floor0Booked, floor1Booked, floor2Booked, floor3Booked, floor4Booked,
       dailyBookings, monthlyBookings,
       onlinePay, cashPay, pendingVerifyPay, pendingPay,
       collectedBills, pendingBills,
@@ -233,7 +236,7 @@ const AnalyticsPage = () => {
   return (
     <div className="min-h-screen bg-slate-50/40 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        
+
         {/* Header Block */}
         <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.03)] flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-1">
@@ -247,7 +250,7 @@ const AnalyticsPage = () => {
               Interactive financial trajectory charts, occupancy densities, floor audits, and settlement statistics
             </p>
           </div>
-          
+
           <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200/60 shadow-sm self-start md:self-auto">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
@@ -267,9 +270,9 @@ const AnalyticsPage = () => {
         {/* High-Impact Stat Cards Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Occupancy Density */}
-          <PremiumStatCard 
-            label="Occupancy Rate" 
-            value={`${stats.occupiedRooms} / ${stats.totalRooms}`} 
+          <PremiumStatCard
+            label="Occupancy Rate"
+            value={`${stats.occupiedRooms} / ${stats.totalRooms}`}
             subValue={`${stats.availableRooms} Units Available`}
             icon={<Home className="w-5 h-5 text-indigo-600" />}
             progress={stats.occupancyPercentage}
@@ -277,9 +280,9 @@ const AnalyticsPage = () => {
           />
 
           {/* Card 2: Confirmed Stays */}
-          <PremiumStatCard 
-            label="Staying Residents" 
-            value={stats.occupiedRooms} 
+          <PremiumStatCard
+            label="Staying Residents"
+            value={stats.occupiedRooms}
             subValue="Actively Checked In"
             icon={<Users className="w-5 h-5 text-emerald-600" />}
             trend={`${stats.occupancyPercentage}% Occupied`}
@@ -287,9 +290,9 @@ const AnalyticsPage = () => {
           />
 
           {/* Card 3: Total Collections */}
-          <PremiumStatCard 
-            label="Total Collected" 
-            value={`₹${(stats.onlinePay + stats.cashPay).toLocaleString()}`} 
+          <PremiumStatCard
+            label="Total Collected"
+            value={`₹${(stats.onlinePay + stats.cashPay).toLocaleString()}`}
             subValue={`₹${stats.pendingPay.toLocaleString()} Dues Pending`}
             icon={<IndianRupee className="w-5 h-5 text-blue-600" />}
             trend={`₹${stats.pendingVerifyPay.toLocaleString()} In-Review`}
@@ -297,9 +300,9 @@ const AnalyticsPage = () => {
           />
 
           {/* Card 4: Bills Success Rate */}
-          <PremiumStatCard 
-            label="Rent Invoiced Success" 
-            value={`₹${stats.collectedBills.toLocaleString()}`} 
+          <PremiumStatCard
+            label="Rent Invoiced Success"
+            value={`₹${stats.collectedBills.toLocaleString()}`}
             subValue={`${Math.round((stats.collectedBills / (stats.collectedBills + stats.pendingBills || 1)) * 100)}% Collection Rate`}
             icon={<ShieldCheck className="w-5 h-5 text-purple-600" />}
             progress={(stats.collectedBills / (stats.collectedBills + stats.pendingBills || 1)) * 100}
@@ -309,7 +312,7 @@ const AnalyticsPage = () => {
 
         {/* Chart Rows Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
+
           {/* Chart 1: Revenue Invoiced vs Collected AreaChart */}
           <Card className="lg:col-span-2 p-6 border border-slate-150 shadow-sm bg-white relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-indigo-100/50 transition-all duration-500"></div>
@@ -323,7 +326,7 @@ const AnalyticsPage = () => {
                 Operational Ledger
               </div>
             </div>
-            
+
             <div className="h-[280px] w-full mt-4">
               {stats.collectionTrend.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-slate-400 uppercase font-black tracking-widest text-[9px]">
@@ -334,21 +337,21 @@ const AnalyticsPage = () => {
                   <AreaChart data={stats.collectionTrend}>
                     <defs>
                       <linearGradient id="colorInvoiced" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#818cf8" stopOpacity={0.15}/>
-                        <stop offset="95%" stopColor="#818cf8" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#818cf8" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#818cf8" stopOpacity={0} />
                       </linearGradient>
                       <linearGradient id="colorCollected" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} />
-                    <Tooltip 
-                      contentStyle={{borderRadius: '16px', border: '1px solid #f1f5f9', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)', fontSize: '11px', fontWeight: 700}}
+                    <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: '16px', border: '1px solid #f1f5f9', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)', fontSize: '11px', fontWeight: 700 }}
                     />
-                    <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{fontSize: '9px', fontWeight: 800, textTransform: 'uppercase'}} />
+                    <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 800, textTransform: 'uppercase' }} />
                     <Area name="Invoiced Volume" type="monotone" dataKey="Invoiced" stroke="#818cf8" strokeWidth={3.5} fillOpacity={1} fill="url(#colorInvoiced)" />
                     <Area name="Collected Amount" type="monotone" dataKey="Collected" stroke="#10b981" strokeWidth={3.5} fillOpacity={1} fill="url(#colorCollected)" />
                   </AreaChart>
@@ -363,7 +366,7 @@ const AnalyticsPage = () => {
               <h2 className="text-sm font-extrabold text-slate-900 tracking-tight leading-none">Unit Density</h2>
               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Hostel Room Occupancy</p>
             </div>
-            
+
             <div className="h-[200px] w-full relative mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -390,7 +393,7 @@ const AnalyticsPage = () => {
                 <p className="text-[8px] text-slate-400 font-bold uppercase mt-1 tracking-widest">Occupancy</p>
               </div>
             </div>
-            
+
             <div className="space-y-3 mt-4 border-t border-slate-50 pt-4">
               <DensityRow label="AC Rooms Occupied" count={stats.acBooked} color="#6366f1" />
               <DensityRow label="Non-AC Rooms Occupied" count={stats.nonAcBooked} color="#94a3b8" />
@@ -400,7 +403,7 @@ const AnalyticsPage = () => {
 
         {/* Settlement Channels & Performance Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
+
           {/* Settlement Channels */}
           <Card className="p-6 border border-slate-150 shadow-sm bg-white space-y-4">
             <div>
@@ -423,8 +426,17 @@ const AnalyticsPage = () => {
               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Floor-wise unit occupancies</p>
             </div>
             <div className="space-y-5">
+              {stats.floor0Total > 0 && (
+                <FloorRow floor="Ground Floor" booked={stats.floor0Booked} total={stats.floor0Total} color="slate" />
+              )}
               <FloorRow floor="1st Floor" booked={stats.floor1Booked} total={stats.floor1Total || 13} color="indigo" />
               <FloorRow floor="2nd Floor" booked={stats.floor2Booked} total={stats.floor2Total || 13} color="blue" />
+              {stats.floor3Total > 0 && (
+                <FloorRow floor="3rd Floor" booked={stats.floor3Booked} total={stats.floor3Total} color="amber" />
+              )}
+              {stats.floor4Total > 0 && (
+                <FloorRow floor="4th Floor" booked={stats.floor4Booked} total={stats.floor4Total} color="rose" />
+              )}
             </div>
           </Card>
 
@@ -490,8 +502,8 @@ const PremiumStatCard = ({ label, value, subValue, icon, progress, trend, color 
       </div>
       {progress !== undefined && (
         <div className="mt-4 h-1.5 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
-          <div 
-            className={`h-full transition-all duration-1000 ${color === 'indigo' ? 'bg-indigo-500' : 'bg-purple-500'}`} 
+          <div
+            className={`h-full transition-all duration-1000 ${color === 'indigo' ? 'bg-indigo-500' : 'bg-purple-500'}`}
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -544,26 +556,35 @@ interface FloorRowProps {
   floor: string;
   booked: number;
   total: number;
-  color: 'indigo' | 'blue';
+  color: 'indigo' | 'blue' | 'slate' | 'amber' | 'rose';
 }
 
-const FloorRow = ({ floor, booked, total, color }: FloorRowProps) => (
-  <div className="group space-y-1">
-    <div className="flex justify-between items-end text-xs font-bold text-slate-500">
-      <div className="flex items-center gap-1.5 leading-none">
-        <span className="text-[9px] text-slate-400 uppercase tracking-widest font-semibold">Scope</span>
-        <span className="text-sm text-slate-900 font-extrabold">{floor}</span>
+const FloorRow = ({ floor, booked, total, color }: FloorRowProps) => {
+  const colorMap: Record<string, string> = {
+    indigo: 'bg-indigo-500',
+    blue: 'bg-blue-500',
+    slate: 'bg-slate-500',
+    amber: 'bg-amber-500',
+    rose: 'bg-rose-500',
+  };
+  return (
+    <div className="group space-y-1">
+      <div className="flex justify-between items-end text-xs font-bold text-slate-500">
+        <div className="flex items-center gap-1.5 leading-none">
+          <span className="text-[9px] text-slate-400 uppercase tracking-widest font-semibold">Scope</span>
+          <span className="text-sm text-slate-900 font-extrabold">{floor}</span>
+        </div>
+        <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-600">{booked} / {total} Active Units</span>
       </div>
-      <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-600">{booked} / {total} Active Units</span>
+      <div className="h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
+        <div
+          className={`h-full transition-all duration-1000 ${colorMap[color] || 'bg-blue-500'}`}
+          style={{ width: `${(booked / (total || 1)) * 100}%` }}
+        />
+      </div>
     </div>
-    <div className="h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
-      <div 
-        className={`h-full transition-all duration-1000 ${color === 'indigo' ? 'bg-indigo-500' : 'bg-blue-500'}`}
-        style={{ width: `${(booked / total) * 100}%` }}
-      />
-    </div>
-  </div>
-)
+  );
+}
 
 interface StayRowProps {
   label: string;

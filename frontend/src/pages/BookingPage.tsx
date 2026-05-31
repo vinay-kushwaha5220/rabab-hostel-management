@@ -329,7 +329,7 @@ const BookingPage = () => {
                   </div>
                   <div className="flex flex-col justify-center">
                     <h3 className="font-bold text-gray-900 text-sm leading-tight mb-1">{room.title}</h3>
-                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">#{room.roomNumber} • Floor {room.floor}</p>
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">#{room.roomNumber} • {room.floor === 0 ? "Ground Floor" : `Floor ${room.floor}`}</p>
                     <div className="mt-1.5 flex gap-1.5">
                       <Badge variant={room.roomType === 'AC' ? 'info' : 'secondary'} size="sm" className="text-[8px] px-1.5 py-0">{room.roomType}</Badge>
                       <Badge variant="primary" size="sm" className="text-[8px] px-1.5 py-0">{isMonthly ? 'LONG' : 'SHORT'}</Badge>

@@ -19,8 +19,6 @@ import {
   deleteBooking,
   recordPayment,
   deletePayment,
-  createBookingRazorpayOrder,
-  verifyBookingRazorpayPayment,
 } from "../controllers/bookingController.js"
 
 import { protect } from "../middleware/authMiddleware.js"
@@ -31,8 +29,6 @@ const router = express.Router()
 // Customer routes
 router.post("/", protect, createBooking)
 router.post("/payment", protect, processPayment)
-router.post("/razorpay/create-order", protect, createBookingRazorpayOrder)
-router.post("/razorpay/verify", protect, verifyBookingRazorpayPayment)
 router.get("/my-bookings", protect, getUserBookings)
 router.post("/:id/extend-check", protect, checkExtensionAvailability)
 router.post("/:id/extend", protect, extendDailyBooking)

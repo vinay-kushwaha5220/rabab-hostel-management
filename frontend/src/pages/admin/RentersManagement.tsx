@@ -539,7 +539,7 @@ const RentersManagement = () => {
 
         {/* Interactive Analytics metrics */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-6">
-          <div className="bg-white p-4.5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md hover:border-slate-200">
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md hover:border-slate-200">
             <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Active Residents</div>
             <div className="text-2xl font-black text-slate-800 mt-1">{totalMonthly + totalDaily}</div>
             <div className="text-[9px] text-slate-400 font-semibold mt-1 flex items-center gap-1">
@@ -547,7 +547,7 @@ const RentersManagement = () => {
               {totalMonthly} Monthly · {totalDaily} Daily
             </div>
           </div>
-          <div className="bg-white p-4.5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md hover:border-slate-200">
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md hover:border-slate-200">
             <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Action Required</div>
             <div className={`text-2xl font-black mt-1 ${needsActionCount > 0 ? 'text-amber-500' : 'text-emerald-500'}`}>
               {needsActionCount}
@@ -556,12 +556,12 @@ const RentersManagement = () => {
               {needsActionCount > 0 ? '⚠️ Pending billing or stay approvals' : '✅ Ledger is fully updated'}
             </div>
           </div>
-          <div className="bg-white p-4.5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md hover:border-slate-200">
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md hover:border-slate-200">
             <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Total Outstanding</div>
             <div className="text-2xl font-black text-red-500 mt-1">₹{pendingCollectionSum.toLocaleString()}</div>
             <div className="text-[9px] text-slate-400 font-semibold mt-1 uppercase">Pending hostel collections</div>
           </div>
-          <div className="bg-white p-4.5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md hover:border-slate-200">
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md hover:border-slate-200">
             <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Room Capacity</div>
             <div className="text-2xl font-black text-slate-700 mt-1">
               {rooms.reduce((sum, r) => sum + r.currentOccupancy, 0)} / {rooms.reduce((sum, r) => sum + r.capacity, 0)}

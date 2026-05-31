@@ -1,5 +1,25 @@
 import { useEffect, useState, useRef, useMemo } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
+import { motion, AnimatePresence } from "framer-motion"
+import { 
+  ArrowLeft, 
+  LayoutDashboard, 
+  FileText, 
+  History, 
+  MessageSquare, 
+  Bell, 
+  CheckCircle2, 
+  AlertTriangle, 
+  Send, 
+  LogOut, 
+  Building, 
+  Sparkles, 
+  ChevronRight, 
+  AlertCircle,
+  FileCheck,
+  Zap,
+  CheckCheck
+} from "lucide-react"
 import { useAuth } from "../context/AuthContextV2"
 import { billingService, paymentService, messagingService } from "../services/billingService"
 import type { MonthlyBill, Message } from "../types/billing"
@@ -30,7 +50,7 @@ const RenterMonthlyDashboard = () => {
   const [notifications, setNotifications] = useState<any[]>([])
   
   // Interactive Payment states
-  const [payMethod, setPayMethod] = useState<'UPI' | 'CASH' | 'RAZORPAY'>('RAZORPAY')
+  const [payMethod, setPayMethod] = useState<'UPI' | 'CASH'>('UPI')
   const [utrNumber, setUtrNumber] = useState('')
   const [paymentNotes, setPaymentNotes] = useState('')
   const [payingLoading, setPayingLoading] = useState(false)
@@ -62,8 +82,8 @@ const RenterMonthlyDashboard = () => {
     if (activeBooking?.id && activeTab === 'messages') {
       fetchConversation()
       
-      // Auto-poll messages every 4 seconds to simulate real-time chat
-      const interval = setInterval(fetchConversation, 4000)
+      // Auto-poll messages every 10 seconds (reduced from 4s to save API calls)
+      const interval = setInterval(fetchConversation, 10000)
       return () => clearInterval(interval)
     }
   }, [activeBooking?.id, activeTab])
@@ -76,16 +96,19 @@ const RenterMonthlyDashboard = () => {
     }
   }, [activeTab])
 
+  // Trigger auto-scroll ONLY when a new message is actually added (length changes),
+  // preventing scroll hijacking during silent polling intervals!
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+    if (messages.length > 0) {
+      scrollToBottom()
+    }
+  }, [messages.length])
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
   const fetchDashboardData = async () => {
-    // Prevent concurrent duplicate fetches
     if (isFetchingDashboard.current) return
     isFetchingDashboard.current = true
     try {
@@ -96,8 +119,6 @@ const RenterMonthlyDashboard = () => {
       setMonthlyBill(data.monthlyBill)
       setNotifications(data.notifications || [])
       
-      // If we have messages in dashboard payload, pre-load them
-      // IMPORTANT: Use spread [...] to avoid mutating the original array with .reverse()
       if (data.messages && Array.isArray(data.messages)) {
         setMessages([...data.messages].reverse())
       }
@@ -142,7 +163,7 @@ const RenterMonthlyDashboard = () => {
       
       await messagingService.sendMessage({
         bookingId: activeBooking.id,
-        receiverId: 1, // Will be auto-resolved to admin on backend safely
+        receiverId: 1, 
         content: textToSend
       })
 
@@ -193,107 +214,20 @@ const RenterMonthlyDashboard = () => {
     }
   }
 
-  const loadRazorpayScript = (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      if ((window as any).Razorpay) {
-        resolve(true)
-        return
-      }
-      const script = document.createElement("script")
-      script.src = "https://checkout.razorpay.com/v1/checkout.js"
-      script.onload = () => resolve(true)
-      script.onerror = () => resolve(false)
-      document.body.appendChild(script)
-    })
-  }
-
   const handleProcessPayment = async () => {
     if (!monthlyBill) return
 
-    // RAZORPAY SECURE PAYMENT FLOW
-    if (payMethod === 'RAZORPAY') {
-      try {
-        setPayingLoading(true)
-        setPaymentSuccess("")
-        setError("")
-
-        // 1. Load Razorpay script
-        const isScriptLoaded = await loadRazorpayScript()
-        if (!isScriptLoaded) {
-          setError("Failed to load online payment gateway. Please check your internet connection.")
-          setPayingLoading(false)
-          return
-        }
-
-        // 2. Create online payment order on backend
-        const orderData = await paymentService.createRazorpayOrder({
-          billId: monthlyBill.id
-        })
-
-        const { orderId, amount, currency, keyId } = orderData
-
-        // 3. Launch Checkout Gateway modal
-        const options = {
-          key: keyId,
-          amount: amount,
-          currency: currency,
-          name: "Rabab Stay",
-          description: `Rent Invoice Settle — ${monthlyBill.month}`,
-          image: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=200",
-          order_id: orderId,
-          handler: async function (response: any) {
-            try {
-              setPayingLoading(true)
-              setError("")
-              setPaymentSuccess("")
-
-              // 4. Secure verification request on backend
-              await paymentService.verifyRazorpayPayment({
-                billId: monthlyBill.id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature
-              })
-
-              setPaymentSuccess(`🎉 Online payment of ₹${(amount / 100).toLocaleString()} successfully processed and verified! Your stay is now active.`)
-              
-              // Re-fetch dashboard data
-              await fetchDashboardData()
-              await fetchHistory()
-            } catch (err: any) {
-              setError(err.response?.data?.message || "Failed to verify transaction signature securely.")
-            } finally {
-              setPayingLoading(false)
-            }
-          },
-          prefill: {
-            name: activeBooking.customerName || user?.name || "",
-            email: activeBooking.customerEmail || user?.email || "",
-            contact: activeBooking.customerPhone || user?.phone || "",
-          },
-          notes: {
-            billId: String(monthlyBill.id)
-          },
-          theme: {
-            color: "#1e293b" // Premium slate matching the portal dashboard theme
-          },
-          modal: {
-            ondismiss: function () {
-              setPayingLoading(false)
-            }
-          }
-        }
-
-        const rzp = new (window as any).Razorpay(options)
-        rzp.open()
-      } catch (err: any) {
-        setError(err.response?.data?.message || "Failed to initialize online transaction.")
-        setPayingLoading(false)
+    if (payMethod === 'UPI') {
+      if (!utrNumber.trim()) {
+        setError("UTR reference number is required for UPI payments")
+        return
       }
-      return
+      if (!/^\d{12}$/.test(utrNumber.trim())) {
+        setError("UTR reference number must be exactly a 12-digit number")
+        return
+      }
     }
 
-    // ORIGINAL CASH/UPI FLOW
     try {
       setPayingLoading(true)
       setPaymentSuccess("")
@@ -301,19 +235,20 @@ const RenterMonthlyDashboard = () => {
 
       await paymentService.processMonthlyPayment({
         billId: monthlyBill.id,
-        paymentMethod: payMethod === 'UPI' ? 'upi' : 'cash'
+        paymentMethod: payMethod === 'UPI' ? 'UPI' : 'CASH',
+        transactionId: payMethod === 'UPI' ? utrNumber.trim() : undefined,
+        notes: payMethod === 'CASH' ? paymentNotes.trim() : undefined
       })
 
       if (payMethod === 'UPI') {
-        setPaymentSuccess("⏳ UPI payment notification submitted! Please wait for the admin to verify references and approve your stay continuation.")
+        setPaymentSuccess("UPI payment notification submitted! Please wait for the admin to verify references and approve your stay continuation.")
       } else {
-        setPaymentSuccess("⏳ Cash payment notification submitted! Please handover ₹" + monthlyBill.remainingAmount.toLocaleString() + " to the administration for verification & approval.")
+        setPaymentSuccess("Cash payment notification submitted! Please handover ₹" + monthlyBill.remainingAmount.toLocaleString() + " to the administration for verification & approval.")
       }
 
       setUtrNumber("")
       setPaymentNotes("")
       
-      // Re-fetch dashboard data
       await fetchDashboardData()
       await fetchHistory()
     } catch (err: any) {
@@ -355,26 +290,27 @@ const RenterMonthlyDashboard = () => {
     )
   }
 
-  // Handle scenario where guest has no active contract or has already checked out
   if (!activeBooking) {
     return (
       <div className="min-h-screen bg-slate-50/50 p-6 flex items-center justify-center">
-        <Card className="max-w-md w-full p-8 text-center bg-white shadow-xl border border-slate-100 rounded-3xl">
+        <Card className="max-w-md w-full p-8 text-center bg-white shadow-lg border border-slate-100 rounded-2xl">
           {error && (
-            <div className="mb-6 p-4 bg-rose-50 border-l-4 border-rose-600 rounded-xl text-left text-xs font-semibold text-rose-700">
+            <div className="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-xl text-left text-xs font-semibold text-rose-700">
               ⚠️ {error}
             </div>
           )}
-          <span className="text-5xl">🏨</span>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight mt-5">No Active Monthly Stay Found</h2>
-          <p className="text-xs text-slate-500 font-medium leading-relaxed mt-2.5 max-w-sm mx-auto">
+          <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4 text-slate-400">
+            <Building size={24} />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">No Active Monthly Stay Found</h2>
+          <p className="text-xs text-slate-500 font-medium leading-relaxed mt-2 max-w-sm mx-auto">
             You do not currently hold an active, checked-in monthly hostel contract. Book a hostel room or coordinate with our administrative managers.
           </p>
-          <div className="mt-8 flex gap-3 justify-center">
-            <Button onClick={() => navigate("/rooms")} size="sm" className="font-bold tracking-widest text-[9px] uppercase">
+          <div className="mt-6 flex gap-3 justify-center">
+            <Button onClick={() => navigate("/rooms")} size="sm" className="font-bold tracking-wider text-[10px] uppercase">
               Explore Rooms
             </Button>
-            <Button onClick={() => navigate("/dashboard")} variant="outline" size="sm" className="font-bold tracking-widest text-[9px] uppercase">
+            <Button onClick={() => navigate("/dashboard")} variant="outline" size="sm" className="font-bold tracking-wider text-[10px] uppercase">
               Back to Overview
             </Button>
           </div>
@@ -385,7 +321,6 @@ const RenterMonthlyDashboard = () => {
 
   const renterProfile = activeBooking.monthlyRenter
   
-  // Calculate dynamic stay status based on strictly start and end dates (Bug #3)
   const getDynamicStayStatus = () => {
     let status = renterProfile?.status || activeBooking.stayStatus || "ACTIVE"
     if (renterProfile?.currentCycleEnd) {
@@ -394,7 +329,6 @@ const RenterMonthlyDashboard = () => {
       const cycleEnd = new Date(renterProfile.currentCycleEnd)
       cycleEnd.setHours(0, 0, 0, 0)
       
-      // Check if latest monthly bill is unpaid
       const hasUnpaid = monthlyBill && !monthlyBill.isPaid
       
       if (cycleEnd < today && hasUnpaid) {
@@ -407,20 +341,16 @@ const RenterMonthlyDashboard = () => {
   }
   
   const stayStatus = getDynamicStayStatus()
-
-  // Pre-calculations for dashboard overview tab (Total, Current, and Old pays with Time Safe Expiration countdown)
   
-  // Current month paid amount
+  // Pre-calculations for dashboard overview tab
   const currentMonthPaid = monthlyBill?.paidAmount || 0
   const currentMonthLabel = monthlyBill?.month || 'Current Month'
 
-  // Last month paid amount (most recent paid bill that is NOT the current bill)
   const oldPaidBills = billsHistory.filter(b => b.isPaid && b.id !== monthlyBill?.id)
   const lastMonthBill = oldPaidBills.length > 0 ? oldPaidBills[0] : null
   const lastMonthPaid = lastMonthBill?.paidAmount || 0
   const lastMonthLabel = lastMonthBill?.month || 'Last Month'
 
-  // Combined total of last month + current month
   const recentTwoMonthsTotal = lastMonthPaid + currentMonthPaid
 
   const calculateDaysLeft = () => {
@@ -435,24 +365,37 @@ const RenterMonthlyDashboard = () => {
   }
   const daysLeft = calculateDaysLeft()
 
+  const tabs: { id: TabType; label: string; icon: any }[] = [
+    { id: 'dashboard', label: 'Summary', icon: LayoutDashboard },
+    { id: 'bills', label: 'Current Statement', icon: FileText },
+    { id: 'history', label: 'Ledger History', icon: History },
+    { id: 'messages', label: 'Support Messenger', icon: MessageSquare },
+    { id: 'notifications', label: 'Alerts', icon: Bell },
+  ]
+
   return (
-    <div className="min-h-screen bg-slate-50/50 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-slate-50/50 p-4 sm:p-6 lg:p-8 relative overflow-hidden pb-12">
+      
+      {/* Background Accent Glows */}
+      <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-gradient-to-br from-blue-600/5 to-indigo-600/5 rounded-full blur-3xl pointer-events-none -translate-y-1/3" />
+
+      <div className="max-w-7xl mx-auto relative z-10">
 
         {/* Hero Top Title Banner */}
-        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-slate-900 text-white p-6 rounded-2xl shadow-xl relative overflow-hidden">
-          <div className="relative z-10">
+        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-slate-900 text-white p-6 rounded-2xl shadow-md relative overflow-hidden">
+          <div className="relative z-10 space-y-1">
             <button
               onClick={() => navigate('/dashboard')}
-              className="text-blue-400 hover:text-blue-300 font-semibold uppercase tracking-wider text-[9px] mb-2 block"
+              className="text-blue-400 hover:text-blue-300 font-bold uppercase tracking-wider text-[9px] mb-1.5 flex items-center gap-1 transition-colors"
             >
-              ← Back to Portal Overview
+              <ArrowLeft size={11} />
+              Back to Overview
             </button>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2 text-white">
-              <span>🏠</span> Resident Monthly Cycle Hub
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+              Resident Monthly Hub
             </h1>
-            <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-1">
-              Unit {activeBooking.room?.roomNumber || "N/A"} — {activeBooking.room?.title}
+            <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+              Room {activeBooking.room?.roomNumber || "N/A"} &bull; {activeBooking.room?.title || "Standard stay"}
             </p>
           </div>
           <div className="flex items-center gap-2 relative z-10 self-start md:self-center">
@@ -460,48 +403,45 @@ const RenterMonthlyDashboard = () => {
               Stay Status: {stayStatus.replace('_', ' ')}
             </Badge>
           </div>
-          {/* Subtle design element */}
+          {/* Subtle gradient graphic */}
           <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-blue-600/10 to-transparent pointer-events-none" />
         </div>
 
-        {/* Global Dues Notifications */}
+        {/* Feedback banners */}
         {error && (
-          <div className="mb-4 p-4 bg-rose-50 border-l-4 border-rose-600 rounded-xl text-xs font-semibold text-rose-700">
-            ⚠️ {error}
+          <div className="mb-4 p-4 bg-rose-50 border border-rose-100 rounded-xl text-xs font-semibold text-rose-700 flex items-center gap-2">
+            <AlertTriangle size={14} className="text-rose-500 flex-shrink-0" />
+            <span>{error}</span>
           </div>
         )}
         {success && (
-          <div className="mb-4 p-4 bg-emerald-50 border-l-4 border-emerald-600 rounded-xl text-xs font-semibold text-emerald-800">
-            ✅ {success}
+          <div className="mb-4 p-4 bg-emerald-50 border border-emerald-100 rounded-xl text-xs font-semibold text-emerald-800 flex items-center gap-2">
+            <CheckCircle2 size={14} className="text-emerald-600 flex-shrink-0" />
+            <span>{success}</span>
           </div>
         )}
 
-        {/* Tab Selection */}
-        <div className="bg-slate-100 p-1.5 rounded-2xl mb-6 shadow-inner flex gap-1.5 overflow-x-auto scrollbar-hide scrollbar-none snap-x snap-mandatory sticky top-0 z-30 backdrop-blur-md bg-opacity-80">
-          {[
-            { id: 'dashboard', label: 'Summary', icon: '📊' },
-            { id: 'bills', label: 'Current Statement', icon: '🧾' },
-            { id: 'history', label: 'Ledger History', icon: '⏳' },
-            { id: 'messages', label: 'Support Messenger', icon: '💬' },
-            { id: 'notifications', label: 'Notifications', icon: '🔔' },
-          ].map((item) => {
-            const isActive = activeTab === item.id;
+        {/* Tabs Bar */}
+        <div className="bg-slate-100/80 backdrop-blur-md p-1 rounded-xl mb-6 shadow-inner flex gap-1 overflow-x-auto scrollbar-hide sticky top-0 z-35 border border-slate-200/50">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id
+            const TabIcon = tab.icon
             return (
               <button
-                key={item.id}
-                onClick={() => switchTab(item.id as TabType)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 snap-center whitespace-nowrap ${
+                key={tab.id}
+                onClick={() => switchTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 snap-center whitespace-nowrap ${
                   isActive 
-                    ? 'bg-blue-600 text-white shadow-md scale-[1.02] transform shadow-blue-100/50' 
-                    : 'text-slate-500 hover:bg-white hover:text-slate-800'
+                    ? 'bg-blue-600 text-white shadow-sm font-extrabold' 
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-white/60'
                 }`}
               >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
-                {item.id === 'notifications' && notifications.length > 0 && (
-                  <span className="relative flex h-2 w-2">
+                <TabIcon size={14} className={isActive ? 'text-white' : 'text-slate-400'} />
+                <span>{tab.label}</span>
+                {tab.id === 'notifications' && notifications.length > 0 && (
+                  <span className="relative flex h-1.5 w-1.5 ml-0.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500"></span>
                   </span>
                 )}
               </button>
@@ -509,72 +449,73 @@ const RenterMonthlyDashboard = () => {
           })}
         </div>
 
-        {/* Main Full-Width Content Container */}
+        {/* Tab content containers */}
         <div className="w-full">
             
             {/* PANEL 1: Summary Overview Tab */}
             {activeTab === 'dashboard' && (
-              <div className="space-y-6 animate-in fade-in duration-200">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
                 
-                {/* PROFESSIONAL STAY RENEWAL & CHECKOUT ACTION CENTER */}
+                {/* STAY RENEWAL & CHECKOUT ACTION CENTER */}
                 {['DUE_SOON', 'EXPIRES_TODAY', 'PAYMENT_PENDING', 'OVERDUE', 'EXPIRED', 'CONTINUE_REQUESTED', 'CHECKOUT_REQUESTED'].includes(stayStatus) && (
-                  <Card className="p-6 border-l-4 border-l-blue-600 bg-white shadow-sm rounded-2xl animate-in slide-in-from-top-4 duration-300">
+                  <Card className="p-5 border-l-4 border-l-blue-600 bg-white shadow-sm rounded-xl">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <div className="flex items-start gap-3.5">
-                        <span className="text-3xl flex-shrink-0">
-                          {stayStatus === 'CONTINUE_REQUESTED' ? '📋' : stayStatus === 'CHECKOUT_REQUESTED' ? '🚪' : '⚠️'}
-                        </span>
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-blue-50 text-blue-600 rounded-lg flex-shrink-0 mt-0.5">
+                          {stayStatus === 'CONTINUE_REQUESTED' ? <FileCheck size={18} /> : stayStatus === 'CHECKOUT_REQUESTED' ? <LogOut size={18} /> : <AlertTriangle size={18} />}
+                        </div>
                         <div>
-                          <h3 className="text-sm font-extrabold text-slate-900 tracking-tight">
-                            {stayStatus === 'CONTINUE_REQUESTED' && 'Continue Stay Request Pending'}
-                            {stayStatus === 'CHECKOUT_REQUESTED' && 'Checkout Request Pending'}
+                          <h3 className="text-sm font-bold text-slate-800 tracking-tight">
+                            {stayStatus === 'CONTINUE_REQUESTED' && 'Continue Stay Request Under Review'}
+                            {stayStatus === 'CHECKOUT_REQUESTED' && 'Checkout Request Under Review'}
                             {['PAYMENT_PENDING', 'OVERDUE', 'EXPIRED'].includes(stayStatus) && 'Your Monthly Stay Has Expired'}
-                            {['DUE_SOON', 'EXPIRES_TODAY'].includes(stayStatus) && 'Stay Cycle Expiring Soon'}
+                            {['DUE_SOON', 'EXPIRES_TODAY'].includes(stayStatus) && 'Stay Cycle Nearing End'}
                           </h3>
-                          <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-1 max-w-xl">
-                            {stayStatus === 'CONTINUE_REQUESTED' && 'Your request to continue your stay is awaiting administrative approval. A new statement will be generated once approved.'}
-                            {stayStatus === 'CHECKOUT_REQUESTED' && 'Your request to checkout is awaiting administrative approval. Please coordinate with the hostel manager for inspection.'}
-                            {['PAYMENT_PENDING', 'OVERDUE', 'EXPIRED'].includes(stayStatus) && 'Your monthly hostel stay has officially expired. Please decide below if you want to request stay continuation or submit a checkout request.'}
-                            {['DUE_SOON', 'EXPIRES_TODAY'].includes(stayStatus) && 'Your current monthly hostel stay cycle is nearing its end. You can request stay continuation or checkout early.'}
+                          <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5 max-w-xl">
+                            {stayStatus === 'CONTINUE_REQUESTED' && 'Your request to continue residency is currently pending manager approval. A statement cycle will renew once verified.'}
+                            {stayStatus === 'CHECKOUT_REQUESTED' && 'Your move-out checkout request is being evaluated. Please coordinate with the management for room inspection and final balance settlements.'}
+                            {['PAYMENT_PENDING', 'OVERDUE', 'EXPIRED'].includes(stayStatus) && 'Your monthly residency has completed. Please indicate whether you want to submit stay continuation or request final checkout.'}
+                            {['DUE_SOON', 'EXPIRES_TODAY'].includes(stayStatus) && 'Your current residential stay cycle is expiring soon. You can request stay extension or submit an early checkout notice.'}
                           </p>
                         </div>
                       </div>
                       
-                      {/* Dynamic Action Buttons or Badges based on status */}
                       <div className="flex flex-wrap items-center gap-2 self-end sm:self-center">
                         {['DUE_SOON', 'EXPIRES_TODAY', 'PAYMENT_PENDING', 'OVERDUE', 'EXPIRED'].includes(stayStatus) && (
                           <>
-                            <Button
+                            <button
                               onClick={handleRequestContinueStay}
-                              size="sm"
-                              className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-[9px] uppercase tracking-widest px-4 py-2"
+                              className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-[9px] uppercase tracking-wider px-4 py-2.5 rounded-lg shadow-sm transition-all"
                             >
                               Continue Stay
-                            </Button>
-                            <Button
+                            </button>
+                            <button
                               onClick={() => {
                                 setCheckoutDate(new Date().toISOString().split('T')[0])
                                 setCheckoutReason("")
                                 setShowCheckoutModal(true)
                               }}
-                              variant="outline"
-                              size="sm"
-                              className="border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-[9px] uppercase tracking-widest px-4 py-2"
+                              className="border border-slate-350 hover:bg-slate-50 text-slate-700 font-bold text-[9px] uppercase tracking-wider px-4 py-2.5 rounded-lg transition-all"
                             >
                               Request Checkout
-                            </Button>
+                            </button>
                           </>
                         )}
 
                         {stayStatus === 'CONTINUE_REQUESTED' && (
                           <Badge variant="warning" size="md" className="font-extrabold text-[9px] uppercase tracking-wider py-1 px-3">
-                            Waiting for Admin Approval
+                            Awaiting Admin Approval
                           </Badge>
                         )}
 
                         {stayStatus === 'CHECKOUT_REQUESTED' && (
                           <Badge variant="secondary" size="md" className="font-extrabold text-[9px] uppercase tracking-wider py-1 px-3">
-                            Waiting for Admin Approval
+                            Awaiting Admin Approval
                           </Badge>
                         )}
                       </div>
@@ -582,70 +523,70 @@ const RenterMonthlyDashboard = () => {
                   </Card>
                 )}
                 
-                {/* Dynamic Premium Metrics Grid */}
+                {/* Metrics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   
-                  {/* Card 1: Expiry Countdown (\"Time Safe Expiry\") */}
-                  <Card className="p-5 shadow-sm border border-slate-100 bg-white rounded-2xl flex flex-col justify-between hover:shadow-md transition-all duration-300 relative overflow-hidden group">
-                    <div>
+                  {/* Card 1: Expiry Countdown */}
+                  <Card className="p-5 shadow-sm border border-slate-100 bg-white rounded-2xl flex flex-col justify-between hover:border-slate-200 transition-all duration-200 relative overflow-hidden group">
+                    <div className="space-y-3">
                       <div className="flex justify-between items-start">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Stay Expiry Countdown</span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Stay cycle countdown</span>
                         {monthlyBill?.month && (
-                          <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                          <span className="text-[8px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase tracking-wider border border-blue-100/50">
                             {monthlyBill.month}
                           </span>
                         )}
                       </div>
                       
                       {daysLeft !== null ? (
-                        <div className="mt-3 flex items-center gap-4">
-                          <div className={`w-14 h-14 rounded-full flex flex-col items-center justify-center border-4 ${
+                        <div className="flex items-center gap-4 py-1">
+                          <div className={`w-14 h-14 rounded-full flex flex-col items-center justify-center border-4 flex-shrink-0 ${
                             daysLeft > 10 
-                              ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
+                              ? 'border-emerald-500 bg-emerald-50/50 text-emerald-700' 
                               : daysLeft >= 0 
-                                ? 'border-amber-500 bg-amber-50 text-amber-700' 
-                                : 'border-rose-500 bg-rose-50 text-rose-700'
+                                ? 'border-amber-500 bg-amber-50/50 text-amber-700' 
+                                : 'border-rose-500 bg-rose-50/50 text-rose-700'
                           }`}>
                             <span className="text-sm font-extrabold leading-none">{Math.abs(daysLeft)}</span>
-                            <span className="text-[7px] font-bold uppercase">{daysLeft >= 0 ? 'Days' : 'Over'}</span>
+                            <span className="text-[6px] font-bold uppercase tracking-wider mt-0.5">{daysLeft >= 0 ? 'Days' : 'Over'}</span>
                           </div>
                           <div>
-                            <h4 className="text-sm font-bold text-slate-800 tracking-tight">
+                            <h4 className="text-xs font-bold text-slate-800 tracking-tight leading-snug">
                               {daysLeft > 10 
                                 ? 'Time Safe & Active' 
                                 : daysLeft >= 0 
                                   ? 'Renewal Due Soon' 
                                   : 'Stay Has Expired'}
                             </h4>
-                            <p className="text-[10px] text-slate-400 font-semibold uppercase mt-0.5">
-                              {daysLeft >= 0 ? 'Days Left in current cycle' : 'Days overdue stay'}
+                            <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">
+                              {daysLeft >= 0 ? 'Days Remaining in current cycle' : 'Days outstanding stay'}
                             </p>
                           </div>
                         </div>
                       ) : (
-                        <div className="mt-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                        <div className="text-xs font-bold text-slate-400 uppercase tracking-wide py-2">
                           No cycle dates configured
                         </div>
                       )}
                       
-                      <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5">
+                      <div className="pt-3 border-t border-slate-100 space-y-1.5">
                         <div className="text-xs text-slate-500 flex justify-between font-semibold">
-                          <span>Cycle Start:</span>
+                          <span className="text-slate-400 font-medium">Cycle Start:</span>
                           <span className="text-slate-700 font-bold">{formatDate(renterProfile?.currentCycleStart)}</span>
                         </div>
                         <div className="text-xs text-slate-500 flex justify-between font-semibold">
-                          <span>Cycle Ends:</span>
+                          <span className="text-slate-400 font-medium">Cycle Ends:</span>
                           <span className="text-slate-700 font-bold">{formatDate(renterProfile?.currentCycleEnd)}</span>
                         </div>
                       </div>
                     </div>
                   </Card>
 
-                  {/* Card 2: Current Cycle Statement ("Currently Payment") */}
-                  <Card className="p-5 shadow-sm border border-slate-100 bg-white rounded-2xl flex flex-col justify-between hover:shadow-md transition-all duration-300 relative overflow-hidden group">
-                    <div>
+                  {/* Card 2: Current Statement Summary */}
+                  <Card className="p-5 shadow-sm border border-slate-100 bg-white rounded-2xl flex flex-col justify-between hover:border-slate-200 transition-all duration-200 relative overflow-hidden group">
+                    <div className="space-y-3">
                       <div className="flex justify-between items-start">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Current Statement ({monthlyBill?.month || 'N/A'})</span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Current Period ({monthlyBill?.month || 'N/A'})</span>
                         {monthlyBill && (
                           <Badge
                             variant={
@@ -658,59 +599,55 @@ const RenterMonthlyDashboard = () => {
                                     : 'info'
                             }
                             size="sm"
-                            className="font-bold text-[8px] uppercase tracking-wider"
+                            className="font-bold text-[8px] uppercase tracking-wider px-2 py-0.5"
                           >
                             {monthlyBill.status.replace('_', ' ')}
                           </Badge>
                         )}
                       </div>
                       
-                      <div className="mt-2.5">
-                        <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Grand Total Invoice</p>
-                        <p className="text-2xl font-extrabold text-slate-800 tracking-tight mt-0.5">
+                      <div className="py-1">
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Statement total dues</p>
+                        <p className="text-2xl font-black text-slate-800 tracking-tight mt-0.5">
                           ₹{(monthlyBill?.totalDue || 0).toLocaleString()}
                         </p>
                       </div>
 
-                      <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex justify-between font-semibold">
-                        <span>Already Paid:</span>
+                      <div className="pt-3 border-t border-slate-100 text-xs text-slate-500 flex justify-between font-semibold">
+                        <span className="text-slate-400 font-medium">Amount Settled:</span>
                         <span className="text-emerald-600 font-bold">₹{(monthlyBill?.paidAmount || 0).toLocaleString()}</span>
                       </div>
                     </div>
                   </Card>
 
-                  {/* Card 3: Last Month + Current Month Total */}
-                  <Card className="p-5 shadow-sm border border-slate-100 bg-white rounded-2xl flex flex-col justify-between hover:shadow-md transition-all duration-300 relative overflow-hidden group">
-                    <div>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Total Payments (Recent)</span>
+                  {/* Card 3: Combined Total */}
+                  <Card className="p-5 shadow-sm border border-slate-100 bg-white rounded-2xl flex flex-col justify-between hover:border-slate-200 transition-all duration-200 relative overflow-hidden group">
+                    <div className="space-y-3">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Total Paid (Recent Cycles)</span>
                       
-                      <div className="mt-3 flex items-center gap-3.5">
-                        <div className="w-12 h-12 bg-blue-50 border border-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-xl shadow-inner">
-                          💰
+                      <div className="flex items-center gap-3">
+                        <div className="">
+                          {/* <DollarSign size={18} /> */}
                         </div>
                         <div>
-                          <p className="text-2xl font-extrabold text-blue-600 tracking-tight">
+                          <p className="text-xl font-black text-blue-600 tracking-tight">
                             ₹{recentTwoMonthsTotal.toLocaleString()}
                           </p>
-                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-                            Last Month + Current Month
+                          <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                            Combined payments ledger
                           </p>
                         </div>
                       </div>
 
                       {/* Breakdown rows */}
-                      <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
+                      <div className="pt-2.5 border-t border-slate-100 space-y-2">
                         <div className="flex justify-between text-xs font-semibold">
-                          <span className="text-slate-500">{lastMonthLabel} (Last)</span>
-                          <span className="text-slate-700">₹{lastMonthPaid.toLocaleString()}</span>
+                          <span className="text-slate-400 font-medium">{lastMonthLabel} (Prior)</span>
+                          <span className="text-slate-700 font-bold">₹{lastMonthPaid.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between text-xs font-semibold">
-                          <span className="text-slate-500">{currentMonthLabel} (Current)</span>
-                          <span className="text-slate-700">₹{currentMonthPaid.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between text-xs font-bold pt-2 border-t border-dashed border-slate-200">
-                          <span className="text-slate-700 uppercase">Combined Total</span>
-                          <span className="text-blue-600 font-extrabold">₹{recentTwoMonthsTotal.toLocaleString()}</span>
+                          <span className="text-slate-400 font-medium">{currentMonthLabel} (Current)</span>
+                          <span className="text-slate-700 font-bold">₹{currentMonthPaid.toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
@@ -718,47 +655,47 @@ const RenterMonthlyDashboard = () => {
 
                 </div>
 
-                {/* Main Content Side-By-Side: Current Pay vs Old Pay Breakdown */}
+                {/* Side-by-Side: Current Pay vs Old Pay Breakdown */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   
-                  {/* Left Side: Current Statement breakdown ("Current Pay") */}
+                  {/* Left Side: Current Statement breakdown */}
                   <Card className="p-5 shadow-sm border border-slate-100 bg-white rounded-2xl">
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-4 pb-2 border-b border-slate-50">
-                      ⚡ Current Payment Period Breakdown
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-4 pb-2 border-b border-slate-50 flex items-center gap-1.5">
+                      <FileCheck size={14} className="text-slate-400" /> Current Statement Breakdown
                     </h4>
                     
                     {monthlyBill ? (
                       <div className="space-y-4">
                         <div className="space-y-2.5 text-xs">
-                          <div className="flex justify-between font-semibold py-1">
-                            <span className="text-slate-500">Base Room Rent Amount</span>
-                            <span className="text-slate-700">₹{monthlyBill.rentAmount.toLocaleString()}</span>
+                          <div className="flex justify-between font-semibold py-0.5">
+                            <span className="text-slate-500 font-medium">1. Base Monthly Room Rent</span>
+                            <span className="text-slate-700 font-bold">₹{monthlyBill.rentAmount.toLocaleString()}</span>
                           </div>
-                          <div className="flex justify-between font-semibold py-1">
-                            <span className="text-slate-500">Room Electricity Bill</span>
-                            <span className="text-slate-700">₹{monthlyBill.electricityAmount.toLocaleString()}</span>
+                          <div className="flex justify-between font-semibold py-0.5">
+                            <span className="text-slate-500 font-medium">2. Room Electricity Usage</span>
+                            <span className="text-slate-700 font-bold">₹{monthlyBill.electricityAmount.toLocaleString()}</span>
                           </div>
-                          <div className="flex justify-between font-semibold py-1">
-                            <span className="text-slate-500">Hostel Maintenance & Clean Fee</span>
-                            <span className="text-slate-700">₹{monthlyBill.extraCharges.toLocaleString()}</span>
+                          <div className="flex justify-between font-semibold py-0.5">
+                            <span className="text-slate-500 font-medium">3. Shared Maintenance Charges</span>
+                            <span className="text-slate-700 font-bold">₹{monthlyBill.extraCharges.toLocaleString()}</span>
                           </div>
                           {monthlyBill.previousDue > 0 && (
-                            <div className="flex justify-between font-bold py-1 text-rose-600">
-                              <span>Previous Carryover Dues</span>
-                              <span>₹{monthlyBill.previousDue.toLocaleString()}</span>
+                            <div className="flex justify-between font-bold py-0.5 text-rose-600">
+                              <span>4. Previous Outstanding Carryover</span>
+                              <span className="font-extrabold">₹{monthlyBill.previousDue.toLocaleString()}</span>
                             </div>
                           )}
-                          <div className="flex justify-between font-bold py-2.5 border-t border-slate-100 pt-2.5 text-xs text-slate-800 uppercase">
-                            <span>Total Dues Settle</span>
-                            <span className="text-blue-600 font-extrabold">₹{monthlyBill.totalDue.toLocaleString()}</span>
+                          <div className="flex justify-between font-bold py-2 border-t border-slate-100 pt-2 text-xs text-slate-850 uppercase">
+                            <span>Total Dues prepared</span>
+                            <span className="text-blue-600 font-black">₹{monthlyBill.totalDue.toLocaleString()}</span>
                           </div>
                         </div>
 
-                        {/* Progress Bar of Payments */}
-                        <div>
-                          <div className="flex justify-between text-[10px] font-bold uppercase text-slate-400 mb-1">
-                            <span>Payment Progress</span>
-                            <span>{Math.round(((monthlyBill.paidAmount || 0) / (monthlyBill.totalDue || 1)) * 100)}% Settled</span>
+                        {/* Progress Bar */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[9px] font-bold uppercase text-slate-400">
+                            <span>Outstanding Settlement Progress</span>
+                            <span>{Math.round(((monthlyBill.paidAmount || 0) / (monthlyBill.totalDue || 1)) * 100)}% paid</span>
                           </div>
                           <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden flex">
                             <div 
@@ -766,49 +703,50 @@ const RenterMonthlyDashboard = () => {
                               style={{ width: `${Math.min(100, Math.round(((monthlyBill.paidAmount || 0) / (monthlyBill.totalDue || 1)) * 100))}%` }}
                             />
                           </div>
-                          <div className="flex justify-between text-[9px] font-semibold uppercase text-slate-400 mt-1">
+                          <div className="flex justify-between text-[8px] font-bold uppercase text-slate-400 mt-0.5">
                             <span className="text-emerald-600">Paid: ₹{monthlyBill.paidAmount.toLocaleString()}</span>
-                            <span className="text-rose-600">Remaining: ₹{monthlyBill.remainingAmount.toLocaleString()}</span>
+                            <span className="text-rose-500">Remaining: ₹{monthlyBill.remainingAmount.toLocaleString()}</span>
                           </div>
                         </div>
 
                         {monthlyBill.remainingAmount > 0 ? (
-                          <div className="flex justify-between items-center bg-emerald-50/40 p-3 rounded-xl border border-emerald-100/50 mt-4">
+                          <div className="flex justify-between items-center bg-blue-50/30 p-3 rounded-xl border border-blue-100/50 mt-4">
                             <div>
-                              <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-wider">Due Amount Settle</p>
-                              <p className="text-sm font-extrabold text-emerald-700">₹{monthlyBill.remainingAmount.toLocaleString()}</p>
+                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Unsettled Balance</p>
+                              <p className="text-sm font-extrabold text-blue-700">₹{monthlyBill.remainingAmount.toLocaleString()}</p>
                             </div>
                             <button
                               onClick={() => switchTab('bills')}
-                              className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-bold text-[9px] uppercase tracking-wider px-4 py-2 rounded-lg shadow-sm hover:shadow hover:shadow-green-500/10 active:scale-95 transition-all"
+                              className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[9px] uppercase tracking-wider px-4 py-2.5 rounded-lg shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center gap-1"
                             >
-                              Pay Now
+                              Settle Dues
+                              <ChevronRight size={12} />
                             </button>
                           </div>
                         ) : (
-                          <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100 text-center font-bold text-[10px] uppercase text-emerald-800 tracking-wider">
-                            🎉 Fully Cleared Cycle Statement
+                          <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100 text-center font-bold text-[9px] uppercase text-emerald-800 tracking-wider">
+                            🎉 Cleared Cycle Statement Statement Fully Settled
                           </div>
                         )}
                       </div>
                     ) : (
                       <div className="py-8 text-center text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                        No statement prepared for this cycle
+                        No active statements generated
                       </div>
                     )}
                   </Card>
 
-                  {/* Right Side: Ledger history summary ("Old Pay") */}
+                  {/* Right Side: Ledger history summary */}
                   <Card className="p-5 shadow-sm border border-slate-100 bg-white rounded-2xl">
                     <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-50">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                        📑 Ledger History (Old Payments)
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <History size={14} className="text-slate-400" /> Recent Statements Ledger
                       </h4>
                       <button 
                         onClick={() => switchTab('history')}
-                        className="text-[9px] font-bold text-blue-600 uppercase hover:underline tracking-wider"
+                        className="text-[9px] font-bold text-blue-600 uppercase hover:underline tracking-wider transition-colors"
                       >
-                        Full Ledger →
+                        Full Ledger &rarr;
                       </button>
                     </div>
                     
@@ -817,22 +755,22 @@ const RenterMonthlyDashboard = () => {
                         No previous settled ledger invoices found
                       </div>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="space-y-2.5">
                         {oldPaidBills.slice(0, 3).map((bill) => (
                           <div 
                             key={bill.id}
-                            className="p-3 bg-slate-50/50 rounded-xl border border-slate-100 flex justify-between items-center hover:bg-slate-50 transition-colors"
+                            className="p-3 bg-slate-50/60 rounded-xl border border-slate-100 flex justify-between items-center hover:bg-slate-50 transition-colors"
                           >
                             <div>
                               <p className="text-xs font-bold text-slate-800">{bill.month}</p>
-                              <p className="text-[9px] text-slate-400 font-semibold uppercase mt-0.5">
-                                Base Rent: ₹{bill.rentAmount.toLocaleString()} | Electricity: ₹{bill.electricityAmount.toLocaleString()}
+                              <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                Rent: ₹{bill.rentAmount} | Elec: ₹{bill.electricityAmount}
                               </p>
                             </div>
                             <div className="text-right">
                               <p className="text-xs font-bold text-emerald-600">₹{bill.paidAmount.toLocaleString()}</p>
-                              <span className="inline-flex items-center gap-0.5 text-[8px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1 rounded mt-0.5">
-                                ✓ Verified
+                              <span className="inline-flex items-center gap-0.5 text-[7px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100/50 mt-0.5">
+                                Verified
                               </span>
                             </div>
                           </div>
@@ -843,12 +781,17 @@ const RenterMonthlyDashboard = () => {
 
                 </div>
 
-              </div>
+              </motion.div>
             )}
  
             {/* PANEL 2: Current Invoice & Payment Gateway tab */}
             {activeTab === 'bills' && (
-              <div className="space-y-6 animate-in fade-in duration-200">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
                 {monthlyBill ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                     
@@ -856,8 +799,8 @@ const RenterMonthlyDashboard = () => {
                     <Card className="p-6 shadow-sm border border-slate-100 bg-white rounded-2xl relative overflow-hidden">
                       <div className="flex justify-between items-start mb-6">
                         <div>
-                          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Rabab Stay Rental Invoice</h3>
-                          <p className="text-[9px] text-slate-400 font-semibold uppercase mt-1">Invoice ID: #{monthlyBill.id} — Period: {monthlyBill.month}</p>
+                          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Hostel Rental Invoice</h3>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">Invoice ID: #{monthlyBill.id} &bull; Period: {monthlyBill.month}</p>
                         </div>
                         <Badge
                           variant={
@@ -870,81 +813,81 @@ const RenterMonthlyDashboard = () => {
                                   : 'info'
                           }
                           size="md"
-                          className="font-bold text-[9px] uppercase tracking-wider px-2 py-0.5"
+                          className="font-bold text-[9px] uppercase tracking-wider px-2.5 py-0.5"
                         >
                           {monthlyBill.status.replace('_', ' ')}
                         </Badge>
                       </div>
  
                       <div className="divide-y divide-slate-100 text-xs">
-                        <div className="py-3 flex justify-between">
-                          <span className="text-slate-500 font-medium">1. Monthly base rent fee</span>
+                        <div className="py-3 flex justify-between font-semibold">
+                          <span className="text-slate-500 font-medium">1. Base Monthly Hostel Rent</span>
                           <span className="font-bold text-slate-700">₹{monthlyBill.rentAmount.toLocaleString()}</span>
                         </div>
-                        <div className="py-3 flex justify-between">
-                          <span className="text-slate-500 font-medium">2. Room electricity statement</span>
+                        <div className="py-3 flex justify-between font-semibold">
+                          <span className="text-slate-500 font-medium">2. Room Electricity Charges</span>
                           <span className="font-bold text-slate-700">₹{monthlyBill.electricityAmount.toLocaleString()}</span>
                         </div>
-                        <div className="py-3 flex justify-between">
-                          <span className="text-slate-500 font-medium">3. Hostel maintenance fee</span>
+                        <div className="py-3 flex justify-between font-semibold">
+                          <span className="text-slate-500 font-medium">3. Hostel Maintenance & Shared Utilities</span>
                           <span className="font-bold text-slate-700">₹{monthlyBill.extraCharges.toLocaleString()}</span>
                         </div>
                         {monthlyBill.previousDue > 0 && (
-                          <div className="py-3 flex justify-between text-rose-600 font-semibold">
-                            <span>4. Carryover dues from previous statements</span>
-                            <span className="font-bold text-rose-700">₹{monthlyBill.previousDue.toLocaleString()}</span>
+                          <div className="py-3 flex justify-between text-rose-600 font-bold">
+                            <span>4. Carryover Outstanding Dues</span>
+                            <span className="font-extrabold">₹{monthlyBill.previousDue.toLocaleString()}</span>
                           </div>
                         )}
-                        <div className="py-4 flex justify-between text-xs font-bold border-t border-slate-100 pt-3">
-                          <span className="text-slate-800 uppercase">Grand Invoice Total</span>
-                          <span className="text-blue-600 font-bold">₹{monthlyBill.totalDue.toLocaleString()}</span>
+                        <div className="py-3.5 flex justify-between text-xs font-bold border-t border-slate-100 pt-3">
+                          <span className="text-slate-850 uppercase">Grand Invoice Total</span>
+                          <span className="text-slate-900 font-black">₹{monthlyBill.totalDue.toLocaleString()}</span>
                         </div>
                         {monthlyBill.paidAmount > 0 && (
-                          <div className="py-3 flex justify-between text-xs font-semibold text-emerald-600">
-                            <span>Amount Settle Payment</span>
+                          <div className="py-3 flex justify-between text-xs font-bold text-emerald-600">
+                            <span>Dues Settled Payments</span>
                             <span>- ₹{monthlyBill.paidAmount.toLocaleString()}</span>
                           </div>
                         )}
-                        <div className="py-4 flex justify-between text-xs font-bold border-t border-slate-100 bg-slate-50/50 px-3 rounded-xl mt-2">
-                          <span className="text-slate-800 uppercase">Remaining Outstanding Dues</span>
-                          <span className="text-rose-600 font-bold">₹{monthlyBill.remainingAmount.toLocaleString()}</span>
+                        <div className="py-3.5 flex justify-between text-xs font-bold border-t border-slate-100 bg-slate-50/50 px-3 rounded-xl mt-2">
+                          <span className="text-slate-800 uppercase">Outstanding Outstanding Balance</span>
+                          <span className="text-rose-600 font-black">₹{monthlyBill.remainingAmount.toLocaleString()}</span>
                         </div>
                       </div>
  
-                      <div className="mt-4 text-[9px] font-semibold text-slate-400 uppercase tracking-wide text-right">
-                        Due Date: {formatDate(monthlyBill.dueDate)}
+                      <div className="mt-4 text-[9px] font-bold text-slate-400 uppercase tracking-wider text-right">
+                        Statement Due Date: {formatDate(monthlyBill.dueDate)}
                       </div>
                     </Card>
  
-                    {/* Verification / Settle Portal */}
+                    {/* Settle Portal */}
                     {monthlyBill.remainingAmount > 0 ? (
-                      <Card className="p-6 shadow-sm border border-blue-100 bg-white rounded-2xl">
-                        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Settle Rent Invoice Dues</h3>
+                      <Card className="p-6 shadow-sm border border-slate-100 bg-white rounded-2xl">
+                        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Settle Rent Statement</h3>
                         
                         {paymentSuccess && (
-                          <div className="mb-4 p-4 bg-emerald-50 border-l-4 border-emerald-600 rounded-2xl text-xs font-semibold text-emerald-800">
+                          <div className="mb-4 p-4 bg-emerald-50 border border-emerald-100 rounded-xl text-xs font-semibold text-emerald-800">
                             {paymentSuccess}
                           </div>
                         )}
 
-                        {/* Stay Renewal Option Selection Center (Business Rule 10: renewal options) */}
-                        <div className="mb-5 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Choose Stay Renewal Option:</p>
-                          <div className="grid grid-cols-2 gap-3.5">
+                        {/* Stay Renewal Choices */}
+                        <div className="mb-5 p-4 rounded-xl border border-slate-200/60 bg-slate-50/40">
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2">Select Residency Action</p>
+                          <div className="grid grid-cols-2 gap-3">
                             <button
                               type="button"
                               onClick={() => {
-                                setSuccess("Option A Selected: Please complete the payment below to continue your stay.")
+                                setSuccess("Stay renewal option confirmed. Complete payment below to extend cycle.")
                                 setError("")
                               }}
-                              className="p-3.5 bg-white border border-blue-500 rounded-xl text-left shadow-sm flex flex-col justify-between hover:border-blue-600 transition-all active:scale-[0.98] cursor-pointer"
+                              className="p-3 bg-white border border-blue-500 rounded-xl text-left shadow-sm flex flex-col justify-between hover:border-blue-600 transition-all active:scale-98 cursor-pointer"
                             >
                               <div>
-                                <span className="text-lg">🏠</span>
-                                <p className="text-[10px] font-extrabold text-blue-600 uppercase tracking-widest mt-1">Option A</p>
-                                <p className="text-xs font-black text-slate-900 mt-0.5">Pay & Continue</p>
+                                <Zap size={14} className="text-blue-500" />
+                                <p className="text-[8px] font-bold text-blue-600 uppercase tracking-wider mt-1">Option A</p>
+                                <p className="text-[11px] font-bold text-slate-800 mt-0.5">Pay & Continue</p>
                               </div>
-                              <p className="text-[9px] text-slate-500 mt-2 font-medium leading-tight">Pay dues to automatically renew stay cycle.</p>
+                              <p className="text-[8px] text-slate-400 mt-2 font-medium leading-tight">Pay statements to automatically renew stay contract.</p>
                             </button>
 
                             <button
@@ -954,389 +897,436 @@ const RenterMonthlyDashboard = () => {
                                 setCheckoutReason("")
                                 setShowCheckoutModal(true)
                               }}
-                              className="p-3.5 bg-white border border-slate-200 hover:border-rose-400 rounded-xl text-left shadow-sm flex flex-col justify-between transition-all active:scale-[0.98] cursor-pointer"
+                              className="p-3 bg-white border border-slate-200 hover:border-rose-455 rounded-xl text-left shadow-sm flex flex-col justify-between transition-all active:scale-98 cursor-pointer hover:border-rose-300"
                             >
                               <div>
-                                <span className="text-lg">🚪</span>
-                                <p className="text-[10px] font-extrabold text-rose-500 uppercase tracking-widest mt-1">Option B</p>
-                                <p className="text-xs font-black text-slate-900 mt-0.5">Request Checkout</p>
+                                <LogOut size={14} className="text-rose-500" />
+                                <p className="text-[8px] font-bold text-rose-500 uppercase tracking-wider mt-1">Option B</p>
+                                <p className="text-[11px] font-bold text-slate-800 mt-0.5">Request Checkout</p>
                               </div>
-                              <p className="text-[9px] text-slate-500 mt-2 font-medium leading-tight">Coordination for move-out & stop next cycles.</p>
+                              <p className="text-[8px] text-slate-400 mt-2 font-medium leading-tight">Terminate cycles and schedule room inspection.</p>
                             </button>
                           </div>
                         </div>
  
                         <div className="space-y-4">
                           <div>
-                            <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Select Payment Mode</label>
+                            <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-0.5">Payment Method</label>
                             <select
                               value={payMethod}
                               onChange={(e) => setPayMethod(e.target.value as any)}
-                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 font-semibold text-xs outline-none cursor-pointer"
+                              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-600 font-semibold text-xs outline-none cursor-pointer text-slate-800"
                             >
-                              <option value="RAZORPAY">Secure Online Payment (Card / UPI / Netbanking)</option>
-                              <option value="UPI">UPI Reference Check (Scan QR & Hand-verify)</option>
-                              <option value="CASH">Offline Cash Handover</option>
+                              <option value="UPI">UPI QR Reference (Hand-verified scan)</option>
+                              <option value="CASH">Offline Cash Settlement</option>
                             </select>
                           </div>
- 
-                          {payMethod === 'RAZORPAY' ? (
-                            <div className="p-5 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 rounded-2xl border border-slate-800 flex flex-col items-center gap-4 text-white relative overflow-hidden shadow-lg shadow-slate-950/20 group animate-in fade-in duration-300">
-                              <div className="flex flex-col items-center gap-2 relative z-10 text-center">
-                                <div className="w-12 h-12 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-2xl flex items-center justify-center text-xl shadow-inner mb-1.5 animate-pulse">
-                                  💳
-                                </div>
-                                <p className="font-extrabold text-sm tracking-tight text-white">Secure Online Payment Gateway</p>
-                                <p className="text-[10px] text-slate-400 font-semibold leading-relaxed max-w-xs mx-auto">
-                                  Pay instantly using Credit Card, Debit Card, Netbanking, or direct UPI. All transactions are secure and automatically validated.
-                                </p>
-                              </div>
-                              <div className="w-full border-t border-slate-800/80 pt-3 flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest relative z-10">
-                                <span>Gateway Provider:</span>
-                                <span className="text-blue-400 font-extrabold">Razorpay Secure</span>
-                              </div>
-                              <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-blue-500/5 to-transparent pointer-events-none" />
-                            </div>
-                          ) : payMethod === 'UPI' ? (
-                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100/50 flex flex-col items-center gap-4">
-                              {/* Dynamic QR Code from free QR API */}
-                              <div className="flex flex-col items-center gap-2">
-                                <div className="w-32 h-32 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-center relative overflow-hidden flex-shrink-0">
+                          {payMethod === 'UPI' ? (
+                            <motion.div 
+                              initial={{ opacity: 0, y: 5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex flex-col items-center gap-3"
+                            >
+                              <div className="flex flex-col items-center gap-1.5">
+                                <div className="w-28 h-28 bg-white p-1 rounded-lg border border-slate-200 shadow-inner flex items-center justify-center relative overflow-hidden">
                                   <img 
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`upi://pay?pa=6386227501@axl&pn=${encodeURIComponent("Rabab Stay")}&am=${monthlyBill.remainingAmount}&cu=INR&tn=${encodeURIComponent(`Rent ${monthlyBill.month || ''}`)}`)}`}
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`upi://pay?pa=6386227501@axl&pn=${encodeURIComponent("Rabab Stay")}&am=${monthlyBill.remainingAmount}&cu=INR&tn=${encodeURIComponent(`Rent ${monthlyBill.month || ''}`)}`)}`}
                                     alt="Scan to Pay Dues"
                                     className="w-full h-full object-contain"
                                   />
                                 </div>
-                                <span className="text-[8px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full animate-pulse">
-                                  Auto-fills ₹{monthlyBill.remainingAmount.toLocaleString()}
+                                <span className="text-[8px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full animate-pulse border border-blue-100/50 mt-1">
+                                  Pay ₹{monthlyBill.remainingAmount.toLocaleString()}
                                 </span>
                               </div>
-                              <div className="space-y-2 text-xs w-full text-center">
-                                <p className="font-semibold text-slate-800">Scan & Pay Online</p>
-                                  <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
-                                    Scan QR code or pay directly to UPI Address: <span className="font-semibold text-blue-600 bg-blue-50/50 px-1 py-0.5 rounded">6386227501@axl</span> using any UPI app.
-                                  </p>
+                              <div className="space-y-3 text-xs w-full text-center">
+                                <p className="font-bold text-slate-800">Scan & Complete Payment</p>
+                                <p className="text-[9px] text-slate-400 font-semibold leading-relaxed">
+                                  Complete UPI scan or pay to address: <span className="font-bold text-blue-600 bg-blue-50 px-1 py-0.5 rounded">6386227501@axl</span>.
+                                </p>
                                 
-                                <div className="pt-2 text-left">
-                                  <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-wider mb-1 ml-0.5">UPI Ref Number / UTR (Optional)</label>
+                                <div className="pt-1 text-left space-y-1">
+                                  <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-0.5">UPI Ref Number / UTR</label>
                                   <input
                                     type="text"
                                     value={utrNumber}
                                     onChange={(e) => setUtrNumber(e.target.value)}
-                                    placeholder="Enter 12-digit UTR number"
-                                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 font-semibold text-[11px] outline-none"
+                                    placeholder="Enter 12-digit transaction UTR"
+                                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-600 font-semibold text-[11px] outline-none text-slate-800"
                                   />
                                 </div>
                               </div>
-                            </div>
+                            </motion.div>
                           ) : (
-                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100/50 space-y-3">
-                              <p className="text-xs font-bold text-slate-800">💸 Cash Handover Settlement</p>
-                              <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                                Settle the invoice in cash directly with the building coordinator at the front office. Submit a verification request below after handed over.
+                            <motion.div 
+                              initial={{ opacity: 0, y: 5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-2"
+                            >
+                              <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">Offline Cash Settlement</p>
+                              <p className="text-[9px] text-slate-400 font-semibold leading-relaxed">
+                                Settle cycle dues directly at the hostel information office. Hand over the outstanding balances to the building warden.
                               </p>
-                              <div>
-                                <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-wider mb-1 ml-0.5">Handover Notes</label>
+                              <div className="space-y-1 pt-1">
+                                <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-0.5">Handover Notes</label>
                                 <input
                                   type="text"
                                   value={paymentNotes}
                                   onChange={(e) => setPaymentNotes(e.target.value)}
-                                  placeholder="Specify notes (e.g. handed over to Amit)"
-                                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 font-semibold text-[11px] outline-none"
+                                  placeholder="E.g., handed over to warden"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-600 font-semibold text-[11px] outline-none text-slate-800"
                                 />
                               </div>
-                            </div>
+                            </motion.div>
                           )}
- 
-                          <Button
+  
+                          <button
                             onClick={handleProcessPayment}
-                            variant="success"
                             disabled={payingLoading}
-                            className="w-full uppercase font-bold tracking-wider text-[9px] h-10 mt-2 shadow-md shadow-green-100 flex items-center justify-center gap-1.5"
+                            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white font-bold tracking-wider text-[10px] uppercase h-10 mt-2 rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-all"
                           >
                             {payingLoading ? (
                               <>
-                                <span className="animate-spin text-white">🔄</span>
-                                <span>{payMethod === 'RAZORPAY' ? 'Initializing Gateway...' : 'Verifying Payment Notification...'}</span>
+                                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                <span>Processing...</span>
                               </>
                             ) : (
-                              <span>{payMethod === 'RAZORPAY' ? 'Pay Online with Razorpay' : 'Notify Payment Complete'}</span>
+                               <span>Notify Payment Complete</span>
                             )}
-                          </Button>
+                          </button>
                         </div>
                       </Card>
                     ) : (
-                      <Card className="p-6 bg-emerald-50 border border-emerald-100 rounded-2xl shadow-sm text-center">
-                        <span className="text-3xl">🎉</span>
-                        <h4 className="text-sm font-bold text-emerald-900 uppercase tracking-wider mt-3">Invoice Settled</h4>
-                        <p className="text-xs text-emerald-700 font-medium mt-1 leading-relaxed">
-                          This monthly statement has been settled successfully. Thank you!
+                      <Card className="p-6 bg-emerald-50 border border-emerald-100 rounded-2xl shadow-sm text-center flex flex-col items-center">
+                        <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-2">
+                          <CheckCircle2 size={20} />
+                        </div>
+                        <h4 className="text-sm font-bold text-emerald-950 uppercase tracking-wider">Statement Fully Settled</h4>
+                        <p className="text-[10px] text-emerald-700 font-medium mt-0.5 max-w-xs">
+                          Outstanding rental amounts for this statement cycle have been fully paid.
                         </p>
                       </Card>
                     )}
                   </div>
                 ) : (
-                  <Card className="p-16 text-center border-none shadow-sm bg-white rounded-2xl">
-                    <span className="text-4xl">🧾</span>
-                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest mt-4">No Statement Generated</h3>
+                  <Card className="p-16 text-center border border-slate-200 shadow-sm bg-white rounded-2xl">
+                    <FileText className="mx-auto text-slate-350" size={32} />
+                    <h3 className="text-sm font-bold text-slate-850 uppercase tracking-widest mt-4">No Statement Prepared</h3>
                     <p className="text-xs text-slate-400 font-semibold mt-1">There is no active rent statement prepared for this month cycle.</p>
                   </Card>
                 )}
-              </div>
+              </motion.div>
             )}
  
             {/* PANEL 3: Bills History Timeline tab */}
             {activeTab === 'history' && (
-              <Card className="p-6 shadow-sm border border-slate-100 bg-white rounded-2xl animate-in fade-in duration-200">
-                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Invoice Ledger & History</h3>
-                {billsHistory.length === 0 ? (
-                  <div className="py-12 text-center text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                    No past rent statement ledger records found.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-left">
-                      <thead>
-                        <tr className="text-[8px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                          <th className="pb-3">Month</th>
-                          <th className="pb-3 text-right">Rent</th>
-                          <th className="pb-3 text-right">Electricity</th>
-                          <th className="pb-3 text-right">Other</th>
-                          <th className="pb-3 text-right">Total</th>
-                          <th className="pb-3 text-center">Settle Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50 font-semibold text-slate-700">
-                        {billsHistory.map((bill) => (
-                          <tr key={bill.id} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="py-3.5 font-bold text-slate-800">{bill.month}</td>
-                            <td className="py-3.5 text-right">₹{bill.rentAmount.toLocaleString()}</td>
-                            <td className="py-3.5 text-right">₹{bill.electricityAmount.toLocaleString()}</td>
-                            <td className="py-3.5 text-right">₹{bill.extraCharges.toLocaleString()}</td>
-                            <td className="py-3.5 text-right text-blue-600 font-bold">₹{bill.totalDue.toLocaleString()}</td>
-                            <td className="py-3.5 text-center">
-                              <Badge variant={bill.isPaid ? "success" : "danger"} size="sm" className="text-[8px] px-1.5 font-bold uppercase">
-                                {bill.status.replace('_', ' ')}
-                              </Badge>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </Card>
-            )}
- 
-            {/* PANEL 4: Direct Support Chat tab */}
-            {activeTab === 'messages' && (
-              <Card className="p-0 shadow-sm border border-slate-100 bg-white rounded-2xl flex flex-col h-[520px] overflow-hidden animate-in fade-in duration-200">
-                {/* Chat header */}
-                <div className="bg-blue-600 text-white p-4 flex items-center justify-between shadow-sm">
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200">Hostel Support Desk</h4>
-                    <p className="text-[9px] text-blue-300 font-semibold mt-0.5">Online Support Desk</p>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                    <span className="text-[8px] font-semibold uppercase tracking-wider text-slate-400">Live Connection</span>
-                  </div>
-                </div>
- 
-                {/* Message logs list */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/30">
-                  {messages.length === 0 ? (
-                    <div className="h-full flex items-center justify-center flex-col text-slate-400 text-center px-6">
-                      <span className="text-3xl mb-2">💬</span>
-                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Support Chat Empty</p>
-                      <p className="text-[10px] text-slate-400 font-semibold uppercase mt-1">Submit a question or query above to coordinate directly with administration.</p>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="p-6 shadow-sm border border-slate-100 bg-white rounded-2xl">
+                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Invoice Ledger History</h3>
+                  {billsHistory.length === 0 ? (
+                    <div className="py-12 text-center text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                      No past rent statement ledger records found.
                     </div>
                   ) : (
-                    messages.map((msg: any) => {
-                      const isAdmin = msg.sender?.role === "ADMIN" || msg.senderId !== user?.id
-                      return (
-                        <div key={msg.id} className={`flex flex-col ${isAdmin ? 'items-start' : 'items-end'}`}>
-                          <div className={`max-w-[75%] px-3.5 py-2.5 rounded-2xl text-xs font-semibold leading-relaxed shadow-sm ${
-                            isAdmin 
-                              ? 'bg-white border border-slate-100 text-slate-800 rounded-tl-none' 
-                              : 'bg-blue-600 text-white rounded-tr-none'
-                          }`}>
-                            <p className="text-[8px] font-bold uppercase opacity-60 tracking-wider mb-1">
-                              {isAdmin ? "Admin Manager" : user?.name}
-                            </p>
-                            <p>{msg.content}</p>
-                          </div>
-                          <span className="text-[8px] text-slate-400 font-semibold uppercase mt-1 px-1">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
-                      )
-                    })
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs text-left">
+                        <thead>
+                          <tr className="text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-150">
+                            <th className="pb-3 font-bold">Month</th>
+                            <th className="pb-3 text-right font-bold">Rent</th>
+                            <th className="pb-3 text-right font-bold">Electricity</th>
+                            <th className="pb-3 text-right font-bold">Other</th>
+                            <th className="pb-3 text-right font-bold">Total</th>
+                            <th className="pb-3 text-center font-bold">Settle Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 font-semibold text-slate-700">
+                          {billsHistory.map((bill) => (
+                            <tr key={bill.id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="py-3.5 font-bold text-slate-800">{bill.month}</td>
+                              <td className="py-3.5 text-right font-bold">₹{bill.rentAmount.toLocaleString()}</td>
+                              <td className="py-3.5 text-right font-bold">₹{bill.electricityAmount.toLocaleString()}</td>
+                              <td className="py-3.5 text-right font-bold">₹{bill.extraCharges.toLocaleString()}</td>
+                              <td className="py-3.5 text-right text-blue-650 font-extrabold">₹{bill.totalDue.toLocaleString()}</td>
+                              <td className="py-3.5 text-center">
+                                <Badge variant={bill.isPaid ? "success" : "danger"} size="sm" className="text-[7px] px-2 font-bold uppercase tracking-wider">
+                                  {bill.status.replace('_', ' ')}
+                                </Badge>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
-                  <div ref={chatEndRef} />
-                </div>
+                </Card>
+              </motion.div>
+            )}
  
-                {/* Chat message input form */}
-                <form onSubmit={handleSendSupportMessage} className="p-3 border-t border-slate-100 bg-white flex gap-2">
-                  <input
-                    type="text"
-                    value={chatMessage}
-                    onChange={(e) => setChatMessage(e.target.value)}
-                    placeholder="Type support question here..."
-                    className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-semibold outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-400"
-                  />
-                  <Button
-                    type="submit"
-                    disabled={sendingChat || !chatMessage.trim()}
-                    className="px-4 py-2 text-xs font-bold uppercase tracking-wider"
-                  >
-                    Send
-                  </Button>
-                </form>
-              </Card>
+            {/* PANEL 4: Support Chat tab */}
+            {activeTab === 'messages' && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="p-0 shadow-xl border border-slate-200/80 bg-white rounded-2xl flex flex-col h-[520px] overflow-hidden">
+                  {/* Chat header */}
+                  <div className="bg-[#075e54] text-white p-3.5 px-4 flex items-center justify-between shadow-md z-10 shrink-0 select-none">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-teal-600/70 border border-teal-500/20 text-white font-bold flex items-center justify-center text-xs shadow-sm relative font-sans">
+                        WS
+                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#075e54] rounded-full animate-pulse"></span>
+                      </div>
+                      <div>
+                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-white">
+                          Hostel Support Desk
+                        </h4>
+                        <p className="text-[9px] text-teal-150/90 font-medium">Online Direct Resident Chat</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-teal-800/40 border border-teal-700/50 px-3 py-1 rounded-full text-[8.5px] font-extrabold uppercase tracking-wider text-teal-100">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
+                      <span>Connected</span>
+                    </div>
+                  </div>
+   
+                  {/* Message logs list */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#efeae2] relative custom-scrollbar">
+                    {messages.length === 0 ? (
+                      <div className="h-full flex items-center justify-center flex-col text-slate-400 text-center px-6 space-y-2">
+                        <MessageSquare size={28} className="text-slate-350" />
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Support Chat Empty</p>
+                        <p className="text-[9px] text-slate-500 font-semibold uppercase max-w-xs leading-relaxed">
+                          Ask accommodation concerns or cycle discrepancies. The managers will reply directly here.
+                        </p>
+                      </div>
+                    ) : (
+                      messages.map((msg: any) => {
+                        // Loose/String inequality check to prevent UUID vs Integer mismatch bugs
+                        const isWarden = msg.sender?.role === "ADMIN" || String(msg.senderId) !== String(user?.id)
+                        return (
+                          <div key={msg.id} className={`flex w-full ${isWarden ? 'justify-start' : 'justify-end'} mb-1`}>
+                            {/* Premium WhatsApp Speech Bubble */}
+                            <div className={`max-w-[72%] px-3 py-1.5 pb-5 rounded-xl shadow-sm text-xs font-medium leading-relaxed relative ${
+                              isWarden 
+                                ? 'bg-white text-slate-800 rounded-tl-none border border-slate-200/40' 
+                                : 'bg-[#dcf8c6] text-slate-850 rounded-tr-none'
+                            }`}>
+                              {isWarden && (
+                                <p className="text-[8px] font-bold text-teal-700 uppercase tracking-wider mb-0.5">Warden Support</p>
+                              )}
+                              <p className="break-words whitespace-pre-wrap pr-10 text-[12px] font-medium leading-normal">{msg.content}</p>
+                              
+                              {/* Bottom-right inline timestamp + read receipts */}
+                              <div className="absolute bottom-0.5 right-1.5 flex items-center gap-1 select-none">
+                                <span className="text-[8px] text-slate-400 font-bold tracking-normal font-mono">
+                                  {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                <span className="flex items-center">
+                                  {msg.isRead ? (
+                                    <CheckCheck size={11} className="text-[#53bdeb] stroke-[2.5]" />
+                                  ) : (
+                                    <CheckCheck size={11} className="text-[#8696a0] stroke-[2.5]" />
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+   
+                  {/* Chat input */}
+                  <form onSubmit={handleSendSupportMessage} className="p-3 border-t border-slate-100 bg-[#f0f0f0] flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={chatMessage}
+                      onChange={(e) => setChatMessage(e.target.value)}
+                      placeholder="Type a support concern..."
+                      className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-full text-xs font-semibold outline-none focus:border-slate-350 text-slate-800 placeholder:text-slate-400 shadow-sm"
+                    />
+                    <button
+                      type="submit"
+                      disabled={sendingChat || !chatMessage.trim()}
+                      className="w-9 h-9 rounded-full bg-[#00a884] hover:bg-[#008f72] text-white flex items-center justify-center disabled:opacity-50 active:scale-95 transition-all shadow-sm shrink-0 cursor-pointer"
+                    >
+                      <Send size={13} className="ml-0.5 text-white" />
+                    </button>
+                  </form>
+                </Card>
+              </motion.div>
             )}
  
             {/* PANEL 5: Notifications & Alerts tab */}
             {activeTab === 'notifications' && (
-              <Card className="p-6 shadow-sm border border-slate-100 bg-white rounded-2xl animate-in fade-in duration-200">
-                <div className="flex justify-between items-center mb-6">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Residency Notifications & Alerts</h3>
-                    <p className="text-[9px] text-slate-400 font-semibold uppercase mt-1">Official system announcements & updates</p>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="p-6 shadow-sm border border-slate-100 bg-white rounded-2xl">
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <Bell size={14} className="text-slate-400" /> residency notifications
+                      </h3>
+                      <p className="text-[9px] text-slate-400 font-semibold uppercase mt-0.5">Stay alerts & residency notices</p>
+                    </div>
+                    <Badge variant="primary" size="md" className="font-bold text-[8px] uppercase tracking-wider">
+                      {notifications.length} Statements
+                    </Badge>
                   </div>
-                  <Badge variant="primary" size="md" className="font-bold text-[9px] uppercase tracking-wider">
-                    {notifications.length} Total
-                  </Badge>
-                </div>
- 
-                {notifications.length === 0 ? (
-                  <div className="py-16 text-center border-2 border-dashed border-slate-100 rounded-2xl">
-                    <span className="text-4xl">🔔</span>
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mt-4">Inbox is Clean</h4>
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase mt-1">You have no new notifications or stay cycle alerts.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {notifications.map((notif: any) => {
-                      const isHigh = notif.priority === 'HIGH';
-                      const isBill = notif.type === 'BILL';
-                      const isPayment = notif.type === 'PAYMENT';
-                      
-                      let accentColor = 'border-l-slate-400';
-                      let icon = '🔔';
-                      if (isHigh) {
-                        accentColor = 'border-l-rose-500 bg-rose-50/20';
-                        icon = '🚨';
-                      } else if (isBill) {
-                        accentColor = 'border-l-amber-500 bg-amber-50/10';
-                        icon = '🧾';
-                      } else if (isPayment) {
-                        accentColor = 'border-l-emerald-500 bg-emerald-50/10';
-                        icon = '💸';
-                      }
- 
-                      return (
-                        <div 
-                          key={notif.id} 
-                          className={`p-4 border border-slate-100 border-l-4 ${accentColor} rounded-2xl flex gap-3.5 items-start hover:shadow-md transition-all duration-300`}
-                        >
-                          <div className="text-xl p-2 bg-white shadow-sm border border-slate-50 rounded-xl flex-shrink-0">
-                            {icon}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start gap-2 flex-wrap">
-                              <h4 className="text-xs font-bold text-slate-800 tracking-tight uppercase">
-                                {notif.title}
-                              </h4>
-                              <span className="text-[8px] text-slate-400 font-semibold uppercase whitespace-nowrap">
-                                {formatDate(notif.createdAt)}
-                              </span>
+   
+                  {notifications.length === 0 ? (
+                    <div className="py-16 text-center border-2 border-dashed border-slate-100 rounded-2xl space-y-2">
+                      <Bell className="mx-auto text-slate-300" size={32} />
+                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Timeline Inbox Clean</h4>
+                      <p className="text-[9px] text-slate-400 font-semibold uppercase">You have no pending warnings or cycle updates.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3.5">
+                      {notifications.map((notif: any) => {
+                        const isHigh = notif.priority === 'HIGH'
+                        const isBill = notif.type === 'BILL'
+                        const isPayment = notif.type === 'PAYMENT'
+                        
+                        let accentColor = 'border-l-slate-400'
+                        let icon = <Bell size={14} className="text-slate-500" />
+                        if (isHigh) {
+                          accentColor = 'border-l-rose-500 bg-rose-50/20'
+                          icon = <AlertCircle size={14} className="text-rose-500" />
+                        } else if (isBill) {
+                          accentColor = 'border-l-amber-500 bg-amber-50/10'
+                          icon = <FileText size={14} className="text-amber-500" />
+                        } else if (isPayment) {
+                          accentColor = 'border-l-emerald-500 bg-emerald-50/10'
+                          icon = <Sparkles size={14} className="text-emerald-500 animate-pulse" />
+                        }
+   
+                        return (
+                          <div 
+                            key={notif.id} 
+                            className={`p-4 border border-slate-100 border-l-4 ${accentColor} rounded-xl flex gap-3.5 items-start hover:shadow-sm transition-all duration-200`}
+                          >
+                            <div className="p-2 bg-white shadow-sm border border-slate-50 rounded-lg flex-shrink-0">
+                              {icon}
                             </div>
-                            <p className="text-xs text-slate-600 font-medium leading-relaxed mt-1">
-                              {notif.message}
-                            </p>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-start gap-2 flex-wrap">
+                                <h4 className="text-xs font-bold text-slate-800 tracking-tight uppercase">
+                                  {notif.title}
+                                </h4>
+                                <span className="text-[8px] text-slate-400 font-bold uppercase whitespace-nowrap mt-0.5">
+                                  {formatDate(notif.createdAt)}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-550 font-medium mt-1 leading-relaxed">
+                                {notif.message}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </Card>
+                        )
+                      })}
+                    </div>
+                  )}
+                </Card>
+              </motion.div>
             )}
           </div>
 
       </div>
 
       {/* Premium Custom Checkout Request Modal Overlay */}
-      {showCheckoutModal && activeBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-in fade-in duration-300">
-          <div className="relative overflow-hidden w-full max-w-md bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col gap-6 text-center">
-            {/* Ambient background glow */}
-            <div className="absolute -top-12 -right-12 w-32 h-32 bg-rose-500/10 rounded-full blur-2xl pointer-events-none" />
-            
-            <div className="space-y-2">
-              <span className="text-4xl inline-block animate-bounce duration-1000">🚪</span>
-              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-2 leading-tight">
-                Request Room Checkout
-              </h2>
-              <p className="text-[10px] text-rose-400/90 font-bold uppercase tracking-widest">
-                Room {activeBooking.room?.roomNumber || "N/A"} stay contract checkout
+      <AnimatePresence>
+        {showCheckoutModal && activeBooking && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-sm p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              className="relative overflow-hidden w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-2xl flex flex-col gap-5 text-center"
+            >
+              <div className="absolute -top-12 -right-12 w-32 h-32 bg-rose-500/5 rounded-full blur-2xl pointer-events-none" />
+              
+              <div className="space-y-2 flex flex-col items-center">
+                <div className="w-12 h-12 bg-rose-50 border border-rose-100 text-rose-500 rounded-xl flex items-center justify-center mb-1">
+                  <LogOut size={24} className="animate-pulse" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight leading-tight">
+                  Request Room Checkout
+                </h2>
+                <p className="text-[10px] text-rose-500 font-bold uppercase tracking-widest">
+                  Room {activeBooking.room?.roomNumber || "N/A"} Residency Notice
+                </p>
+              </div>
+
+              <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                Are you absolutely sure you want to request checkout? This will notify administration to inspect your room and release your booking, stopping future billing statements.
               </p>
-            </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed font-semibold">
-              Are you absolutely sure you want to request checkout? This will notify administration to inspect your room and release your booking, stopping future billing statements.
-            </p>
+              <form onSubmit={handleSubmitCheckoutModal} className="space-y-4 text-left">
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-0.5">
+                      Expected Checkout Date
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={checkoutDate}
+                      onChange={(e) => setCheckoutDate(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-blue-600 transition-colors"
+                    />
+                  </div>
 
-            <form onSubmit={handleSubmitCheckoutModal} className="space-y-4 text-left">
-              <div className="space-y-3.5">
-                <div className="space-y-1.5">
-                  <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                    Expected Checkout Date
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={checkoutDate}
-                    onChange={(e) => setCheckoutDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-semibold text-white outline-none focus:border-blue-500 transition-colors"
-                  />
+                  <div className="space-y-1">
+                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-0.5">
+                      Reason for Checking Out
+                    </label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={checkoutReason}
+                      onChange={(e) => setCheckoutReason(e.target.value)}
+                      placeholder="Specify reason (e.g., course completion)"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-blue-600 transition-colors resize-none placeholder:text-slate-400"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                    Reason for Checking Out
-                  </label>
-                  <textarea
-                    required
-                    rows={3}
-                    value={checkoutReason}
-                    onChange={(e) => setCheckoutReason(e.target.value)}
-                    placeholder="Specify reason (e.g., job shift, course completion)"
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-semibold text-white outline-none focus:border-blue-500 transition-colors resize-none"
-                  />
+                <div className="flex gap-3 mt-4">
+                  <button
+                    type="submit"
+                    disabled={payingLoading}
+                    className="flex-1 bg-rose-500 hover:bg-rose-600 disabled:bg-rose-500/50 text-white font-bold text-xs h-11 rounded-xl active:scale-98 transition-all duration-200 cursor-pointer shadow-sm flex items-center justify-center"
+                  >
+                    {payingLoading ? "Submitting..." : "Confirm Checkout"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCheckoutModal(false)}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs h-11 rounded-xl active:scale-98 transition-all duration-200 cursor-pointer flex items-center justify-center"
+                  >
+                    Cancel
+                  </button>
                 </div>
-              </div>
-
-              <div className="flex gap-3 mt-4">
-                <button
-                  type="submit"
-                  disabled={payingLoading}
-                  className="flex-1 bg-rose-500 hover:bg-rose-600 disabled:bg-rose-500/50 text-white font-black text-[11px] uppercase tracking-wider h-11 rounded-2xl active:scale-98 transition-all duration-200 cursor-pointer shadow-lg shadow-rose-500/10 flex items-center justify-center"
-                >
-                  {payingLoading ? "Submitting..." : "Confirm Checkout"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowCheckoutModal(false)}
-                  className="flex-1 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-200 font-extrabold text-[11px] uppercase tracking-wider h-11 rounded-2xl active:scale-98 transition-all duration-200 cursor-pointer flex items-center justify-center"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

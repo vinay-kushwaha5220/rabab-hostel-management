@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,9 +8,10 @@
   html {
     -webkit-tap-highlight-color: transparent;
   }
-  
+
   body {
-    @apply text-gray-900 antialiased;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    @apply text-slate-700 antialiased bg-slate-50/50;
   }
 
   /* Modern Scrollbar Styling */
@@ -35,9 +38,9 @@
   .premium-shadow {
     box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04), 0 4px 10px -5px rgba(0, 0, 0, 0.02);
   }
-  
+
   .premium-shadow-hover {
-    @apply transition-all duration-500 hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)];
+    @apply transition-all duration-500 hover:shadow-[0_20px_50px_-12px_rgba(0, 0, 0, 0.08)];
   }
 
   .glass-effect {
@@ -67,6 +70,9 @@
 
 /* Hide scrollbar for IE, Edge and Firefox */
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
 }
+
