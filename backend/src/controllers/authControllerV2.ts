@@ -435,15 +435,22 @@ export const getActiveSessions = async (req: AuthRequest, res: Response) => {
 
 import nodemailer from "nodemailer"
 
-// Helper function to create Nodemailer transporter dynamically with active config and hardcoded fallbacks
+// Helper function to create Nodemailer transporter dynamically with active config
 const getTransporter = () => {
+  const emailUser = process.env.EMAIL_USER;
+  const emailPass = process.env.EMAIL_PASSWORD;
+
+  if (!emailUser || !emailPass) {
+    throw new Error("Missing EMAIL_USER or EMAIL_PASSWORD environment variables.");
+  }
+
   return nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: process.env.EMAIL_USER || "radhey8542@gmail.com",
-      pass: process.env.EMAIL_PASSWORD || "ldydnuvopzvrqdgb",
+      user: emailUser,
+      pass: emailPass,
     },
-  })
+  });
 }
 
 // In-memory cache for OTP codes (Expires in 10 minutes)
@@ -492,7 +499,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     try {
       const mailTransporter = getTransporter()
       await mailTransporter.sendMail({
-        from: process.env.EMAIL_USER || "radhey8542@gmail.com",
+        from: process.env.EMAIL_USER,
         to: email.toLowerCase().trim(),
         subject: `Your Password Reset Verification OTP [${otpCode}] - Rabab Stay`,
         html: `
@@ -640,7 +647,7 @@ export const resetPassword = async (req: Request, res: Response) => {
     try {
       const mailTransporter = getTransporter()
       await mailTransporter.sendMail({
-        from: process.env.EMAIL_USER || "radhey8542@gmail.com",
+        from: process.env.EMAIL_USER,
         to: email.toLowerCase().trim(),
         subject: "Your Password Has Been Reset Successfully - Rabab Stay",
         html: `
