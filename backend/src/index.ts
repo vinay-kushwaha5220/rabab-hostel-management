@@ -16,7 +16,9 @@ const app = express()
 
 // CORS configuration to allow credentials (cookies)
 const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',')
+  ? process.env.ALLOWED_ORIGINS
+      .split(",")
+      .map(origin => origin.trim())
   : [];
 
 app.use(cors({
