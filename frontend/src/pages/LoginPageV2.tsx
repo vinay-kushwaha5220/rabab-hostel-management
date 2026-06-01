@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Link, useSearchParams } from "react-router-dom"
+import { useState, useEffect } from "react"
+import { Link, useSearchParams, useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContextV2"
 import { motion, AnimatePresence } from "framer-motion"
 import type { Variants } from "framer-motion"
@@ -43,8 +43,19 @@ const itemVariants: Variants = {
 }
 
 const LoginPageV2 = () => {
-  const { login, loginWithSocial } = useAuth()
+  const { login, loginWithSocial, user, accessToken, isLoading } = useAuth()
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!isLoading && user && accessToken) {
+      if (user.role === "ADMIN") {
+        navigate("/admin/dashboard")
+      } else {
+        navigate("/dashboard")
+      }
+    }
+  }, [user, accessToken, isLoading, navigate])
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
