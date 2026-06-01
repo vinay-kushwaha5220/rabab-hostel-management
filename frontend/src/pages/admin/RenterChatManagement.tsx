@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, Fragment } from "react"
 import { messagingService } from "../../services/billingService"
 import type { Message } from "../../types/billing"
 import LoadingSpinner from "../../components/ui/LoadingSpinner"
@@ -434,43 +434,85 @@ const RenterChatManagement = () => {
                     </div>
                   ) : (
                     <div className="space-y-3 pr-3.5 pl-1">
-                      {selectedConversation.messages.map((message) => {
+                      {selectedConversation.messages.map((message, index, arr) => {
                         const isAdmin = String(message.senderId) !== String(selectedConversation.renterId)
+                        const prevMsg = index > 0 ? arr[index - 1] : undefined
+                        const showDateSeparator = !prevMsg || (() => {
+                          const currD = new Date(message.createdAt)
+                          const prevD = new Date(prevMsg.createdAt)
+                          return currD.getDate() !== prevD.getDate() ||
+                                 currD.getMonth() !== prevD.getMonth() ||
+                                 currD.getFullYear() !== prevD.getFullYear()
+                        })()
+                        
+                        // Format the date separator label
+                        const dateLabel = showDateSeparator ? (() => {
+                          const currD = new Date(message.createdAt)
+                          const today = new Date()
+                          const yesterday = new Date()
+                          yesterday.setDate(today.getDate() - 1)
+                          
+                          const isToday = currD.getDate() === today.getDate() &&
+                                          currD.getMonth() === today.getMonth() &&
+                                          currD.getFullYear() === today.getFullYear()
+                                          
+                          const isYesterday = currD.getDate() === yesterday.getDate() &&
+                                              currD.getMonth() === yesterday.getMonth() &&
+                                              currD.getFullYear() === yesterday.getFullYear()
+                                              
+                          if (isToday) return "Today"
+                          if (isYesterday) return "Yesterday"
+                          return currD.toLocaleDateString(undefined, {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })
+                        })() : null
+
                         return (
-                          <div
-                            key={message.id}
-                            className={`flex w-full ${isAdmin ? "justify-end mr-1.5" : "justify-start"} mb-1`}
-                          >
-                            {/* Renter avatar for non-admin messages */}
-                            {!isAdmin && (
-                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 text-white font-bold text-[9px] flex items-center justify-center shrink-0 mr-1.5 mt-auto shadow-sm">
-                                {getInitials(selectedConversation.renterName)}
+                          <Fragment key={message.id}>
+                            {showDateSeparator && (
+                              <div className="flex justify-center my-3 select-none">
+                                <span className="bg-white/90 text-slate-500 text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg shadow-sm border border-slate-200/40">
+                                  {dateLabel}
+                                </span>
                               </div>
                             )}
-                            <div className={`max-w-[72%] px-3 py-1.5 pb-5 rounded-xl shadow-sm text-xs font-medium leading-relaxed relative ${
-                              isAdmin
-                                ? "bg-[#dcf8c6] text-slate-850 rounded-tr-none"
-                                : "bg-white text-slate-800 border border-slate-200/40 rounded-tl-none"
-                            }`}>
-                              <p className="break-words whitespace-pre-wrap pr-10 text-[12px] font-medium leading-normal">{message.content}</p>
+                            <div
+                              className={`flex w-full ${isAdmin ? "justify-end mr-1.5" : "justify-start"} mb-1`}
+                            >
+                              {/* Renter avatar for non-admin messages */}
+                              {!isAdmin && (
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 text-white font-bold text-[9px] flex items-center justify-center shrink-0 mr-1.5 mt-auto shadow-sm">
+                                  {getInitials(selectedConversation.renterName)}
+                                </div>
+                              )}
+                              <div className={`max-w-[72%] px-3 py-1.5 pb-5 rounded-xl shadow-sm text-xs font-medium leading-relaxed relative ${
+                                isAdmin
+                                  ? "bg-[#dcf8c6] text-slate-850 rounded-tr-none"
+                                  : "bg-white text-slate-800 border border-slate-200/40 rounded-tl-none"
+                              }`}>
+                                <p className="break-words whitespace-pre-wrap pr-10 text-[12px] font-medium leading-normal">{message.content}</p>
 
-                              {/* Bottom-right inline timestamp + read receipts */}
-                              <div className="absolute bottom-0.5 right-1.5 flex items-center gap-1 select-none">
-                                <span className="text-[8px] text-slate-450 font-bold tracking-normal font-mono">
-                                  {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                                {isAdmin && (
-                                  <span className="flex items-center">
-                                    {message.isRead ? (
-                                      <CheckCheck size={11} className="text-[#53bdeb] stroke-[2.5]" />
-                                    ) : (
-                                      <CheckCheck size={11} className="text-[#8696a0] stroke-[2.5]" />
-                                    )}
+                                {/* Bottom-right inline timestamp + read receipts */}
+                                <div className="absolute bottom-0.5 right-1.5 flex items-center gap-1 select-none">
+                                  <span className="text-[8px] text-slate-450 font-bold tracking-normal font-mono">
+                                    {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                   </span>
-                                )}
+                                  {isAdmin && (
+                                    <span className="flex items-center">
+                                      {message.isRead ? (
+                                        <CheckCheck size={11} className="text-[#53bdeb] stroke-[2.5]" />
+                                      ) : (
+                                        <CheckCheck size={11} className="text-[#8696a0] stroke-[2.5]" />
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          </Fragment>
                         )
                       })}
                     </div>

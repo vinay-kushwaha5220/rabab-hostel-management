@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from "react"
+import { useEffect, useState, useRef, useMemo, Fragment } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
@@ -1106,37 +1106,80 @@ const RenterMonthlyDashboard = () => {
                         </p>
                       </div>
                     ) : (
-                      messages.map((msg: any) => {
+                      messages.map((msg: any, index: number, arr: any[]) => {
                         // Loose/String inequality check to prevent UUID vs Integer mismatch bugs
                         const isWarden = msg.sender?.role === "ADMIN" || String(msg.senderId) !== String(user?.id)
+                        const prevMsg = index > 0 ? arr[index - 1] : undefined
+                        const showDateSeparator = !prevMsg || (() => {
+                          const currD = new Date(msg.createdAt)
+                          const prevD = new Date(prevMsg.createdAt)
+                          return currD.getDate() !== prevD.getDate() ||
+                                 currD.getMonth() !== prevD.getMonth() ||
+                                 currD.getFullYear() !== prevD.getFullYear()
+                        })()
+                        
+                        // Format the date separator label
+                        const dateLabel = showDateSeparator ? (() => {
+                          const currD = new Date(msg.createdAt)
+                          const today = new Date()
+                          const yesterday = new Date()
+                          yesterday.setDate(today.getDate() - 1)
+                          
+                          const isToday = currD.getDate() === today.getDate() &&
+                                          currD.getMonth() === today.getMonth() &&
+                                          currD.getFullYear() === today.getFullYear()
+                                          
+                          const isYesterday = currD.getDate() === yesterday.getDate() &&
+                                              currD.getMonth() === yesterday.getMonth() &&
+                                              currD.getFullYear() === yesterday.getFullYear()
+                                              
+                          if (isToday) return "Today"
+                          if (isYesterday) return "Yesterday"
+                          return currD.toLocaleDateString(undefined, {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })
+                        })() : null
+
                         return (
-                          <div key={msg.id} className={`flex w-full ${isWarden ? 'justify-start' : 'justify-end'} mb-1`}>
-                            {/* Premium WhatsApp Speech Bubble */}
-                            <div className={`max-w-[72%] px-3 py-1.5 pb-5 rounded-xl shadow-sm text-xs font-medium leading-relaxed relative ${
-                              isWarden 
-                                ? 'bg-white text-slate-800 rounded-tl-none border border-slate-200/40' 
-                                : 'bg-[#dcf8c6] text-slate-850 rounded-tr-none'
-                            }`}>
-                              {isWarden && (
-                                <p className="text-[8px] font-bold text-teal-700 uppercase tracking-wider mb-0.5">Warden Support</p>
-                              )}
-                              <p className="break-words whitespace-pre-wrap pr-10 text-[12px] font-medium leading-normal">{msg.content}</p>
-                              
-                              {/* Bottom-right inline timestamp + read receipts */}
-                              <div className="absolute bottom-0.5 right-1.5 flex items-center gap-1 select-none">
-                                <span className="text-[8px] text-slate-400 font-bold tracking-normal font-mono">
-                                  {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                                <span className="flex items-center">
-                                  {msg.isRead ? (
-                                    <CheckCheck size={11} className="text-[#53bdeb] stroke-[2.5]" />
-                                  ) : (
-                                    <CheckCheck size={11} className="text-[#8696a0] stroke-[2.5]" />
-                                  )}
+                          <Fragment key={msg.id}>
+                            {showDateSeparator && (
+                              <div className="flex justify-center my-3 select-none">
+                                <span className="bg-white/90 text-slate-500 text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg shadow-sm border border-slate-200/40">
+                                  {dateLabel}
                                 </span>
                               </div>
+                            )}
+                            <div className={`flex w-full ${isWarden ? 'justify-start' : 'justify-end'} mb-1`}>
+                              {/* Premium WhatsApp Speech Bubble */}
+                              <div className={`max-w-[72%] px-3 py-1.5 pb-5 rounded-xl shadow-sm text-xs font-medium leading-relaxed relative ${
+                                isWarden 
+                                  ? 'bg-white text-slate-800 rounded-tl-none border border-slate-200/40' 
+                                  : 'bg-[#dcf8c6] text-slate-850 rounded-tr-none'
+                              }`}>
+                                {isWarden && (
+                                  <p className="text-[8px] font-bold text-teal-700 uppercase tracking-wider mb-0.5">Warden Support</p>
+                                )}
+                                <p className="break-words whitespace-pre-wrap pr-10 text-[12px] font-medium leading-normal">{msg.content}</p>
+                                
+                                {/* Bottom-right inline timestamp + read receipts */}
+                                <div className="absolute bottom-0.5 right-1.5 flex items-center gap-1 select-none">
+                                  <span className="text-[8px] text-slate-400 font-bold tracking-normal font-mono">
+                                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                  <span className="flex items-center">
+                                    {msg.isRead ? (
+                                      <CheckCheck size={11} className="text-[#53bdeb] stroke-[2.5]" />
+                                    ) : (
+                                      <CheckCheck size={11} className="text-[#8696a0] stroke-[2.5]" />
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
-                          </div>
+                          </Fragment>
                         )
                       })
                     )}
