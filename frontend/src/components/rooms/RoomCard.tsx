@@ -105,11 +105,29 @@ const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
 
         {/* Simplified Amenities */}
         <div className="flex flex-wrap gap-1 mb-3 sm:mb-4">
-          {room.amenities.slice(0, 3).map((amenity, idx) => (
-            <span key={idx} className="text-[7px] sm:text-[8px] font-bold uppercase tracking-wider bg-gray-50 px-1.5 py-0.5 rounded text-gray-500 border border-gray-100">
-              {amenity}
-            </span>
-          ))}
+          {(() => {
+            let amenitiesArray: string[] = []
+            const rawAmenities = room.amenities as any
+            if (Array.isArray(rawAmenities)) {
+              amenitiesArray = rawAmenities
+            } else if (typeof rawAmenities === 'string' && rawAmenities) {
+              try {
+                const parsed = JSON.parse(rawAmenities)
+                if (Array.isArray(parsed)) {
+                  amenitiesArray = parsed
+                } else {
+                  amenitiesArray = rawAmenities.split(',').map((s: string) => s.trim()).filter(Boolean)
+                }
+              } catch {
+                amenitiesArray = rawAmenities.split(',').map((s: string) => s.trim()).filter(Boolean)
+              }
+            }
+            return amenitiesArray.slice(0, 3).map((amenity, idx) => (
+              <span key={idx} className="text-[7px] sm:text-[8px] font-bold uppercase tracking-wider bg-gray-50 px-1.5 py-0.5 rounded text-gray-500 border border-gray-100">
+                {amenity}
+              </span>
+            ))
+          })()}
         </div>
 
         {/* Actions */}

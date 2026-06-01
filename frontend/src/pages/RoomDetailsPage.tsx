@@ -183,14 +183,32 @@ const RoomDetailsPage = () => {
               <div className="mt-6">
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Essentials</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-y-2 gap-x-4">
-                  {room.amenities.map((amenity, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded bg-slate-50 text-blue-600 flex items-center justify-center">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                  {(() => {
+                    let amenitiesArray: string[] = []
+                    const rawAmenities = room.amenities as any
+                    if (Array.isArray(rawAmenities)) {
+                      amenitiesArray = rawAmenities
+                    } else if (typeof rawAmenities === 'string' && rawAmenities) {
+                      try {
+                        const parsed = JSON.parse(rawAmenities)
+                        if (Array.isArray(parsed)) {
+                          amenitiesArray = parsed
+                        } else {
+                          amenitiesArray = rawAmenities.split(',').map((s: string) => s.trim()).filter(Boolean)
+                        }
+                      } catch {
+                        amenitiesArray = rawAmenities.split(',').map((s: string) => s.trim()).filter(Boolean)
+                      }
+                    }
+                    return amenitiesArray.map((amenity, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded bg-slate-50 text-blue-600 flex items-center justify-center">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                        <span className="font-bold text-[10px] text-gray-500 uppercase tracking-wider">{amenity}</span>
                       </div>
-                      <span className="font-bold text-[10px] text-gray-500 uppercase tracking-wider">{amenity}</span>
-                    </div>
-                  ))}
+                    ))
+                  })()}
                 </div>
               </div>
             </Card>
