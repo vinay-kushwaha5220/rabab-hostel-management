@@ -15,17 +15,26 @@ import contactRoutes from "./routes/contactRoutes.js"
 const app = express()
 
 // CORS configuration to allow credentials (cookies)
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS
-      .split(",")
-      .map(origin => origin.trim())
-  : [];
+const allowedOrigins = [
+  "https://rabab-hostel-management.vercel.app",
+  ...(process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS
+        .split(",")
+        .map(origin => origin.trim().replace(/\/$/, ""))
+    : [])
+];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // In production, check against allowed origins
-    if (process.env.NODE_ENV === 'production' && allowedOrigins.length > 0) {
-      if (!origin || allowedOrigins.includes(origin)) {
+    // If the origin is in our allowed list, always allow it (both dev and prod)
+    if (origin && allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    // In production, enforce allowed origins strictly (reject other origins)
+    if (process.env.NODE_ENV === 'production') {
+      if (!origin) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
@@ -33,7 +42,7 @@ app.use(cors({
       return;
     }
 
-    // In development, allow localhost and local network
+    // In development, also allow localhost and local network
     if (!origin) {
       // Allow requests with no origin (like mobile apps, Postman, curl)
       callback(null, true);
