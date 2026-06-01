@@ -12,90 +12,90 @@ export const getDashboardStats = async (
 ) => {
   console.log("🔍 DEBUG: getDashboardStats Request Received")
   try {
-    // Total rooms
-    const totalRooms = await prisma.room.count()
-
-    // Get all rooms to calculate stats accurately
-    const rooms = await prisma.room.findMany()
-    
-    // Available rooms: Completely empty (currentOccupancy === 0) and isAvailable = true
-    const availableRooms = rooms.filter(r => r.isAvailable && r.currentOccupancy === 0).length
-
-    // Booked rooms: Occupancy > 0
-    const bookedRooms = rooms.filter(r => r.currentOccupancy > 0).length
-
-    // Maintenance rooms (optional, but good for internal tracking)
-    const maintenanceRooms = rooms.filter(r => !r.isAvailable).length
-
-    // AC rooms
-    const acRooms = await prisma.room.count({
-      where: { roomType: RoomType.AC },
-    })
-    
-    // Non-AC rooms
-    const nonAcRooms = await prisma.room.count({
-      where: { roomType: RoomType.NON_AC },
-    })
-
-    // Total earnings (all paid bookings)
-    const totalEarningsData = await prisma.payment.aggregate({
-      where: { paymentStatus: PaymentStatus.SUCCESS },
-      _sum: { amount: true },
-    })
-    const totalEarnings = totalEarningsData._sum.amount || 0
-
-    // Monthly earnings (current month)
+    // Current month start
     const currentMonth = new Date()
     currentMonth.setDate(1)
     currentMonth.setHours(0, 0, 0, 0)
 
-    const monthlyEarningsData = await prisma.payment.aggregate({
-      where: {
-        paymentStatus: PaymentStatus.SUCCESS,
-        createdAt: { gte: currentMonth },
-      },
-      _sum: { amount: true },
-    })
+    // Execute all independent queries concurrently in a single Promise.all batch
+    const [
+      rooms,
+      totalEarningsData,
+      monthlyEarningsData,
+      totalBookings,
+      pendingBookings,
+      confirmedBookings,
+      recentBookings,
+      unreadNotifications
+    ] = await Promise.all([
+      // Query 1: Get all rooms (we'll calculate occupancy, availability and types in-memory)
+      prisma.room.findMany(),
+
+      // Query 2: Aggregate total earnings
+      prisma.payment.aggregate({
+        where: { paymentStatus: PaymentStatus.SUCCESS },
+        _sum: { amount: true },
+      }),
+
+      // Query 3: Aggregate current month's earnings
+      prisma.payment.aggregate({
+        where: {
+          paymentStatus: PaymentStatus.SUCCESS,
+          createdAt: { gte: currentMonth },
+        },
+        _sum: { amount: true },
+      }),
+
+      // Query 4: Total bookings count
+      prisma.booking.count(),
+
+      // Query 5: Pending bookings count
+      prisma.booking.count({
+        where: { status: BookingStatus.PENDING },
+      }),
+
+      // Query 6: Confirmed bookings count
+      prisma.booking.count({
+        where: { status: BookingStatus.CONFIRMED },
+      }),
+
+      // Query 7: Recent 10 bookings
+      prisma.booking.findMany({
+        take: 10,
+        orderBy: { createdAt: "desc" },
+        include: {
+          room: {
+            select: {
+              roomNumber: true,
+              title: true,
+              roomType: true,
+            },
+          },
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
+      }),
+
+      // Query 8: Unread notifications count
+      prisma.notification.count({
+        where: { isRead: false },
+      })
+    ])
+
+    // HIGH PERFORMANCE: Compute room sub-totals in-memory from loaded rooms array (0 extra database queries!)
+    const totalRooms = rooms.length
+    const availableRooms = rooms.filter(r => r.isAvailable && r.currentOccupancy === 0).length
+    const bookedRooms = rooms.filter(r => r.currentOccupancy > 0).length
+    const maintenanceRooms = rooms.filter(r => !r.isAvailable).length
+    const acRooms = rooms.filter(r => r.roomType === RoomType.AC).length
+    const nonAcRooms = rooms.filter(r => r.roomType === RoomType.NON_AC).length
+
+    const totalEarnings = totalEarningsData._sum.amount || 0
     const monthlyEarnings = monthlyEarningsData._sum.amount || 0
-
-    // Total bookings
-    const totalBookings = await prisma.booking.count()
-
-    // Pending bookings
-    const pendingBookings = await prisma.booking.count({
-      where: { status: BookingStatus.PENDING },
-    })
-
-    // Confirmed bookings
-    const confirmedBookings = await prisma.booking.count({
-      where: { status: BookingStatus.CONFIRMED },
-    })
-
-    // Recent bookings (last 10)
-    const recentBookings = await prisma.booking.findMany({
-      take: 10,
-      orderBy: { createdAt: "desc" },
-      include: {
-        room: {
-          select: {
-            roomNumber: true,
-            title: true,
-            roomType: true,
-          },
-        },
-        user: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-      },
-    })
-
-    // Unread notifications
-    const unreadNotifications = await prisma.notification.count({
-      where: { isRead: false },
-    })
 
     const stats = {
       rooms: {
@@ -104,6 +104,7 @@ export const getDashboardStats = async (
         booked: bookedRooms,
         ac: acRooms,
         nonAc: nonAcRooms,
+        maintenance: maintenanceRooms,
       },
       earnings: {
         total: totalEarnings,
@@ -118,7 +119,7 @@ export const getDashboardStats = async (
       unreadNotifications,
     }
 
-    console.log("✅ DEBUG: Dashboard Stats compiled successfully")
+    console.log("✅ DEBUG: Dashboard Stats compiled successfully via parallel execution")
     res.status(200).json(stats)
   } catch (error: any) {
     console.error("❌ ERROR in getDashboardStats:", error)
@@ -138,8 +139,17 @@ export const getNotifications = async (
   res: Response
 ) => {
   try {
-    const notifications = await prisma.notification.findMany({
-      include: {
+    const { enriched } = req.query
+
+    // Construct query options dynamically to satisfy exactOptionalPropertyTypes constraint
+    const queryOptions: any = {
+      orderBy: { createdAt: "desc" },
+      take: 50, // Last 50 notifications
+    }
+
+    // HIGH PERFORMANCE: Only run heavy multi-table SQL joins when explicitly requested by detailed pages
+    if (enriched === "true") {
+      queryOptions.include = {
         booking: {
           include: {
             room: true,
@@ -161,14 +171,35 @@ export const getNotifications = async (
             },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 50, // Last 50 notifications
-    })
+      }
+    }
+
+    const notifications = await prisma.notification.findMany(queryOptions)
 
     res.status(200).json(notifications)
   } catch (error) {
     console.error("Get notifications error:", error)
+    res.status(500).json({
+      message: "Server error",
+      error: error instanceof Error ? error.message : "Unknown error",
+    })
+  }
+}
+
+// ==========================================
+// GET UNREAD NOTIFICATIONS COUNT (Lightweight)
+// ==========================================
+export const getUnreadNotificationsCount = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const count = await prisma.notification.count({
+      where: { isRead: false },
+    })
+    res.status(200).json({ unreadCount: count })
+  } catch (error) {
+    console.error("Get unread notifications count error:", error)
     res.status(500).json({
       message: "Server error",
       error: error instanceof Error ? error.message : "Unknown error",

@@ -112,7 +112,7 @@ const NotificationsPage = () => {
 
   const fetchNotifications = async () => {
     try {
-      const response = await api.get("/dashboard/notifications")
+      const response = await api.get("/dashboard/notifications?enriched=true")
       // Filter out message notifications completely to keep the feed essential and clean
       const data = (response.data || []).filter((n: any) => n.type !== "message" && n.type !== "MESSAGE")
       setNotifications(data)

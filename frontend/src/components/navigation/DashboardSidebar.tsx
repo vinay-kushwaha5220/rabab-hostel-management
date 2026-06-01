@@ -30,10 +30,9 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
   const fetchUnreadCount = async () => {
     if (!user || user.role !== "ADMIN") return
     try {
-      // Fetch unread notifications count for Admin bell badge only
-      const response = await api.get("/dashboard/notifications")
-      const unreads = (response.data || []).filter((n: any) => !(n.isRead ?? n.read)).length
-      setUnreadCount(unreads)
+      // Fetch unread notifications count for Admin bell badge only via ultra-lightweight endpoint
+      const response = await api.get("/dashboard/notifications/unread-count")
+      setUnreadCount(response.data.unreadCount || 0)
     } catch (err) {
       console.error("Failed to fetch sidebar unread count:", err)
     }

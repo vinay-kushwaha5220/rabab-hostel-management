@@ -3,6 +3,7 @@ import express from "express"
 import {
   getDashboardStats,
   getNotifications,
+  getUnreadNotificationsCount,
   markNotificationRead,
   markAllNotificationsRead,
 } from "../controllers/dashboardController.js"
@@ -15,6 +16,7 @@ const router = express.Router()
 // All dashboard routes require admin access
 router.get("/stats", protect, adminOnly, getDashboardStats)
 router.get("/notifications", protect, adminOnly, getNotifications)
+router.get("/notifications/unread-count", protect, adminOnly, getUnreadNotificationsCount)
 router.put("/notifications/:id/read", protect, adminOnly, markNotificationRead)
 router.put("/notifications/read-all", protect, adminOnly, markAllNotificationsRead)
 
