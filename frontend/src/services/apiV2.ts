@@ -62,91 +62,90 @@ api.interceptors.response.use(
       _retry?: boolean
     }
 
-    // Check if error is 401 and token expired
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      error.response?.data &&
-      typeof error.response.data === "object" &&
-      "code" in error.response.data &&
-      error.response.data.code === "TOKEN_EXPIRED"
-    ) {
-      if (isRefreshing) {
-        // If already refreshing, queue this request
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject })
-        })
-          .then((token) => {
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`
-            }
-            return api(originalRequest)
+    // Determine if it is a request to an auth endpoint (login/refresh)
+    const isAuthRequest = originalRequest.url?.includes("/auth/login") || originalRequest.url?.includes("/auth/refresh")
+    
+    // Check if we have an access token stored
+    const hasAccessToken = !!localStorage.getItem("accessToken")
+
+    // Handle 401 Unauthorized errors
+    if (error.response?.status === 401 && !isAuthRequest) {
+      // If we have a token stored and this request hasn't been retried yet, try to refresh
+      if (hasAccessToken && !originalRequest._retry) {
+        if (isRefreshing) {
+          // If already refreshing, queue this request
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject })
           })
-          .catch((err) => {
-            return Promise.reject(err)
-          })
-      }
-
-      originalRequest._retry = true
-      isRefreshing = true
-
-      try {
-        // Call refresh token endpoint
-        const REFRESH_URL = import.meta.env.VITE_API_BASE_URL 
-          ? `${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}/api/v2/auth/refresh`
-          : "http://localhost:5000/api/v2/auth/refresh"
-          
-        const response = await axios.post(
-          REFRESH_URL,
-          {},
-          { withCredentials: true }
-        )
-
-        const { accessToken: newAccessToken } = response.data
-
-        // Store new access token
-        localStorage.setItem("accessToken", newAccessToken)
-
-        // Dispatch event so that React context can update state without circular dependencies
-        window.dispatchEvent(new CustomEvent("accessTokenRefreshed", { detail: newAccessToken }))
-
-        // Update authorization header
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
+            .then((token) => {
+              if (originalRequest.headers) {
+                originalRequest.headers.Authorization = `Bearer ${token}`
+              }
+              return api(originalRequest)
+            })
+            .catch((err) => {
+              return Promise.reject(err)
+            })
         }
 
-        // Process queued requests
-        processQueue(null, newAccessToken)
+        originalRequest._retry = true
+        isRefreshing = true
 
-        console.log("✅ Token refreshed automatically")
+        try {
+          // Call refresh token endpoint
+          const REFRESH_URL = import.meta.env.VITE_API_BASE_URL 
+            ? `${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}/api/v2/auth/refresh`
+            : "http://localhost:5000/api/v2/auth/refresh"
+            
+          const response = await axios.post(
+            REFRESH_URL,
+            {},
+            { withCredentials: true }
+          )
 
-        // Retry original request
-        return api(originalRequest)
-      } catch (refreshError) {
-        // Refresh token failed
-        processQueue(refreshError, null)
+          const { accessToken: newAccessToken } = response.data
 
-        // Clear auth data
+          // Store new access token
+          localStorage.setItem("accessToken", newAccessToken)
+
+          // Dispatch event so that React context can update state without circular dependencies
+          window.dispatchEvent(new CustomEvent("accessTokenRefreshed", { detail: newAccessToken }))
+
+          // Update authorization header
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
+          }
+
+          // Process queued requests
+          processQueue(null, newAccessToken)
+
+          console.log("✅ Token refreshed automatically")
+
+          // Retry original request
+          return api(originalRequest)
+        } catch (refreshError) {
+          // Refresh token failed
+          processQueue(refreshError, null)
+
+          // Clear auth data
+          localStorage.removeItem("accessToken")
+          window.dispatchEvent(new CustomEvent("authCleared"))
+
+          // Redirect to login
+          window.location.href = "/login"
+
+          return Promise.reject(refreshError)
+        } finally {
+          isRefreshing = false
+        }
+      } else {
+        // If we don't have a token, or the request was already retried once and failed again, perform logout/cleanup
         localStorage.removeItem("accessToken")
-        localStorage.removeItem("user")
         window.dispatchEvent(new CustomEvent("authCleared"))
-
-        // Redirect to login
-        window.location.href = "/login"
-
-        return Promise.reject(refreshError)
-      } finally {
-        isRefreshing = false
-      }
-    }
-
-    // NEW: Handle generic 401 errors (e.g., Invalid Token)
-    if (error.response?.status === 401) {
-      localStorage.removeItem("accessToken")
-      localStorage.removeItem("user")
-      window.dispatchEvent(new CustomEvent("authCleared"))
-      if (!window.location.pathname.includes("/login")) {
-        window.location.href = "/login"
+        
+        if (!window.location.pathname.includes("/login")) {
+          window.location.href = "/login"
+        }
       }
     }
 

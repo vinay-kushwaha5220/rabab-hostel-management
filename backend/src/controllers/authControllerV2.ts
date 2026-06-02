@@ -84,10 +84,11 @@ export const register = async (req: Request, res: Response) => {
     })
 
     // Set refresh token in HTTP-only cookie
+    const isProduction = process.env.NODE_ENV === "production"
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true, // Cannot be accessed by JavaScript
-      secure: process.env.NODE_ENV === "production", // HTTPS only in production
-      sameSite: "strict", // CSRF protection
+      secure: isProduction, // HTTPS only in production
+      sameSite: isProduction ? "none" : "lax", // Allow cross-origin cookies in production
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     })
 
@@ -175,10 +176,11 @@ export const login = async (req: Request, res: Response) => {
     })
 
     // Set refresh token in HTTP-only cookie
+    const isProduction = process.env.NODE_ENV === "production"
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true, // Cannot be accessed by JavaScript
-      secure: process.env.NODE_ENV === "production", // HTTPS only in production
-      sameSite: "strict", // CSRF protection
+      secure: isProduction, // HTTPS only in production
+      sameSite: isProduction ? "none" : "lax", // Allow cross-origin cookies in production
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     })
 
@@ -298,7 +300,12 @@ export const logout = async (req: Request, res: Response) => {
     }
 
     // Clear refresh token cookie
-    res.clearCookie("refreshToken")
+    const isProduction = process.env.NODE_ENV === "production"
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
+    })
 
     console.log(`✅ User logged out`)
 
@@ -333,7 +340,12 @@ export const logoutAllDevices = async (req: AuthRequest, res: Response) => {
     })
 
     // Clear refresh token cookie
-    res.clearCookie("refreshToken")
+    const isProduction = process.env.NODE_ENV === "production"
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
+    })
 
     console.log(`✅ User logged out from all devices: ${userId}`)
 

@@ -13,10 +13,10 @@ const REFRESH_TOKEN_EXPIRY = "7d" // 7 days
 // ==========================================
 export const generateAccessToken = (userId: number, role: string): string => {
   return jwt.sign(
-    { 
-      userId, 
+    {
+      userId,
       role,
-      type: "access" 
+      type: "access"
     },
     ACCESS_TOKEN_SECRET,
     { expiresIn: ACCESS_TOKEN_EXPIRY }
@@ -28,9 +28,9 @@ export const generateAccessToken = (userId: number, role: string): string => {
 // ==========================================
 export const generateRefreshToken = (userId: number): string => {
   return jwt.sign(
-    { 
+    {
       userId,
-      type: "refresh" 
+      type: "refresh"
     },
     REFRESH_TOKEN_SECRET,
     { expiresIn: REFRESH_TOKEN_EXPIRY }

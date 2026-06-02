@@ -50,14 +50,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ==========================================
   useEffect(() => {
     const initAuth = async () => {
+      // Clean up old legacy keys to prevent exposing user details
+      localStorage.removeItem("user")
+      localStorage.removeItem("token")
+
       const storedToken = localStorage.getItem("accessToken")
-      const storedUser = localStorage.getItem("user")
 
-      if (storedToken && storedUser) {
+      if (storedToken) {
         setAccessToken(storedToken)
-        setUser(JSON.parse(storedUser))
 
-        // Verify token is still valid by fetching current user
+        // Fetch current user from backend using the stored token
         try {
           const response = await api.get("/v2/auth/me", {
             headers: {
@@ -65,14 +67,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             },
           })
           setUser(response.data.user)
-          localStorage.setItem("user", JSON.stringify(response.data.user))
         } catch (error) {
-          // Token might be expired, try to refresh
-          const newToken = await refreshToken()
-          if (!newToken) {
-            // Refresh failed, clear auth
-            localStorage.removeItem("accessToken")
-            localStorage.removeItem("user")
+          console.error("Failed to fetch user during initialization:", error)
+          // As a fallback, check if token was cleared by the interceptor
+          const tokenExists = !!localStorage.getItem("accessToken")
+          if (!tokenExists) {
             setAccessToken(null)
             setUser(null)
           }
@@ -93,16 +92,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const customEvent = event as CustomEvent<string>
       const newToken = customEvent.detail
       setAccessToken(newToken)
-      
-      // Sync user from localStorage in case it changed
-      const storedUser = localStorage.getItem("user")
-      if (storedUser) {
-        try {
-          setUser(JSON.parse(storedUser))
-        } catch (e) {
-          console.error("Failed to parse user on refresh:", e)
-        }
-      }
     }
 
     const handleCleared = () => {
@@ -138,13 +127,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       })
 
       // Auto-login after registration
-      const { accessToken: newAccessToken, user: userData } = response.data
+      const { accessToken: newAccessToken } = response.data
 
-      // Store tokens
+      // Store only access token in localStorage
       localStorage.setItem("accessToken", newAccessToken)
-      localStorage.setItem("user", JSON.stringify(userData))
-
       setAccessToken(newAccessToken)
+
+      // Fetch user profile from /auth/me
+      const userResponse = await api.get("/v2/auth/me", {
+        headers: {
+          Authorization: `Bearer ${newAccessToken}`,
+        },
+      })
+      const userData = userResponse.data.user
       setUser(userData)
 
       // Get redirect URL from query params
@@ -173,13 +168,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         { withCredentials: true } // Important: Send cookies
       )
 
-      const { accessToken: newAccessToken, user: userData } = response.data
+      const { accessToken: newAccessToken } = response.data
 
-      // Store access token in localStorage
+      // Store only access token in localStorage
       localStorage.setItem("accessToken", newAccessToken)
-      localStorage.setItem("user", JSON.stringify(userData))
-
       setAccessToken(newAccessToken)
+
+      // Fetch user profile from /auth/me
+      const userResponse = await api.get("/v2/auth/me", {
+        headers: {
+          Authorization: `Bearer ${newAccessToken}`,
+        },
+      })
+      const userData = userResponse.data.user
       setUser(userData)
 
       // Get redirect URL from query params
@@ -212,13 +213,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         { withCredentials: true }
       )
 
-      const { accessToken: newAccessToken, user: userData } = response.data
+      const { accessToken: newAccessToken } = response.data
 
-      // Store access token in localStorage
+      // Store only access token in localStorage
       localStorage.setItem("accessToken", newAccessToken)
-      localStorage.setItem("user", JSON.stringify(userData))
-
       setAccessToken(newAccessToken)
+
+      // Fetch user profile from /auth/me
+      const userResponse = await api.get("/v2/auth/me", {
+        headers: {
+          Authorization: `Bearer ${newAccessToken}`,
+        },
+      })
+      const userData = userResponse.data.user
       setUser(userData)
 
       // Get redirect URL from query params
@@ -263,7 +270,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Clear auth state
       localStorage.removeItem("accessToken")
-      localStorage.removeItem("user")
       setAccessToken(null)
       setUser(null)
 
@@ -289,7 +295,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       // Clear local storage
       localStorage.removeItem("accessToken")
-      localStorage.removeItem("user")
 
       // Clear state
       setAccessToken(null)
@@ -323,7 +328,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       // Clear local storage
       localStorage.removeItem("accessToken")
-      localStorage.removeItem("user")
 
       // Clear state
       setAccessToken(null)
@@ -336,7 +340,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const updateUser = (updatedUser: User) => {
     setUser(updatedUser)
-    localStorage.setItem("user", JSON.stringify(updatedUser))
   }
 
   // ==========================================
