@@ -1169,13 +1169,15 @@ const RenterMonthlyDashboard = () => {
                                   <span className="text-[8px] text-slate-400 font-bold tracking-normal font-mono">
                                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                   </span>
-                                  <span className="flex items-center">
-                                    {msg.isRead ? (
-                                      <CheckCheck size={11} className="text-[#53bdeb] stroke-[2.5]" />
-                                    ) : (
-                                      <CheckCheck size={11} className="text-[#8696a0] stroke-[2.5]" />
-                                    )}
-                                  </span>
+                                  {!isWarden && (
+                                    <span className="flex items-center">
+                                      {msg.isRead ? (
+                                        <CheckCheck size={11} className="text-[#53bdeb] stroke-[2.5]" />
+                                      ) : (
+                                        <CheckCheck size={11} className="text-[#8696a0] stroke-[2.5]" />
+                                      )}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </div>
