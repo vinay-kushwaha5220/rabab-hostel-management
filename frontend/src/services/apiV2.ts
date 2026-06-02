@@ -107,6 +107,9 @@ api.interceptors.response.use(
         // Store new access token
         localStorage.setItem("accessToken", newAccessToken)
 
+        // Dispatch event so that React context can update state without circular dependencies
+        window.dispatchEvent(new CustomEvent("accessTokenRefreshed", { detail: newAccessToken }))
+
         // Update authorization header
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
@@ -126,6 +129,7 @@ api.interceptors.response.use(
         // Clear auth data
         localStorage.removeItem("accessToken")
         localStorage.removeItem("user")
+        window.dispatchEvent(new CustomEvent("authCleared"))
 
         // Redirect to login
         window.location.href = "/login"
@@ -140,6 +144,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem("accessToken")
       localStorage.removeItem("user")
+      window.dispatchEvent(new CustomEvent("authCleared"))
       if (!window.location.pathname.includes("/login")) {
         window.location.href = "/login"
       }

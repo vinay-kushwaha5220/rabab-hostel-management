@@ -86,6 +86,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   // ==========================================
+  // LISTEN TO AUTO-REFRESH EVENTS
+  // ==========================================
+  useEffect(() => {
+    const handleRefreshed = (event: Event) => {
+      const customEvent = event as CustomEvent<string>
+      const newToken = customEvent.detail
+      setAccessToken(newToken)
+      
+      // Sync user from localStorage in case it changed
+      const storedUser = localStorage.getItem("user")
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser))
+        } catch (e) {
+          console.error("Failed to parse user on refresh:", e)
+        }
+      }
+    }
+
+    const handleCleared = () => {
+      setAccessToken(null)
+      setUser(null)
+    }
+
+    window.addEventListener("accessTokenRefreshed", handleRefreshed)
+    window.addEventListener("authCleared", handleCleared)
+
+    return () => {
+      window.removeEventListener("accessTokenRefreshed", handleRefreshed)
+      window.removeEventListener("authCleared", handleCleared)
+    }
+  }, [])
+
+  // ==========================================
   // REGISTER
   // ==========================================
   const register = async (
