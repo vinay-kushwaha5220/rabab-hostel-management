@@ -699,7 +699,8 @@ export const resetPassword = async (req: Request, res: Response) => {
 export const updateProfile = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId
-    const { name, phone, removeAvatar } = req.body
+    const body = req.body || {}
+    const { name, phone, removeAvatar } = body
 
     if (!userId) {
       return res.status(401).json({
@@ -707,10 +708,24 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       })
     }
 
-    if (!name) {
-      return res.status(400).json({
-        message: "Name is required",
-      })
+    // Build update data object dynamically
+    const updateData: {
+      name?: string;
+      phone?: string | null;
+      avatar?: string | null;
+    } = {}
+
+    if (name !== undefined) {
+      if (!name) {
+        return res.status(400).json({
+          message: "Name is required",
+        })
+      }
+      updateData.name = name
+    }
+
+    if (phone !== undefined) {
+      updateData.phone = phone || null
     }
 
     // Process avatar update
@@ -720,20 +735,32 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       avatarUpdate = `data:${req.file.mimetype};base64,${base64Image}`
     } else if (removeAvatar === "true") {
       avatarUpdate = null
-    } else if (req.body.avatar !== undefined) {
-      avatarUpdate = req.body.avatar
+    } else if (body.avatar !== undefined) {
+      avatarUpdate = body.avatar
     }
 
-    const updateData: {
-      name: string;
-      phone: string | null;
-      avatar?: string | null;
-    } = {
-      name,
-      phone: phone || null,
-    }
     if (avatarUpdate !== undefined) {
       updateData.avatar = avatarUpdate
+    }
+
+    // If there is nothing to update, just return current user details
+    if (Object.keys(updateData).length === 0) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          role: true,
+          isActive: true,
+          avatar: true,
+        }
+      })
+      return res.status(200).json({
+        message: "Profile updated successfully",
+        user,
+      })
     }
 
     const updatedUser = await prisma.user.update({
