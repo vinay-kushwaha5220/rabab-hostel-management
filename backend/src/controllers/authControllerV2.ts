@@ -58,6 +58,7 @@ export const register = async (req: Request, res: Response) => {
         role: true,
         isActive: true,
         createdAt: true,
+        avatar: true,
       },
     })
 
@@ -101,6 +102,7 @@ export const register = async (req: Request, res: Response) => {
         phone: user.phone,
         role: user.role,
         isActive: user.isActive,
+        avatar: user.avatar,
       },
     })
   } catch (error) {
@@ -193,6 +195,7 @@ export const login = async (req: Request, res: Response) => {
         phone: user.phone,
         role: user.role,
         isActive: user.isActive,
+        avatar: user.avatar,
       },
     })
   } catch (error) {
@@ -370,6 +373,7 @@ export const getCurrentUser = async (req: AuthRequest, res: Response) => {
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        avatar: true,
       },
     })
 
@@ -683,7 +687,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 export const updateProfile = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId
-    const { name, phone } = req.body
+    const { name, phone, avatar } = req.body
 
     if (!userId) {
       return res.status(401).json({
@@ -702,6 +706,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       data: {
         name,
         phone: phone || null,
+        avatar: avatar !== undefined ? avatar : undefined,
       },
       select: {
         id: true,
@@ -710,6 +715,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         phone: true,
         role: true,
         isActive: true,
+        avatar: true,
       }
     })
 

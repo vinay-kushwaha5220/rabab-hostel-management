@@ -58,10 +58,11 @@ const SettingsPage = () => {
   const [profileAvatar, setProfileAvatar] = useState("https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80")
 
   useEffect(() => {
-    if (user?.id) {
-      const custom = localStorage.getItem("customAvatar_" + user.id)
-      if (custom) {
-        setProfileAvatar(custom)
+    if (user) {
+      if (user.avatar) {
+        setProfileAvatar(user.avatar)
+      } else {
+        setProfileAvatar("https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80")
       }
     }
   }, [user])
@@ -77,27 +78,51 @@ const SettingsPage = () => {
     }
 
     const reader = new FileReader()
-    reader.onloadend = () => {
+    reader.onloadend = async () => {
       const base64Data = reader.result as string
       setProfileAvatar(base64Data)
       if (user?.id) {
-        localStorage.setItem("customAvatar_" + user.id, base64Data)
-        // Refresh context to alert topbar and other components
-        updateUser({ ...user })
+        try {
+          // Immediately save to the backend database
+          const response = await api.put("/v2/auth/profile", {
+            name: user.name,
+            phone: user.phone,
+            avatar: base64Data,
+          })
+          if (response.data?.user) {
+            updateUser(response.data.user)
+            localStorage.setItem("customAvatar_" + user.id, base64Data)
+          }
+          setAccountSuccess("Profile photo updated successfully! 📷")
+          setTimeout(() => setAccountSuccess(""), 3000)
+        } catch (err: any) {
+          console.error("Photo upload failed:", err)
+          setAccountError("Failed to save profile photo to server.")
+        }
       }
-      setAccountSuccess("Profile photo updated successfully! 📷")
-      setTimeout(() => setAccountSuccess(""), 3000)
     }
     reader.readAsDataURL(file)
   }
 
-  const handleRemovePhoto = () => {
+  const handleRemovePhoto = async () => {
     if (user?.id) {
-      localStorage.removeItem("customAvatar_" + user.id)
-      setProfileAvatar("https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80")
-      updateUser({ ...user })
-      setAccountSuccess("Profile photo removed successfully.")
-      setTimeout(() => setAccountSuccess(""), 3000)
+      try {
+        const response = await api.put("/v2/auth/profile", {
+          name: user.name,
+          phone: user.phone,
+          avatar: null,
+        })
+        if (response.data?.user) {
+          updateUser(response.data.user)
+          localStorage.removeItem("customAvatar_" + user.id)
+        }
+        setProfileAvatar("https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80")
+        setAccountSuccess("Profile photo removed successfully.")
+        setTimeout(() => setAccountSuccess(""), 3000)
+      } catch (err: any) {
+        console.error("Photo remove failed:", err)
+        setAccountError("Failed to remove profile photo from server.")
+      }
     }
   }
 
@@ -418,7 +443,7 @@ const SettingsPage = () => {
                           className="hidden"
                         />
                       </label>
-                      {localStorage.getItem("customAvatar_" + user?.id) && (
+                      {(user?.avatar || localStorage.getItem("customAvatar_" + user?.id)) && (
                         <button
                           type="button"
                           onClick={handleRemovePhoto}
