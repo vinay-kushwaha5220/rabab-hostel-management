@@ -245,6 +245,7 @@ export const getAllConversations = async (req: AuthRequest, res: Response) => {
         bookingCode: convo.bookingId,
         renterName: convo.user.name,
         renterId: convo.userId,
+        renterPhone: convo.user.phone || convo.customerPhone || "",
         latestMessage: latestMsg ? latestMsg.content : "No messages yet",
         latestMessageTime: latestTime,
         unreadCount: unreadMap[convo.id] || 0,
