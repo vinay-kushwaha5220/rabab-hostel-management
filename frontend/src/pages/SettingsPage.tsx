@@ -91,7 +91,6 @@ const SettingsPage = () => {
           })
           if (response.data?.user) {
             updateUser(response.data.user)
-            localStorage.setItem("customAvatar_" + user.id, base64Data)
           }
           setAccountSuccess("Profile photo updated successfully! 📷")
           setTimeout(() => setAccountSuccess(""), 3000)
@@ -114,7 +113,6 @@ const SettingsPage = () => {
         })
         if (response.data?.user) {
           updateUser(response.data.user)
-          localStorage.removeItem("customAvatar_" + user.id)
         }
         setProfileAvatar("https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80")
         setAccountSuccess("Profile photo removed successfully.")
@@ -443,7 +441,7 @@ const SettingsPage = () => {
                           className="hidden"
                         />
                       </label>
-                      {(user?.avatar || localStorage.getItem("customAvatar_" + user?.id)) && (
+                      {user?.avatar && (
                         <button
                           type="button"
                           onClick={handleRemovePhoto}

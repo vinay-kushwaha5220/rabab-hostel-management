@@ -104,9 +104,7 @@ const DashboardTopbar = ({ onMenuClick }: DashboardTopbarProps) => {
   }
 
   // Professional avatar image reference made fully dynamic to show updates instantly
-  const profileAvatar = user?.id 
-    ? (user.avatar || localStorage.getItem("customAvatar_" + user.id) || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80")
-    : "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+  const profileAvatar = user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
 
   return (
     <div className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between sticky top-0 z-40">
