@@ -143,11 +143,7 @@ const SettingsPage = () => {
         formData.append("avatar", compressedBlob, "avatar.jpg")
 
         // Immediately save to the backend database using multipart/form-data
-        const response = await api.put("/v2/auth/profile", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        })
+        const response = await api.put("/v2/auth/profile", formData)
 
         if (response.data?.user) {
           updateUser(response.data.user)
@@ -172,11 +168,7 @@ const SettingsPage = () => {
         if (user.phone) formData.append("phone", user.phone)
         formData.append("removeAvatar", "true")
 
-        const response = await api.put("/v2/auth/profile", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        })
+        const response = await api.put("/v2/auth/profile", formData)
         if (response.data?.user) {
           updateUser(response.data.user)
         }

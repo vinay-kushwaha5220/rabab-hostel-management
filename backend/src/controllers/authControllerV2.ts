@@ -699,6 +699,12 @@ export const resetPassword = async (req: Request, res: Response) => {
 export const updateProfile = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId
+
+    // TEMPORARY PRODUCTION LOGGING
+    console.log("[DEBUG /profile] Request Content-Type:", req.headers["content-type"])
+    console.log("[DEBUG /profile] Request body:", req.body)
+    console.log("[DEBUG /profile] Request file:", req.file)
+
     const body = req.body || {}
     const { name, phone, removeAvatar } = body
 
