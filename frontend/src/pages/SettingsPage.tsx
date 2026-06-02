@@ -22,6 +22,22 @@ import LoadingSpinner from "../components/ui/LoadingSpinner"
 
 type ActiveTabType = 'account' | 'rooms'
 
+const BOY_AVATARS = [
+  "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+  "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+  "https://images.unsplash.com/photo-1628157582853-a796fa650a6a?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+]
+
+const GIRL_AVATARS = [
+  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+  "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+  "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+  "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+]
+
 const SettingsPage = () => {
   const { user, updateUser } = useAuth()
   const isAdmin = user?.role === "ADMIN"
@@ -67,117 +83,49 @@ const SettingsPage = () => {
     }
   }, [user])
 
-  // Helper to compress image on client-side using HTML5 canvas
-  const compressImage = (file: File, maxWidth = 400, maxHeight = 400, quality = 0.6): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image()
-      img.src = URL.createObjectURL(file)
-      img.onload = () => {
-        URL.revokeObjectURL(img.src)
-        const canvas = document.createElement("canvas")
-        let width = img.width
-        let height = img.height
-
-        // Calculate aspect-ratio scale
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width)
-            width = maxWidth
-          }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height)
-            height = maxHeight
-          }
-        }
-
-        canvas.width = width
-        canvas.height = height
-
-        const ctx = canvas.getContext("2d")
-        if (!ctx) {
-          reject(new Error("Could not get canvas 2D context"))
-          return
-        }
-
-        ctx.drawImage(img, 0, 0, width, height)
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(blob)
-            } else {
-              reject(new Error("Canvas to Blob conversion failed"))
-            }
-          },
-          "image/jpeg",
-          quality
-        )
-      }
-      img.onerror = (err) => reject(err)
-    })
-  }
-
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Limit original file size to 10MB just as a safety net
-    if (file.size > 10 * 1024 * 1024) {
-      setAccountError("Profile photo must be less than 10MB in size.")
-      return
-    }
-
+  const handleSelectPresetAvatar = async (url: string) => {
+    if (!user?.id) return
     try {
       setAccountError("")
-      // Compress image to JPEG quality 0.6 and max 400px width/height
-      const compressedBlob = await compressImage(file, 400, 400, 0.6)
-      
-      // Update local preview state instantly
-      const localPreviewUrl = URL.createObjectURL(compressedBlob)
-      setProfileAvatar(localPreviewUrl)
+      // Immediately save to the backend database using JSON PUT request
+      const response = await api.put("/v2/auth/profile", {
+        name: formData.name,
+        phone: formData.phone,
+        avatar: url
+      })
 
-      if (user?.id) {
-        const formData = new FormData()
-        formData.append("name", user.name)
-        if (user.phone) formData.append("phone", user.phone)
-        formData.append("avatar", compressedBlob, "avatar.jpg")
-
-        // Immediately save to the backend database using multipart/form-data
-        const response = await api.put("/v2/auth/profile", formData)
-
-        if (response.data?.user) {
-          updateUser(response.data.user)
-          if (response.data.user.avatar) {
-            setProfileAvatar(response.data.user.avatar)
-          }
+      if (response.data?.user) {
+        updateUser(response.data.user)
+        if (response.data.user.avatar) {
+          setProfileAvatar(response.data.user.avatar)
         }
-        setAccountSuccess("Profile photo updated successfully! 📷")
-        setTimeout(() => setAccountSuccess(""), 3000)
       }
+      setAccountSuccess("Profile avatar updated successfully! 📷")
+      setTimeout(() => setAccountSuccess(""), 3000)
     } catch (err: any) {
-      console.error("Photo upload failed:", err)
-      setAccountError("Failed to save profile photo to server.")
+      console.error("Photo selection failed:", err)
+      setAccountError(err.response?.data?.message || "Failed to save profile avatar to server.")
     }
   }
 
   const handleRemovePhoto = async () => {
     if (user?.id) {
       try {
-        const formData = new FormData()
-        formData.append("name", user.name)
-        if (user.phone) formData.append("phone", user.phone)
-        formData.append("removeAvatar", "true")
-
-        const response = await api.put("/v2/auth/profile", formData)
+        setAccountError("")
+        const response = await api.put("/v2/auth/profile", {
+          name: formData.name,
+          phone: formData.phone,
+          avatar: null
+        })
         if (response.data?.user) {
           updateUser(response.data.user)
         }
         setProfileAvatar("https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80")
-        setAccountSuccess("Profile photo removed successfully.")
+        setAccountSuccess("Profile avatar removed successfully.")
         setTimeout(() => setAccountSuccess(""), 3000)
       } catch (err: any) {
         console.error("Photo remove failed:", err)
-        setAccountError("Failed to remove profile photo from server.")
+        setAccountError(err.response?.data?.message || "Failed to remove profile avatar from server.")
       }
     }
   }
@@ -471,7 +419,7 @@ const SettingsPage = () => {
                 </div>
 
                 {/* Profile Photo Uploader Section */}
-                <div className="flex flex-col sm:flex-row items-center gap-5 mb-8 pb-6 border-b border-slate-100">
+                <div className="flex flex-col sm:flex-row items-center gap-5 mb-6 pb-6 border-b border-slate-100">
                   <div className="relative group flex-shrink-0">
                     <img
                       src={profileAvatar}
@@ -488,26 +436,90 @@ const SettingsPage = () => {
                   
                   <div className="space-y-1.5 text-center sm:text-left">
                     <h3 className="text-sm font-bold text-slate-800">Profile Photo</h3>
-                    <p className="text-[10px] text-slate-400 font-medium">PNG, JPG or JPEG. Max 2MB.</p>
-                    <div className="flex items-center gap-2.5 mt-2 justify-center sm:justify-start">
-                      <label className="bg-blue-600 hover:bg-blue-705 text-white text-xs font-semibold px-4 py-2 rounded-xl cursor-pointer shadow-sm shadow-blue-100 transition-all select-none active:scale-98">
-                        Upload Photo
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handlePhotoUpload}
-                          className="hidden"
-                        />
-                      </label>
-                      {user?.avatar && (
-                        <button
-                          type="button"
-                          onClick={handleRemovePhoto}
-                          className="bg-slate-50 hover:bg-slate-100 text-slate-500 text-xs font-semibold px-4 py-2 rounded-xl border border-slate-200/60 transition-all cursor-pointer"
-                        >
-                          Remove
-                        </button>
-                      )}
+                    <p className="text-[10px] text-slate-400 font-medium">Select one of the 10 preset avatars below.</p>
+                    {user?.avatar && (
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        className="mt-2 bg-slate-50 hover:bg-slate-100 text-slate-550 hover:text-slate-700 text-xs font-semibold px-4 py-2 rounded-xl border border-slate-200/60 shadow-sm hover:shadow transition-all cursor-pointer"
+                      >
+                        Remove Avatar
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Preset Avatar Chooser Grid */}
+                <div className="w-full mb-8 pb-6 border-b border-slate-100 space-y-4">
+                  <h4 className="text-xs font-bold text-slate-755 uppercase tracking-widest">Choose Default Avatar</h4>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {/* Boy Avatars Category */}
+                    <div className="space-y-2.5">
+                      <p className="text-[10px] font-bold text-blue-650 uppercase tracking-widest flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                        Boys
+                      </p>
+                      <div className="flex flex-wrap gap-2.5">
+                        {BOY_AVATARS.map((url, index) => {
+                          const isActive = user?.avatar === url;
+                          return (
+                            <button
+                              key={`boy-${index}`}
+                              type="button"
+                              onClick={() => handleSelectPresetAvatar(url)}
+                              className={`relative w-12 h-12 rounded-full overflow-hidden transition-all duration-200 outline-none hover:scale-105 active:scale-95 ${
+                                isActive 
+                                  ? "ring-4 ring-blue-550 ring-offset-2 scale-105 shadow-md" 
+                                  : "opacity-80 hover:opacity-100 ring-1 ring-slate-200 shadow-sm"
+                              }`}
+                            >
+                              <img src={url} alt={`Boy Preset ${index + 1}`} className="w-full h-full object-cover" />
+                              {isActive && (
+                                <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                                  <div className="bg-blue-600 text-white rounded-full p-0.5 shadow-sm">
+                                    <CheckCircle2 size={10} className="stroke-[3]" />
+                                  </div>
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Girl Avatars Category */}
+                    <div className="space-y-2.5">
+                      <p className="text-[10px] font-bold text-rose-550 uppercase tracking-widest flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-450"></span>
+                        Girls
+                      </p>
+                      <div className="flex flex-wrap gap-2.5">
+                        {GIRL_AVATARS.map((url, index) => {
+                          const isActive = user?.avatar === url;
+                          return (
+                            <button
+                              key={`girl-${index}`}
+                              type="button"
+                              onClick={() => handleSelectPresetAvatar(url)}
+                              className={`relative w-12 h-12 rounded-full overflow-hidden transition-all duration-200 outline-none hover:scale-105 active:scale-95 ${
+                                isActive 
+                                  ? "ring-4 ring-blue-550 ring-offset-2 scale-105 shadow-md" 
+                                  : "opacity-80 hover:opacity-100 ring-1 ring-slate-200 shadow-sm"
+                              }`}
+                            >
+                              <img src={url} alt={`Girl Preset ${index + 1}`} className="w-full h-full object-cover" />
+                              {isActive && (
+                                <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                                  <div className="bg-blue-600 text-white rounded-full p-0.5 shadow-sm">
+                                    <CheckCircle2 size={10} className="stroke-[3]" />
+                                  </div>
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
