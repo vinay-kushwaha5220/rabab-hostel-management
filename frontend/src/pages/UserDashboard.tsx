@@ -551,7 +551,7 @@ const UserDashboard = () => {
               <div className="space-y-2 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider border border-blue-100">
-                    Welcome to Rabab Stay
+                    Welcome to Rabab Complex Stay
                   </span>
                 </div>
                 <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
@@ -651,7 +651,7 @@ const UserDashboard = () => {
                         <p className="text-[10px] text-slate-500 font-medium">
                           Total Stay: {activeBooking.totalDays} Days
                         </p>
-                        </div>
+                      </div>
                     )}
 
                   </div>
@@ -750,10 +750,10 @@ const UserDashboard = () => {
                   {allBills.slice(0, 3).map((b) => (
                     <div key={b.id} className="flex items-center gap-3 p-3.5 hover:bg-slate-50 transition-colors">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center border text-xs font-bold flex-shrink-0 ${b.isPaid
-                          ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                          : b.status === 'OVERDUE'
-                            ? 'bg-rose-50 text-rose-600 border-rose-100 animate-pulse'
-                            : 'bg-amber-50 text-amber-600 border-amber-100'
+                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                        : b.status === 'OVERDUE'
+                          ? 'bg-rose-50 text-rose-600 border-rose-100 animate-pulse'
+                          : 'bg-amber-50 text-amber-600 border-amber-100'
                         }`}>
                         {b.isPaid ? '✓' : b.status === 'OVERDUE' ? '!' : '⏳'}
                       </div>
@@ -818,7 +818,7 @@ const UserDashboard = () => {
 
       {/* Sticky Premium Dashboard Footer */}
       <footer className="border-t border-slate-200 bg-white py-6 text-center text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-auto">
-        <span>© {new Date().getFullYear()} Rabab Stay. Premium Residential Living.</span>
+        <span>© {new Date().getFullYear()} Rabab Complex Stay. Premium Residential Living.</span>
       </footer>
 
       {/* ─── INTERACTIVE MODAL OVERLAYS ─── */}
@@ -999,7 +999,7 @@ const UserDashboard = () => {
 
                   <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
                     {isFirstBooking
-                      ? 'Your booking payment has been verified by the administrator. Your stay is now active — enjoy your time at Rabab Stay!'
+                      ? 'Your booking payment has been verified by the administrator. Your stay is now active — enjoy your time at Rabab Complex Stay!'
                       : 'Your monthly payment has been verified by the administrator and your stay contract has been renewed for the next cycle. Enjoy your stay!'}
                   </p>
 

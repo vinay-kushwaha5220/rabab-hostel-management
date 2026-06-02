@@ -66,7 +66,7 @@ export const runAutomaticBillingReminders = async (force: boolean = false): Prom
     for (const bill of unpaidBills) {
       const booking = bill.booking
       const user = booking?.user
-      
+
       if (!booking || !user) {
         logs.push(`[Scheduler] Skip: Bill ID ${bill.id} is missing booking or user relations.`)
         continue
@@ -77,13 +77,13 @@ export const runAutomaticBillingReminders = async (force: boolean = false): Prom
       // ─── Dispatch 1: Direct In-App Chat Message ───
       try {
         const senderId = admin ? admin.id : user.id // Fallback to self-chat if no admin
-        
+
         await prisma.message.create({
           data: {
             bookingId: booking.id,
             senderId: senderId,
             receiverId: user.id,
-            content: `📢 **AUTOMATIC BILLING REMINDER** 📢\n\nHi ${user.name},\n\nThis is an automatic notification for your monthly stay cycle cycle. Your monthly invoice for **${bill.month}** is pending payment.\n\n* **Rent Fee:** ₹${bill.rentAmount.toLocaleString()}\n* **Electricity Charge:** ₹${bill.electricityAmount.toLocaleString()}\n* **Maintenance / Extras:** ₹${bill.extraCharges.toLocaleString()}\n* **Total Due Amount:** **₹${bill.totalDue.toLocaleString()}**\n\nPlease complete your payment immediately by scanning the QR code in your dashboard or visiting your monthly billing ledger. If you have already paid, please ignore this alert.\n\nThank you,\n**Rabab Stay Management**`
+            content: `📢 **AUTOMATIC BILLING REMINDER** 📢\n\nHi ${user.name},\n\nThis is an automatic notification for your monthly stay cycle cycle. Your monthly invoice for **${bill.month}** is pending payment.\n\n* **Rent Fee:** ₹${bill.rentAmount.toLocaleString()}\n* **Electricity Charge:** ₹${bill.electricityAmount.toLocaleString()}\n* **Maintenance / Extras:** ₹${bill.extraCharges.toLocaleString()}\n* **Total Due Amount:** **₹${bill.totalDue.toLocaleString()}**\n\nPlease complete your payment immediately by scanning the QR code in your dashboard or visiting your monthly billing ledger. If you have already paid, please ignore this alert.\n\nThank you,\n**Rabab Complex Stay Management**`
           }
         })
         logs.push(`[Scheduler] Direct chat message dispatched successfully to renter ${user.name}`)
@@ -112,16 +112,16 @@ export const runAutomaticBillingReminders = async (force: boolean = false): Prom
           await transporter.sendMail({
             from: process.env.EMAIL_USER || "noreply@rababstay.com",
             to: renterEmail,
-            subject: `⚠️ Monthly Stay Cycle Invoice Reminder: ${bill.month} - Rabab Stay`,
+            subject: `⚠️ Monthly Stay Cycle Invoice Reminder: ${bill.month} - Rabab Complex Stay`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 550px; margin: 0 auto; border: 1px solid #f1f5f9; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
                 <div style="background: linear-gradient(135deg, #1e293b, #0f172a); padding: 24px; text-align: center; color: white;">
-                  <h2 style="margin: 0; font-size: 20px; font-weight: 800; tracking-tight: -0.025em;">Rabab Stay Cycle Billing</h2>
+                  <h2 style="margin: 0; font-size: 20px; font-weight: 800; tracking-tight: -0.025em;">Rabab Complex Stay Cycle Billing</h2>
                   <p style="margin: 4px 0 0 0; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #60a5fa; letter-spacing: 0.1em;">Official Renter Notification</p>
                 </div>
                 <div style="padding: 24px; color: #334155; line-height: 1.6;">
                   <p style="font-size: 14px; margin-top: 0;">Hi <strong>${user.name}</strong>,</p>
-                  <p style="font-size: 13px;">This is an automatic notification regarding your monthly billing statement for the room stay cycle <strong>${bill.month}</strong> at Rabab Stay.</p>
+                  <p style="font-size: 13px;">This is an automatic notification regarding your monthly billing statement for the room stay cycle <strong>${bill.month}</strong> at Rabab Complex Stay.</p>
                   
                   <div style="background-color: #f8fafc; border: 1px solid #f1f5f9; border-radius: 8px; padding: 16px; margin: 20px 0;">
                     <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
@@ -156,7 +156,7 @@ export const runAutomaticBillingReminders = async (force: boolean = false): Prom
                 </div>
                 <div style="background-color: #f8fafc; border-top: 1px solid #f1f5f9; padding: 16px; text-align: center; font-size: 11px; color: #64748b;">
                   This is an automated system email. Please do not reply directly to this message.<br>
-                  © Rabab Stay Hostel Management System.
+                  © Rabab Complex Stay Hostel Management System.
                 </div>
               </div>
             `,

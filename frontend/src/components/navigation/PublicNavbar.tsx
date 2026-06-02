@@ -16,7 +16,7 @@ const PublicNavbar = () => {
             <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-black text-sm">R</span>
             </div>
-            <span className="font-black text-base text-gray-900 hidden sm:inline tracking-tight">Rabab Stay</span>
+            <span className="font-black text-base text-gray-900 hidden sm:inline tracking-tight">Rabab Complex Stay</span>
           </Link>
 
           {/* Desktop Menu */}
@@ -50,13 +50,19 @@ const PublicNavbar = () => {
               </>
             ) : (
               <div className="flex items-center gap-4">
+                <button
+                  onClick={() => navigate(user?.role === "ADMIN" ? "/admin/dashboard" : "/dashboard")}
+                  className="px-4 py-1.5 bg-blue-600 text-white font-bold text-[11px] uppercase tracking-widest rounded-lg hover:bg-blue-700 transition-colors shadow-sm cursor-pointer"
+                >
+                  Dashboard
+                </button>
                 <div className="flex flex-col items-end mr-2">
                   <span className="text-sm font-bold text-gray-900">{user?.name}</span>
                   <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{user?.role}</span>
                 </div>
                 <button
                   onClick={logout}
-                  className="px-6 py-2 border-2 border-red-100 text-red-600 font-semibold rounded-lg hover:bg-red-50 transition-colors"
+                  className="px-4 py-1.5 border-2 border-red-100 text-red-650 font-bold text-[11px] uppercase tracking-widest hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                 >
                   Logout
                 </button>
@@ -122,15 +128,26 @@ const PublicNavbar = () => {
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={() => {
-                    logout()
-                    setMobileMenuOpen(false)
-                  }}
-                  className="w-full px-4 py-2 text-red-600 font-semibold hover:bg-red-50 rounded-lg transition-colors text-left"
-                >
-                  Logout ({user?.name})
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => {
+                      navigate(user?.role === "ADMIN" ? "/admin/dashboard" : "/dashboard")
+                      setMobileMenuOpen(false)
+                    }}
+                    className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-center cursor-pointer"
+                  >
+                    Dashboard
+                  </button>
+                  <button
+                    onClick={() => {
+                      logout()
+                      setMobileMenuOpen(false)
+                    }}
+                    className="w-full px-4 py-2 text-red-650 font-semibold hover:bg-red-50 rounded-lg transition-colors text-left border border-slate-100 cursor-pointer"
+                  >
+                    Logout ({user?.name})
+                  </button>
+                </div>
               )}
             </div>
           </div>

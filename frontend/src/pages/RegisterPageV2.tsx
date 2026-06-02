@@ -161,7 +161,7 @@ const RegisterPageV2 = () => {
             <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
               <Home className="w-5 h-5 text-white stroke-[2.5]" />
             </div>
-            <span className="font-extrabold text-xl tracking-tight text-white">Rabab Stay</span>
+            <span className="font-extrabold text-xl tracking-tight text-white">Rabab Complex Stay</span>
           </Link>
         </div>
 
@@ -222,7 +222,7 @@ const RegisterPageV2 = () => {
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <Home className="w-4.5 h-4.5 text-white stroke-[2.5]" />
             </div>
-            <span className="font-extrabold text-base tracking-tight text-slate-900">Rabab Stay</span>
+            <span className="font-extrabold text-base tracking-tight text-slate-900">Rabab Complex Stay</span>
           </div>
           <div className="text-xs sm:text-sm text-slate-500 font-medium">
             Already have an account?{" "}
@@ -445,7 +445,7 @@ const RegisterPageV2 = () => {
 
         {/* Unified Bottom Footer */}
         <div className="mt-auto pt-6 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-slate-400 font-medium shrink-0">
-          <p>© {new Date().getFullYear()} Rabab Stay. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Rabab Complex Stay. All rights reserved.</p>
           <div className="flex gap-3">
             <Link to="#" className="hover:text-slate-600 transition-colors">Terms of Service</Link>
             <span>|</span>

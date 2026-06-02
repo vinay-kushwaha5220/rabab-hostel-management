@@ -97,7 +97,7 @@ app.use("/api/monthly-payments", monthlyPaymentRoutes)
 app.use("/api/contact", contactRoutes)
 
 app.get("/", (req, res) => {
-  res.send("Rabab Stay Backend Running 🏨")
+  res.send("Rabab Complex Stay Backend Running 🏨")
 })
 
 app.get("/api/debug-logs", (req, res) => {

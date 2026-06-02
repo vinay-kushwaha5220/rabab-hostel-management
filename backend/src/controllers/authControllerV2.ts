@@ -517,10 +517,10 @@ export const forgotPassword = async (req: Request, res: Response) => {
       await mailTransporter.sendMail({
         from: process.env.EMAIL_USER,
         to: email.toLowerCase().trim(),
-        subject: `Your Password Reset Verification OTP [${otpCode}] - Rabab Stay`,
+        subject: `Your Password Reset Verification OTP [${otpCode}] - Rabab Complex Stay`,
         html: `
           <div style="font-family: sans-serif; max-width: 500px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #fafbfc; color: #1e293b;">
-            <h2 style="color: #2563eb; text-align: center; margin-bottom: 24px; font-weight: 800;">Rabab Stay Co-Living</h2>
+            <h2 style="color: #2563eb; text-align: center; margin-bottom: 24px; font-weight: 800;">Rabab Complex Stay Co-Living</h2>
             <p style="font-size: 14px; line-height: 1.6; color: #475569;">Hello,</p>
             <p style="font-size: 14px; line-height: 1.6; color: #475569;">We received a request to recover your account password. Use the following 6-digit One-Time Password (OTP) to verify your identity and finalize your password reset. This code is valid for <strong>10 minutes</strong>.</p>
             <div style="background-color: #eff6ff; border: 1px dashed #bfdbfe; border-radius: 12px; padding: 20px; margin: 24px 0; text-align: center;">
@@ -665,14 +665,14 @@ export const resetPassword = async (req: Request, res: Response) => {
       await mailTransporter.sendMail({
         from: process.env.EMAIL_USER,
         to: email.toLowerCase().trim(),
-        subject: "Your Password Has Been Reset Successfully - Rabab Stay",
+        subject: "Your Password Has Been Reset Successfully - Rabab Complex Stay",
         html: `
           <div style="font-family: sans-serif; max-width: 500px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #fafbfc; color: #1e293b;">
-            <h2 style="color: #2563eb; text-align: center; margin-bottom: 24px; font-weight: 800;">Rabab Stay Co-Living</h2>
+            <h2 style="color: #2563eb; text-align: center; margin-bottom: 24px; font-weight: 800;">Rabab Complex Stay Co-Living</h2>
             <p style="font-size: 14px; line-height: 1.6; color: #475569;">Hello,</p>
-            <p style="font-size: 14px; line-height: 1.6; color: #475569;">This is to confirm that the password for your Rabab Stay account <strong>${email.toLowerCase().trim()}</strong> was successfully changed.</p>
+            <p style="font-size: 14px; line-height: 1.6; color: #475569;">This is to confirm that the password for your Rabab Complex Stay account <strong>${email.toLowerCase().trim()}</strong> was successfully changed.</p>
             <p style="font-size: 14px; line-height: 1.6; color: #475569;">If you did not make this change, please contact our support team immediately.</p>
-            <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-top: 32px;">Best regards,<br>Rabab Stay Team</p>
+            <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-top: 32px;">Best regards,<br>Rabab Complex Stay Team</p>
           </div>
         `,
       })

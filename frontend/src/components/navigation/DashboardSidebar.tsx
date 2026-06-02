@@ -94,12 +94,12 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
         } flex flex-col`}
       >
         {/* Logo */}
-        <div className="h-14 flex items-center gap-2.5 px-5 border-b border-slate-100">
+        <Link to="/" className="h-14 flex items-center gap-2.5 px-5 border-b border-slate-100 hover:opacity-90 transition-all cursor-pointer">
           <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm shadow-blue-100">
             <span className="text-white font-extrabold text-sm">R</span>
           </div>
-          <span className="font-bold text-sm text-slate-800 tracking-tight">Rabab Stay</span>
-        </div>
+          <span className="font-bold text-sm text-slate-800 tracking-tight">Rabab Complex Stay</span>
+        </Link>
 
         {/* Menu Items */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 custom-scrollbar">

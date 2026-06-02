@@ -48,7 +48,7 @@ const HomePage = () => {
         <div className="absolute inset-0 z-0">
           <img
             src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1600&q=80"
-            alt="Rabab Stay"
+            alt="Rabab Complex Stay"
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-tr from-blue-950/95 via-blue-900/85 to-purple-900/40"></div>
@@ -57,7 +57,7 @@ const HomePage = () => {
         {/* Hero Content */}
         <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-3 tracking-tight animate-fade-in leading-tight">
-            Welcome to <span className="text-yellow-400 bg-gradient-to-r from-yellow-300 to-yellow-500 bg-clip-text text-transparent">Rabab Stay</span>
+            Welcome to <span className="text-yellow-400 bg-gradient-to-r from-yellow-300 to-yellow-500 bg-clip-text text-transparent">Rabab Complex Stay</span>
           </h1>
           <p className="text-sm sm:text-base text-gray-200/90 mb-6 max-w-xl mx-auto font-medium leading-relaxed animate-fade-in-delay">
             Your Home Away From Home — Experience Comfort, Luxury & Hospitality at its finest.
@@ -110,7 +110,7 @@ const HomePage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
             <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-1.5 tracking-tight">
-              Why Choose Rabab Stay?
+              Why Choose Rabab Complex Stay?
             </h2>
             <p className="text-xs sm:text-sm text-gray-400 font-medium max-w-md mx-auto">
               Experience the perfect blend of premium home comfort and modern convenience.

@@ -181,7 +181,7 @@ const BookingConfirmationPage = () => {
 
           {/* Footer / QR Style Bar */}
           <div className="bg-slate-50 p-4 text-center border-t border-slate-100 border-dashed">
-            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.3em]">Thank you for choosing Rabab Stay</p>
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.3em]">Thank you for choosing Rabab Complex Stay</p>
           </div>
         </Card>
 

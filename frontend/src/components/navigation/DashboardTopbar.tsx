@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react"
 import { useAuth } from "../../context/AuthContextV2"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import {
   Bell,
   Menu,
@@ -118,12 +118,12 @@ const DashboardTopbar = ({ onMenuClick }: DashboardTopbarProps) => {
         </button>
 
         {/* Mobile Brand Logo */}
-        <div className="lg:hidden flex items-center gap-2">
+        <Link to="/" className="lg:hidden flex items-center gap-2 hover:opacity-90 transition-all cursor-pointer">
           <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm shadow-blue-100">
             <span className="text-white font-extrabold text-sm">R</span>
           </div>
-          <span className="text-lg font-bold text-slate-800 tracking-tight">Rabab Stay</span>
-        </div>
+          <span className="text-lg font-bold text-slate-800 tracking-tight">Rabab Complex Stay</span>
+        </Link>
       </div>
 
       {/* RIGHT: Notifications & Clickable User Menu */}

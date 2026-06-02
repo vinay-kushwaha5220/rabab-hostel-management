@@ -1,9 +1,9 @@
 @echo off
-REM Quick Mobile Setup for Rabab Stay - Windows
+REM Quick Mobile Setup for Rabab Complex Stay - Windows
 
 echo.
 echo ========================================
-echo   📱 Rabab Stay - Mobile Testing Setup
+echo   📱 Rabab Complex Stay - Mobile Testing Setup
 echo ========================================
 echo.
 

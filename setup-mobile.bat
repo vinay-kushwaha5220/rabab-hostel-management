@@ -1,7 +1,7 @@
 @echo off
-REM Mobile Testing Setup Script for Rabab Stay (Windows)
+REM Mobile Testing Setup Script for Rabab Complex Stay (Windows)
 
-echo 📱 Setting up mobile testing for Rabab Stay...
+echo 📱 Setting up mobile testing for Rabab Complex Stay...
 echo.
 
 REM Get local IP

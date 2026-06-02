@@ -93,14 +93,14 @@ export const sendContactMessage = async (req: Request, res: Response) => {
       await transporter.sendMail({
         from: process.env.EMAIL_USER || "noreply@rababstay.com",
         to: email,
-        subject: "We received your message - Rabab Stay",
+        subject: "We received your message - Rabab Complex Stay",
         html: `
           <h2>Thank you for contacting us!</h2>
           <p>Hi ${name},</p>
           <p>We have received your message and will get back to you as soon as possible.</p>
           <p><strong>Your Message:</strong></p>
           <p>${message.replace(/\n/g, "<br>")}</p>
-          <p>Best regards,<br>Rabab Stay Team</p>
+          <p>Best regards,<br>Rabab Complex Stay Team</p>
         `,
       })
     } catch (emailError) {
@@ -115,7 +115,7 @@ export const sendContactMessage = async (req: Request, res: Response) => {
         const twilioClient = getTwilioClient()
         if (twilioClient && process.env.TWILIO_PHONE_NUMBER) {
           await twilioClient.messages.create({
-            body: `Hi ${name}, Thank you for contacting Rabab Stay! We received your message about "${subject}" and will get back to you soon. - Rabab Stay Team`,
+            body: `Hi ${name}, Thank you for contacting Rabab Complex Stay! We received your message about "${subject}" and will get back to you soon. - Rabab Complex Stay Team`,
             from: process.env.TWILIO_PHONE_NUMBER,
             to: phoneFormatted,
           })
@@ -152,7 +152,7 @@ export const getContactInfo = async (req: Request, res: Response) => {
     const contactInfo = {
       email: process.env.ADMIN_EMAIL || "admin@rababstay.com",
       phone: process.env.ADMIN_PHONE || "+91-XXXXXXXXXX",
-      address: process.env.ADMIN_ADDRESS || "Rabab Stay, Your City",
+      address: process.env.ADMIN_ADDRESS || "Rabab Complex Stay, Your City",
       hours: {
         weekdays: "9:00 AM - 6:00 PM",
         weekends: "10:00 AM - 4:00 PM",

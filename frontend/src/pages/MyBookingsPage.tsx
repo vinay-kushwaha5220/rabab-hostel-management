@@ -121,7 +121,7 @@ const MyBookingsPage = () => {
         transactionId,
         paymentMethod: "UPI"
       })
-      
+
       setExtensionSuccess("Stay extended successfully! Refreshing bookings...")
       setTimeout(() => {
         setShowExtensionModal(false)
@@ -173,7 +173,7 @@ const MyBookingsPage = () => {
     }
     return b.status === "CONFIRMED" || b.status === "PENDING"
   })
-  
+
   const pastBookings = bookings.filter(b => {
     if (b.bookingType === "MONTHLY" && b.monthlyRenter) {
       const status = normalizeMonthlyRenterStatus(b.monthlyRenter.status)
@@ -207,207 +207,205 @@ const MyBookingsPage = () => {
               const bookingBills = booking.bookingType === "MONTHLY" ? monthlyBills.filter(b => b.bookingId === booking.id) : []
               const totalFromBills = bookingBills.reduce((sum, b) => sum + (b.paidAmount || 0), 0)
               const totalDueFromBills = bookingBills.reduce((sum, b) => sum + (b.totalDue || 0), 0)
-              const displayTotal = booking.bookingType === "MONTHLY" && bookingBills.length > 0 
-                ? totalDueFromBills 
+              const displayTotal = booking.bookingType === "MONTHLY" && bookingBills.length > 0
+                ? totalDueFromBills
                 : booking.totalAmount
 
               return (
-              <Card key={booking.id} className="p-4 border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      {/* Show monthlyRenter status for monthly bookings, booking status for daily */}
-                      {booking.bookingType === "MONTHLY" && booking.monthlyRenter ? (
-                        <>
-                          {(() => {
-                            let status = normalizeMonthlyRenterStatus(booking.monthlyRenter.status) || booking.monthlyRenter.status
-                            
-                            // Check if expired based on stayEndDate (currentCycleEnd) and unpaid invoice
-                            if (booking.monthlyRenter.currentCycleEnd) {
-                              const today = new Date()
-                              today.setHours(0, 0, 0, 0)
-                              const cycleEnd = new Date(booking.monthlyRenter.currentCycleEnd)
-                              cycleEnd.setHours(0, 0, 0, 0)
-                              
-                              const hasUnpaid = bookingBills.length === 0 || bookingBills.some(b => !b.isPaid)
-                              
-                              if (cycleEnd < today && hasUnpaid) {
-                                status = "EXPIRED"
-                              } else if (!hasUnpaid && status !== "CHECKED_OUT") {
-                                status = "ACTIVE"
+                <Card key={booking.id} className="p-4 border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        {/* Show monthlyRenter status for monthly bookings, booking status for daily */}
+                        {booking.bookingType === "MONTHLY" && booking.monthlyRenter ? (
+                          <>
+                            {(() => {
+                              let status = normalizeMonthlyRenterStatus(booking.monthlyRenter.status) || booking.monthlyRenter.status
+
+                              // Check if expired based on stayEndDate (currentCycleEnd) and unpaid invoice
+                              if (booking.monthlyRenter.currentCycleEnd) {
+                                const today = new Date()
+                                today.setHours(0, 0, 0, 0)
+                                const cycleEnd = new Date(booking.monthlyRenter.currentCycleEnd)
+                                cycleEnd.setHours(0, 0, 0, 0)
+
+                                const hasUnpaid = bookingBills.length === 0 || bookingBills.some(b => !b.isPaid)
+
+                                if (cycleEnd < today && hasUnpaid) {
+                                  status = "EXPIRED"
+                                } else if (!hasUnpaid && status !== "CHECKED_OUT") {
+                                  status = "ACTIVE"
+                                }
                               }
-                            }
 
-                            const badgeVariant =
-                              status === "ACTIVE" ? "success" :
-                              status === "DUE_SOON" ? "warning" :
-                              status === "EXPIRES_TODAY" ? "warning" :
-                              status === "PAYMENT_PENDING" ? "warning" :
-                              status === "OVERDUE" ? "danger" :
-                              status === "EXPIRED" ? "danger" :
-                              status === "CHECKOUT_REQUESTED" ? "secondary" :
-                              status === "CHECKED_OUT" ? "secondary" :
-                              "secondary"
+                              const badgeVariant =
+                                status === "ACTIVE" ? "success" :
+                                  status === "DUE_SOON" ? "warning" :
+                                    status === "EXPIRES_TODAY" ? "warning" :
+                                      status === "PAYMENT_PENDING" ? "warning" :
+                                        status === "OVERDUE" ? "danger" :
+                                          status === "EXPIRED" ? "danger" :
+                                            status === "CHECKOUT_REQUESTED" ? "secondary" :
+                                              status === "CHECKED_OUT" ? "secondary" :
+                                                "secondary"
 
-                            return (
-                              <Badge variant={badgeVariant} size="sm">
-                                {status.replace(/_/g, " ")}
+                              return (
+                                <Badge variant={badgeVariant} size="sm">
+                                  {status.replace(/_/g, " ")}
+                                </Badge>
+                              )
+                            })()}
+                          </>
+                        ) : (
+                          <>
+                            {isPastCheckoutTime(booking) && booking.status === "CONFIRMED" ? (
+                              <Badge variant="secondary" size="sm">
+                                COMPLETED
                               </Badge>
-                            )
-                          })()}
-                        </>
-                      ) : (
-                        <>
-                          {isPastCheckoutTime(booking) && booking.status === "CONFIRMED" ? (
-                            <Badge variant="secondary" size="sm">
-                              COMPLETED
-                            </Badge>
-                          ) : (
-                            <Badge variant={booking.status === "CONFIRMED" ? "success" : "warning"} size="sm">
-                              {booking.status === "PENDING" ? "PENDING ADMIN VERIFICATION" : booking.status}
-                            </Badge>
-                          )}
-                        </>
+                            ) : (
+                              <Badge variant={booking.status === "CONFIRMED" ? "success" : "warning"} size="sm">
+                                {booking.status === "PENDING" ? "PENDING ADMIN VERIFICATION" : booking.status}
+                              </Badge>
+                            )}
+                          </>
+                        )}
+                        <Badge variant={booking.bookingType === "MONTHLY" ? "primary" : "info"} size="sm">
+                          {booking.bookingType}
+                        </Badge>
+                        <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">ID: {booking.bookingId}</span>
+                      </div>
+                      <h3 className="text-base font-bold text-gray-900 mb-3">
+                        {booking.room?.title || "Room"}
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                        <div>
+                          <p className="text-gray-400 font-bold uppercase text-[9px]">Check-in</p>
+                          <p className="font-bold text-gray-700">{new Date(booking.checkInDate).toLocaleDateString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400 font-bold uppercase text-[9px]">Check-out</p>
+                          <p className="font-bold text-gray-700">{new Date(booking.checkOutDate).toLocaleDateString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400 font-bold uppercase text-[9px]">Duration</p>
+                          <p className="font-bold text-gray-700">{booking.totalDays} {booking.bookingType === 'MONTHLY' ? 'Days' : 'Nights'}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400 font-bold uppercase text-[9px]">Total</p>
+                          <p className="font-bold text-emerald-600 text-sm">₹{displayTotal.toLocaleString()}</p>
+                        </div>
+                      </div>
+
+                      {isPastCheckoutTime(booking) && booking.status === "CONFIRMED" && (
+                        <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center gap-3">
+                          <span className="text-base">📅</span>
+                          <div>
+                            <p className="text-xs font-bold text-blue-800">Your stay completed at 11:00 AM today</p>
+                            <p className="text-[10px] text-blue-600 font-semibold mt-0.5">Please check out or extend your stay by clicking "Continue Staying" below.</p>
+                          </div>
+                        </div>
                       )}
-                      <Badge variant={booking.bookingType === "MONTHLY" ? "primary" : "info"} size="sm">
-                        {booking.bookingType}
-                      </Badge>
-                      <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">ID: {booking.bookingId}</span>
-                    </div>
-                    <h3 className="text-base font-bold text-gray-900 mb-3">
-                      {booking.room?.title || "Room"}
-                    </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                      <div>
-                        <p className="text-gray-400 font-bold uppercase text-[9px]">Check-in</p>
-                        <p className="font-bold text-gray-700">{new Date(booking.checkInDate).toLocaleDateString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400 font-bold uppercase text-[9px]">Check-out</p>
-                        <p className="font-bold text-gray-700">{new Date(booking.checkOutDate).toLocaleDateString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400 font-bold uppercase text-[9px]">Duration</p>
-                        <p className="font-bold text-gray-700">{booking.totalDays} {booking.bookingType === 'MONTHLY' ? 'Days' : 'Nights'}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400 font-bold uppercase text-[9px]">Total</p>
-                        <p className="font-bold text-emerald-600 text-sm">₹{displayTotal.toLocaleString()}</p>
-                      </div>
-                    </div>
 
-                    {isPastCheckoutTime(booking) && booking.status === "CONFIRMED" && (
-                      <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center gap-3">
-                        <span className="text-base">📅</span>
-                        <div>
-                          <p className="text-xs font-bold text-blue-800">Your stay completed at 11:00 AM today</p>
-                          <p className="text-[10px] text-blue-600 font-semibold mt-0.5">Please check out or extend your stay by clicking "Continue Staying" below.</p>
+                      {booking.status === "PENDING" && booking.bookingType === "DAILY" && (
+                        <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-center gap-3">
+                          <span className="text-base">⏳</span>
+                          <div>
+                            <p className="text-xs font-bold text-amber-800">Extension Request Under Review</p>
+                            <p className="text-[10px] text-amber-600 font-semibold mt-0.5">Your extension payment is awaiting administrator verification. Your stay is preserved.</p>
+                          </div>
                         </div>
-                      </div>
-                    )}
-
-                    {booking.status === "PENDING" && booking.bookingType === "DAILY" && (
-                      <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-center gap-3">
-                        <span className="text-base">⏳</span>
-                        <div>
-                          <p className="text-xs font-bold text-amber-800">Extension Request Under Review</p>
-                          <p className="text-[10px] text-amber-600 font-semibold mt-0.5">Your extension payment is awaiting administrator verification. Your stay is preserved.</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex gap-2 w-full md:w-auto">
-                    {booking.bookingType === "DAILY" && booking.status === "CONFIRMED" && (
-                      <Button
-                        onClick={() => handleOpenExtensionModal(booking)}
-                        variant="success"
-                        size="sm"
-                        className="flex-1 md:flex-none uppercase text-[10px] font-black tracking-widest bg-emerald-600 hover:bg-emerald-700 text-white"
-                      >
-                        Continue Staying 📢
-                      </Button>
-                    )}
-                    <Button
-                      onClick={() => navigate(`/booking-confirmation/${booking.id}`)}
-                      size="sm"
-                      className="flex-1 md:flex-none"
-                    >
-                      View Details
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Month-by-Month Payment Breakdown for monthly bookings */}
-                {booking.bookingType === "MONTHLY" && bookingBills.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">📋 Monthly Payment Breakdown</h4>
-                    <div className="space-y-2">
-                      {bookingBills.map((bill) => (
-                        <div 
-                          key={bill.id} 
-                          className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-xl border ${
-                            bill.isPaid 
-                              ? 'bg-emerald-50/50 border-emerald-100' 
-                              : bill.status === 'OVERDUE' 
-                                ? 'bg-rose-50/50 border-rose-100' 
-                                : 'bg-amber-50/50 border-amber-100'
-                          }`}
+                      )}
+                    </div>
+                    <div className="flex gap-2 w-full md:w-auto">
+                      {booking.bookingType === "DAILY" && booking.status === "CONFIRMED" && (
+                        <Button
+                          onClick={() => handleOpenExtensionModal(booking)}
+                          variant="success"
+                          size="sm"
+                          className="flex-1 md:flex-none uppercase text-[10px] font-black tracking-widest bg-emerald-600 hover:bg-emerald-700 text-white"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                              bill.isPaid 
-                                ? 'bg-emerald-100 text-emerald-700' 
-                                : bill.status === 'OVERDUE' 
-                                  ? 'bg-rose-100 text-rose-700' 
-                                  : 'bg-amber-100 text-amber-700'
-                            }`}>
-                              {bill.isPaid ? '✓' : bill.status === 'OVERDUE' ? '!' : '⏳'}
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-gray-800">{bill.month}</p>
-                              <p className="text-[9px] text-gray-400 font-semibold">
-                                Rent: ₹{bill.rentAmount.toLocaleString()} | Electricity: ₹{bill.electricityAmount.toLocaleString()} | Extras: ₹{bill.extraCharges.toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 mt-2 sm:mt-0">
-                            <div className="text-right">
-                              <p className={`text-xs font-bold ${bill.isPaid ? 'text-emerald-600' : 'text-gray-800'}`}>
-                                ₹{bill.totalDue.toLocaleString()}
-                              </p>
-                              {bill.paidAmount > 0 && !bill.isPaid && (
-                                <p className="text-[9px] text-emerald-500 font-semibold">Paid: ₹{bill.paidAmount.toLocaleString()}</p>
-                              )}
-                            </div>
-                            <Badge 
-                              variant={
-                                bill.isPaid ? 'success' : 
-                                bill.status === 'OVERDUE' ? 'danger' : 
-                                bill.status === 'PENDING' ? 'warning' : 'info'
-                              } 
-                              size="sm"
-                              className="text-[8px] font-bold uppercase tracking-wider"
-                            >
-                              {bill.isPaid ? 'PAID' : bill.status?.replace('_', ' ')}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Total Summary Row */}
-                    <div className="mt-3 p-3 bg-slate-900 text-white rounded-xl flex items-center justify-between">
-                      <div>
-                        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Total All Months ({bookingBills.length} Invoices)</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-extrabold tracking-tight">₹{totalDueFromBills.toLocaleString()}</p>
-                        <p className="text-[9px] text-emerald-400 font-bold">Paid: ₹{totalFromBills.toLocaleString()} | Due: ₹{(totalDueFromBills - totalFromBills).toLocaleString()}</p>
-                      </div>
+                          Continue Staying 📢
+                        </Button>
+                      )}
+                      <Button
+                        onClick={() => navigate(`/booking-confirmation/${booking.id}`)}
+                        size="sm"
+                        className="flex-1 md:flex-none"
+                      >
+                        View Details
+                      </Button>
                     </div>
                   </div>
-                )}
-              </Card>
+
+                  {/* Month-by-Month Payment Breakdown for monthly bookings */}
+                  {booking.bookingType === "MONTHLY" && bookingBills.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">📋 Monthly Payment Breakdown</h4>
+                      <div className="space-y-2">
+                        {bookingBills.map((bill) => (
+                          <div
+                            key={bill.id}
+                            className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-xl border ${bill.isPaid
+                                ? 'bg-emerald-50/50 border-emerald-100'
+                                : bill.status === 'OVERDUE'
+                                  ? 'bg-rose-50/50 border-rose-100'
+                                  : 'bg-amber-50/50 border-amber-100'
+                              }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${bill.isPaid
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : bill.status === 'OVERDUE'
+                                    ? 'bg-rose-100 text-rose-700'
+                                    : 'bg-amber-100 text-amber-700'
+                                }`}>
+                                {bill.isPaid ? '✓' : bill.status === 'OVERDUE' ? '!' : '⏳'}
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-gray-800">{bill.month}</p>
+                                <p className="text-[9px] text-gray-400 font-semibold">
+                                  Rent: ₹{bill.rentAmount.toLocaleString()} | Electricity: ₹{bill.electricityAmount.toLocaleString()} | Extras: ₹{bill.extraCharges.toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 mt-2 sm:mt-0">
+                              <div className="text-right">
+                                <p className={`text-xs font-bold ${bill.isPaid ? 'text-emerald-600' : 'text-gray-800'}`}>
+                                  ₹{bill.totalDue.toLocaleString()}
+                                </p>
+                                {bill.paidAmount > 0 && !bill.isPaid && (
+                                  <p className="text-[9px] text-emerald-500 font-semibold">Paid: ₹{bill.paidAmount.toLocaleString()}</p>
+                                )}
+                              </div>
+                              <Badge
+                                variant={
+                                  bill.isPaid ? 'success' :
+                                    bill.status === 'OVERDUE' ? 'danger' :
+                                      bill.status === 'PENDING' ? 'warning' : 'info'
+                                }
+                                size="sm"
+                                className="text-[8px] font-bold uppercase tracking-wider"
+                              >
+                                {bill.isPaid ? 'PAID' : bill.status?.replace('_', ' ')}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Total Summary Row */}
+                      <div className="mt-3 p-3 bg-slate-900 text-white rounded-xl flex items-center justify-between">
+                        <div>
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Total All Months ({bookingBills.length} Invoices)</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-extrabold tracking-tight">₹{totalDueFromBills.toLocaleString()}</p>
+                          <p className="text-[9px] text-emerald-400 font-bold">Paid: ₹{totalFromBills.toLocaleString()} | Due: ₹{(totalDueFromBills - totalFromBills).toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </Card>
               )
             })}
           </div>
@@ -495,7 +493,7 @@ const MyBookingsPage = () => {
               <p className="text-[10px] text-slate-300 font-medium uppercase tracking-widest mt-1">
                 Room #{selectedBookingForExtension.room?.roomNumber} - {selectedBookingForExtension.room?.title}
               </p>
-              <button 
+              <button
                 onClick={() => setShowExtensionModal(false)}
                 className="absolute top-5 right-5 text-white/70 hover:text-white transition-colors text-lg font-bold"
               >
@@ -530,7 +528,7 @@ const MyBookingsPage = () => {
 
               <div>
                 <label htmlFor="newCheckoutDateInput" className="block text-gray-400 font-bold uppercase text-[9px] tracking-wider">Select New Checkout Date</label>
-                <input 
+                <input
                   id="newCheckoutDateInput"
                   type="date"
                   min={getMinExtensionDate(selectedBookingForExtension)}
@@ -580,16 +578,16 @@ const MyBookingsPage = () => {
                       <div className="border border-gray-100 rounded-2xl p-4 bg-slate-50 flex flex-col items-center">
                         <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-3">Scan to Pay securely</p>
                         <div className="bg-white p-2 rounded-xl shadow-md border border-slate-200">
-                          <img 
+                          <img
                             src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(
-                              `upi://pay?pa=6386227501@axl&pn=${encodeURIComponent("Rabab Stay")}&am=${extensionDetails.extensionAmount}&cu=INR&tn=${encodeURIComponent(`Extension ${selectedBookingForExtension.bookingId}`)}`
+                              `upi://pay?pa=6386227501@axl&pn=${encodeURIComponent("Rabab Complex Stay")}&am=${extensionDetails.extensionAmount}&cu=INR&tn=${encodeURIComponent(`Extension ${selectedBookingForExtension.bookingId}`)}`
                             )}`}
                             alt="UPI QR Code"
                             className="w-28 h-28"
                           />
                         </div>
                         <p className="text-[9px] text-gray-500 font-semibold mt-3 text-center">
-                          Scan with BHIM, GPay, PhonePe or Paytm.<br/>
+                          Scan with BHIM, GPay, PhonePe or Paytm.<br />
                           UPI ID: <span className="font-bold text-blue-600">6386227501@axl</span>
                         </p>
                       </div>
@@ -597,7 +595,7 @@ const MyBookingsPage = () => {
                       {/* Transaction reference form */}
                       <div className="space-y-1.5">
                         <label htmlFor="txnIdInput" className="block text-gray-400 font-bold uppercase text-[9px] tracking-wider">Payment Transaction ID / Reference No.</label>
-                        <input 
+                        <input
                           id="txnIdInput"
                           type="text"
                           value={transactionId}
@@ -622,19 +620,19 @@ const MyBookingsPage = () => {
 
               {/* Action Buttons */}
               <div className="flex gap-2 pt-2">
-                <Button 
-                  type="submit" 
-                  variant="success" 
-                  disabled={submittingExtension || !extensionDetails?.available || !transactionId} 
+                <Button
+                  type="submit"
+                  variant="success"
+                  disabled={submittingExtension || !extensionDetails?.available || !transactionId}
                   isLoading={submittingExtension}
                   className="flex-1 text-xs py-2 uppercase tracking-wider"
                 >
                   Pay & Extend Stay
                 </Button>
-                <Button 
-                  type="button" 
-                  onClick={() => setShowExtensionModal(false)} 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  onClick={() => setShowExtensionModal(false)}
+                  variant="outline"
                   className="flex-1 text-xs py-2 uppercase tracking-wider"
                 >
                   Cancel

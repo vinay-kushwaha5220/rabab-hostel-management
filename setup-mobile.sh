@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Mobile Testing Setup Script for Rabab Stay
+# Mobile Testing Setup Script for Rabab Complex Stay
 
-echo "📱 Setting up mobile testing for Rabab Stay..."
+echo "📱 Setting up mobile testing for Rabab Complex Stay..."
 echo ""
 
 # Get local IP

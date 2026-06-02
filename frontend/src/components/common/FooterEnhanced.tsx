@@ -6,9 +6,9 @@ const FooterEnhanced = () => {
   const { pathname } = useLocation()
 
   // Hide footer on dashboard and admin pages
-  const isDashboardPage = 
-    pathname.startsWith('/admin') || 
-    pathname.startsWith('/dashboard') || 
+  const isDashboardPage =
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/dashboard') ||
     pathname === '/renter-monthly-dashboard' ||
     pathname.startsWith('/booking/') ||
     pathname.startsWith('/payment/')
@@ -24,7 +24,7 @@ const FooterEnhanced = () => {
           <div>
             <Logo size="lg" />
             <p className="text-gray-400 mt-4 text-sm leading-relaxed">
-              Your perfect hostel stay awaits. Experience comfort, affordability, and community at Rabab Stay.
+              Your perfect hostel stay awaits. Experience comfort, affordability, and community at Rabab Complex Stay.
             </p>
             <div className="flex gap-4 mt-6">
               <a href="#" className="text-gray-400 hover:text-blue-400 transition-colors">
@@ -132,7 +132,7 @@ const FooterEnhanced = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Copyright */}
             <p className="text-gray-400 text-sm">
-              © {currentYear} Rabab Stay. All rights reserved.
+              © {currentYear} Rabab Complex Stay. All rights reserved.
             </p>
 
             {/* Legal Links */}
