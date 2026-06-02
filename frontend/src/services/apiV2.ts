@@ -92,10 +92,10 @@ api.interceptors.response.use(
         isRefreshing = true
 
         try {
-          // Call refresh token endpoint
-          const REFRESH_URL = import.meta.env.VITE_API_BASE_URL 
-            ? `${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}/api/v2/auth/refresh`
-            : "http://localhost:5000/api/v2/auth/refresh"
+          // Call refresh token endpoint dynamically constructed from configured baseURL
+          const baseURL = api.defaults.baseURL || "http://localhost:5000/api"
+          const refreshEndpoint = baseURL.endsWith("/v2") ? "/auth/refresh" : "/v2/auth/refresh"
+          const REFRESH_URL = `${baseURL.replace(/\/$/, "")}${refreshEndpoint}`
             
           const response = await axios.post(
             REFRESH_URL,
