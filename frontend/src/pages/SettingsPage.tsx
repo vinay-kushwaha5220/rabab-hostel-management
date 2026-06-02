@@ -67,49 +67,115 @@ const SettingsPage = () => {
     }
   }, [user])
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Helper to compress image on client-side using HTML5 canvas
+  const compressImage = (file: File, maxWidth = 400, maxHeight = 400, quality = 0.6): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.src = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(img.src)
+        const canvas = document.createElement("canvas")
+        let width = img.width
+        let height = img.height
+
+        // Calculate aspect-ratio scale
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width)
+            width = maxWidth
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height)
+            height = maxHeight
+          }
+        }
+
+        canvas.width = width
+        canvas.height = height
+
+        const ctx = canvas.getContext("2d")
+        if (!ctx) {
+          reject(new Error("Could not get canvas 2D context"))
+          return
+        }
+
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob)
+            } else {
+              reject(new Error("Canvas to Blob conversion failed"))
+            }
+          },
+          "image/jpeg",
+          quality
+        )
+      }
+      img.onerror = (err) => reject(err)
+    })
+  }
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Limit to 2MB
-    if (file.size > 2 * 1024 * 1024) {
-      setAccountError("Profile photo must be less than 2MB in size.")
+    // Limit original file size to 10MB just as a safety net
+    if (file.size > 10 * 1024 * 1024) {
+      setAccountError("Profile photo must be less than 10MB in size.")
       return
     }
 
-    const reader = new FileReader()
-    reader.onloadend = async () => {
-      const base64Data = reader.result as string
-      setProfileAvatar(base64Data)
+    try {
+      setAccountError("")
+      // Compress image to JPEG quality 0.6 and max 400px width/height
+      const compressedBlob = await compressImage(file, 400, 400, 0.6)
+      
+      // Update local preview state instantly
+      const localPreviewUrl = URL.createObjectURL(compressedBlob)
+      setProfileAvatar(localPreviewUrl)
+
       if (user?.id) {
-        try {
-          // Immediately save to the backend database
-          const response = await api.put("/v2/auth/profile", {
-            name: user.name,
-            phone: user.phone,
-            avatar: base64Data,
-          })
-          if (response.data?.user) {
-            updateUser(response.data.user)
+        const formData = new FormData()
+        formData.append("name", user.name)
+        if (user.phone) formData.append("phone", user.phone)
+        formData.append("avatar", compressedBlob, "avatar.jpg")
+
+        // Immediately save to the backend database using multipart/form-data
+        const response = await api.put("/v2/auth/profile", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        })
+
+        if (response.data?.user) {
+          updateUser(response.data.user)
+          if (response.data.user.avatar) {
+            setProfileAvatar(response.data.user.avatar)
           }
-          setAccountSuccess("Profile photo updated successfully! 📷")
-          setTimeout(() => setAccountSuccess(""), 3000)
-        } catch (err: any) {
-          console.error("Photo upload failed:", err)
-          setAccountError("Failed to save profile photo to server.")
         }
+        setAccountSuccess("Profile photo updated successfully! 📷")
+        setTimeout(() => setAccountSuccess(""), 3000)
       }
+    } catch (err: any) {
+      console.error("Photo upload failed:", err)
+      setAccountError("Failed to save profile photo to server.")
     }
-    reader.readAsDataURL(file)
   }
 
   const handleRemovePhoto = async () => {
     if (user?.id) {
       try {
-        const response = await api.put("/v2/auth/profile", {
-          name: user.name,
-          phone: user.phone,
-          avatar: null,
+        const formData = new FormData()
+        formData.append("name", user.name)
+        if (user.phone) formData.append("phone", user.phone)
+        formData.append("removeAvatar", "true")
+
+        const response = await api.put("/v2/auth/profile", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
         })
         if (response.data?.user) {
           updateUser(response.data.user)

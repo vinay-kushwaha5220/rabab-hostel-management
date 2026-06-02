@@ -1,4 +1,5 @@
 import express from "express"
+import multer from "multer"
 import {
   register,
   login,
@@ -15,6 +16,13 @@ import {
 import { protect } from "../middleware/authMiddlewareV2.js"
 
 const router = express.Router()
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+})
 
 // ==========================================
 // PUBLIC ROUTES (No authentication required)
@@ -55,6 +63,6 @@ router.post("/logout-all", protect, logoutAllDevices)
 router.get("/sessions", protect, getActiveSessions)
 
 // PUT /api/auth/profile - Update user profile (Name and Phone)
-router.put("/profile", protect, updateProfile)
+router.put("/profile", protect, upload.single("avatar"), updateProfile)
 
 export default router

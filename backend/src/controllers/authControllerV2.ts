@@ -699,7 +699,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 export const updateProfile = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId
-    const { name, phone, avatar } = req.body
+    const { name, phone, removeAvatar } = req.body
 
     if (!userId) {
       return res.status(401).json({
@@ -713,13 +713,32 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       })
     }
 
+    // Process avatar update
+    let avatarUpdate: string | null | undefined = undefined
+    if (req.file) {
+      const base64Image = req.file.buffer.toString("base64")
+      avatarUpdate = `data:${req.file.mimetype};base64,${base64Image}`
+    } else if (removeAvatar === "true") {
+      avatarUpdate = null
+    } else if (req.body.avatar !== undefined) {
+      avatarUpdate = req.body.avatar
+    }
+
+    const updateData: {
+      name: string;
+      phone: string | null;
+      avatar?: string | null;
+    } = {
+      name,
+      phone: phone || null,
+    }
+    if (avatarUpdate !== undefined) {
+      updateData.avatar = avatarUpdate
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: {
-        name,
-        phone: phone || null,
-        avatar: avatar !== undefined ? avatar : undefined,
-      },
+      data: updateData,
       select: {
         id: true,
         name: true,
