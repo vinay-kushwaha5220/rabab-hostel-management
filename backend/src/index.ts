@@ -2,6 +2,25 @@ import "dotenv/config"
 import express from "express"
 import cors from "cors"
 import cookieParser from "cookie-parser"
+
+// Temporary production log interceptor
+const originalLog = console.log
+const originalError = console.error
+const logsQueue: string[] = []
+
+console.log = (...args: any[]) => {
+  const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ')
+  logsQueue.push(`[LOG] ${new Date().toISOString()}: ${message}`)
+  if (logsQueue.length > 500) logsQueue.shift()
+  originalLog.apply(console, args)
+}
+
+console.error = (...args: any[]) => {
+  const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ')
+  logsQueue.push(`[ERROR] ${new Date().toISOString()}: ${message}`)
+  if (logsQueue.length > 500) logsQueue.shift()
+  originalError.apply(console, args)
+}
 import roomRoutes from "./routes/roomRoutes.js"
 import authRoutesV2 from "./routes/authRoutesV2.js"
 import bookingRoutes from "./routes/bookingRoutes.js"
@@ -79,6 +98,11 @@ app.use("/api/contact", contactRoutes)
 
 app.get("/", (req, res) => {
   res.send("Rabab Stay Backend Running 🏨")
+})
+
+app.get("/api/debug-logs", (req, res) => {
+  res.setHeader("Content-Type", "text/plain")
+  res.send(logsQueue.join("\n"))
 })
 
 const PORT = parseInt(process.env.PORT || '5000', 10)
