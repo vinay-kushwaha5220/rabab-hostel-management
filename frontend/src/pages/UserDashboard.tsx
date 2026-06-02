@@ -646,9 +646,9 @@ const UserDashboard = () => {
                       </p>
                     </div>
 
-                    <div className="space-y-1 bg-slate-50/70 p-4 rounded-xl border border-slate-100">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                        <Calendar size={11} className="text-slate-400" /> Commencement date
+                    <div className="space-y-1 bg-emerald-50/65 p-4 rounded-xl border border-emerald-100/80">
+                      <p className="text-[9px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
+                        <Calendar size={11} className="text-emerald-500" /> Commencement date
                       </p>
                       <p className="text-base font-bold text-slate-800 mt-0.5">
                         {formatDate(activeBooking.checkInDate)}
@@ -659,9 +659,9 @@ const UserDashboard = () => {
                     </div>
 
                     {activeBooking.bookingType === 'MONTHLY' && activeBooking.monthlyRenter ? (
-                      <div className="space-y-1 bg-slate-50/70 p-4 rounded-xl border border-slate-100">
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                          <Activity size={11} className="text-slate-400" /> Cycle dates
+                      <div className="space-y-1 bg-amber-50/65 p-4 rounded-xl border border-amber-200/70">
+                        <p className="text-[9px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
+                          <Activity size={11} className="text-amber-550 animate-pulse" /> Cycle dates
                         </p>
                         <p className="text-base font-bold text-slate-800 mt-0.5">
                           {formatDate(activeBooking.monthlyRenter.currentCycleStart)}
@@ -729,17 +729,8 @@ const UserDashboard = () => {
                           </div>
                         </div>
 
-                        {/* Pay Rent Action & Next Statement Dues */}
-                        <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                          <div className="space-y-0.5">
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                              Next Statement Due
-                            </p>
-                            <p className="text-xs font-bold text-amber-400">
-                              {formatDate(activeBooking.monthlyRenter.dueDate)}
-                            </p>
-                          </div>
-                          
+                        {/* Pay Rent Action */}
+                        <div className="pt-3 border-t border-slate-800 flex justify-end">
                           <button
                             type="button"
                             onClick={() => navigate("/renter-monthly-dashboard?tab=bills")}
