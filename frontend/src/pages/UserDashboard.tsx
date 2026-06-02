@@ -243,36 +243,6 @@ const UserDashboard = () => {
     }
   }
 
-  const getCycleProgress = () => {
-    if (!activeBooking?.monthlyRenter?.currentCycleStart || !activeBooking?.monthlyRenter?.currentCycleEnd) return 0
-    const start = new Date(activeBooking.monthlyRenter.currentCycleStart).getTime()
-    const end = new Date(activeBooking.monthlyRenter.currentCycleEnd).getTime()
-    const today = new Date().getTime()
-    const total = end - start
-    if (total <= 0) return 100
-    const elapsed = today - start
-    const percent = Math.round((elapsed / total) * 100)
-    return Math.max(0, Math.min(100, percent))
-  }
-  const cyclePercent = getCycleProgress()
-
-  const getDaysRemainingText = () => {
-    if (!activeBooking?.monthlyRenter?.currentCycleEnd) return ""
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const end = new Date(activeBooking.monthlyRenter.currentCycleEnd)
-    end.setHours(0, 0, 0, 0)
-    const diffTime = end.getTime() - today.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    if (diffDays > 0) {
-      return `${diffDays} days left`
-    } else if (diffDays === 0) {
-      return "Expires today"
-    } else {
-      return `${Math.abs(diffDays)} days overdue`
-    }
-  }
-
   const formatDate = (dateVal?: string | Date) => {
     if (!dateVal) return 'N/A'
     return new Date(dateVal).toLocaleDateString("en-US", {
@@ -681,66 +651,7 @@ const UserDashboard = () => {
                         <p className="text-[10px] text-slate-500 font-medium">
                           Total Stay: {activeBooking.totalDays} Days
                         </p>
-                      </div>
-                    )}
-
-                    {activeBooking.bookingType === 'MONTHLY' && activeBooking.monthlyRenter && (
-                      <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white p-5 rounded-2xl border border-indigo-500/20 sm:col-span-2 space-y-4 shadow-md mt-2">
-                        <div className="flex justify-between items-start flex-wrap gap-2">
-                          <div>
-                            <p className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest flex items-center gap-1.5">
-                              <Activity size={12} className="text-indigo-400 animate-pulse" />
-                              Current Stay Cycle
-                            </p>
-                            <h4 className="text-sm font-extrabold mt-1">
-                              {formatDate(activeBooking.monthlyRenter.currentCycleStart)} &mdash; {formatDate(activeBooking.monthlyRenter.currentCycleEnd)}
-                            </h4>
-                          </div>
-                          
-                          {/* Last Month Payment Date */}
-                          <div className="text-left sm:text-right">
-                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">
-                              Last Month Paid Date
-                            </span>
-                            <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md mt-0.5 inline-block">
-                              {(() => {
-                                const lastPaid = [...allBills]
-                                  .filter(b => b.isPaid)
-                                  .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime())[0];
-                                return lastPaid && lastPaid.paidDate 
-                                  ? formatDate(lastPaid.paidDate) 
-                                  : (lastPaid ? formatDate(lastPaid.updatedAt) : formatDate(activeBooking.checkInDate)); // fallback to Commencement if no historical bills yet
-                              })()}
-                            </span>
-                          </div>
                         </div>
-
-                        {/* Graphical Cycle Progress Bar */}
-                        <div className="space-y-1.5">
-                          <div className="flex justify-between text-[10px] font-semibold text-slate-350">
-                            <span>Cycle Timeline</span>
-                            <span className="text-indigo-300 font-bold uppercase tracking-wider text-[9px]">{getDaysRemainingText()}</span>
-                          </div>
-                          <div className="w-full bg-slate-800/80 h-3 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
-                            <div 
-                              className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-500" 
-                              style={{ width: `${cyclePercent}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Pay Rent Action */}
-                        <div className="pt-3 border-t border-slate-800 flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => navigate("/renter-monthly-dashboard?tab=bills")}
-                            className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-[10px] uppercase tracking-wider px-5 py-2.5 rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer border-none"
-                          >
-                            <CreditCard size={12} />
-                            Pay Rent
-                          </button>
-                        </div>
-                      </div>
                     )}
 
                   </div>
