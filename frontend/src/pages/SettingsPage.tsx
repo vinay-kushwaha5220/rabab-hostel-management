@@ -22,21 +22,7 @@ import LoadingSpinner from "../components/ui/LoadingSpinner"
 
 type ActiveTabType = 'account' | 'rooms'
 
-const BOY_AVATARS = [
-  "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-  "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-  "https://images.unsplash.com/photo-1633332755192-727a05c4013d?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-]
 
-const GIRL_AVATARS = [
-  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-  "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-  "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-  "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-]
 
 const SettingsPage = () => {
   const { user, updateUser } = useAuth()
@@ -70,64 +56,7 @@ const SettingsPage = () => {
   const [accountError, setAccountError] = useState("")
   const [accountSuccess, setAccountSuccess] = useState("")
 
-  // Profile avatar photo update state
-  const [profileAvatar, setProfileAvatar] = useState("https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80")
-  const [avatarError, setAvatarError] = useState(false)
 
-  useEffect(() => {
-    setAvatarError(false)
-    if (user) {
-      if (user.avatar) {
-        setProfileAvatar(user.avatar)
-      } else {
-        setProfileAvatar("https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80")
-      }
-    }
-  }, [user])
-
-  const handleSelectPresetAvatar = async (url: string) => {
-    if (!user?.id) return
-    try {
-      setAccountError("")
-      setAvatarError(false)
-      // Immediately save to the backend database using JSON PUT request
-      const response = await api.put("/v2/auth/profile", {
-        avatar: url
-      })
-
-      if (response.data?.user) {
-        updateUser(response.data.user)
-        if (response.data.user.avatar) {
-          setProfileAvatar(response.data.user.avatar)
-        }
-      }
-      setAccountSuccess("Profile avatar updated successfully! 📷")
-      setTimeout(() => setAccountSuccess(""), 3000)
-    } catch (err: any) {
-      console.error("Photo selection failed:", err)
-      setAccountError(err.response?.data?.message || "Failed to save profile avatar to server.")
-    }
-  }
-
-  const handleRemovePhoto = async () => {
-    if (user?.id) {
-      try {
-        setAccountError("")
-        const response = await api.put("/v2/auth/profile", {
-          avatar: null
-        })
-        if (response.data?.user) {
-          updateUser(response.data.user)
-        }
-        setProfileAvatar("https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80")
-        setAccountSuccess("Profile avatar removed successfully.")
-        setTimeout(() => setAccountSuccess(""), 3000)
-      } catch (err: any) {
-        console.error("Photo remove failed:", err)
-        setAccountError(err.response?.data?.message || "Failed to remove profile avatar from server.")
-      }
-    }
-  }
 
   // Rooms management state
   const [rooms, setRooms] = useState<any[]>([])
@@ -420,107 +349,16 @@ const SettingsPage = () => {
                 {/* Profile Photo Uploader Section */}
                 <div className="flex flex-col sm:flex-row items-center gap-5 mb-6 pb-6 border-b border-slate-100">
                   <div className="relative group flex-shrink-0">
-                    {!avatarError ? (
-                      <img
-                        src={profileAvatar}
-                        alt="Profile Avatar"
-                        onError={() => setAvatarError(true)}
-                        className="w-20 h-20 rounded-full object-cover border border-slate-200 shadow-sm"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white text-2xl font-bold shadow-sm">
-                        {user?.name?.charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                    <img
+                      src="/avatar.jpg"
+                      alt="Profile Avatar"
+                      className="w-20 h-20 rounded-full object-cover border border-slate-200 shadow-sm"
+                    />
                   </div>
                   
                   <div className="space-y-1.5 text-center sm:text-left">
                     <h3 className="text-sm font-bold text-slate-800">Profile Photo</h3>
-                    <p className="text-[10px] text-slate-400 font-medium">Select one of the 10 preset avatars below.</p>
-                    {user?.avatar && (
-                      <button
-                        type="button"
-                        onClick={handleRemovePhoto}
-                        className="mt-2 bg-slate-50 hover:bg-slate-100 text-slate-550 hover:text-slate-700 text-xs font-semibold px-4 py-2 rounded-xl border border-slate-200/60 shadow-sm hover:shadow transition-all cursor-pointer"
-                      >
-                        Remove Avatar
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Preset Avatar Chooser Grid */}
-                <div className="w-full mb-8 pb-6 border-b border-slate-100 space-y-4">
-                  <h4 className="text-xs font-bold text-slate-755 uppercase tracking-widest">Choose Default Avatar</h4>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    {/* Boy Avatars Category */}
-                    <div className="space-y-2.5">
-                      <p className="text-[10px] font-bold text-blue-650 uppercase tracking-widest flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                        Boys
-                      </p>
-                      <div className="flex flex-wrap gap-2.5">
-                        {BOY_AVATARS.map((url, index) => {
-                          const isActive = user?.avatar === url;
-                          return (
-                            <button
-                              key={`boy-${index}`}
-                              type="button"
-                              onClick={() => handleSelectPresetAvatar(url)}
-                              className={`relative w-12 h-12 rounded-full overflow-hidden transition-all duration-200 outline-none hover:scale-105 active:scale-95 ${
-                                isActive 
-                                  ? "ring-4 ring-blue-550 ring-offset-2 scale-105 shadow-md" 
-                                  : "opacity-80 hover:opacity-100 ring-1 ring-slate-200 shadow-sm"
-                              }`}
-                            >
-                              <img src={url} alt={`Boy Preset ${index + 1}`} className="w-full h-full object-cover" />
-                              {isActive && (
-                                <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
-                                  <div className="bg-blue-600 text-white rounded-full p-0.5 shadow-sm">
-                                    <CheckCircle2 size={10} className="stroke-[3]" />
-                                  </div>
-                                </div>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Girl Avatars Category */}
-                    <div className="space-y-2.5">
-                      <p className="text-[10px] font-bold text-rose-550 uppercase tracking-widest flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-450"></span>
-                        Girls
-                      </p>
-                      <div className="flex flex-wrap gap-2.5">
-                        {GIRL_AVATARS.map((url, index) => {
-                          const isActive = user?.avatar === url;
-                          return (
-                            <button
-                              key={`girl-${index}`}
-                              type="button"
-                              onClick={() => handleSelectPresetAvatar(url)}
-                              className={`relative w-12 h-12 rounded-full overflow-hidden transition-all duration-200 outline-none hover:scale-105 active:scale-95 ${
-                                isActive 
-                                  ? "ring-4 ring-blue-550 ring-offset-2 scale-105 shadow-md" 
-                                  : "opacity-80 hover:opacity-100 ring-1 ring-slate-200 shadow-sm"
-                              }`}
-                            >
-                              <img src={url} alt={`Girl Preset ${index + 1}`} className="w-full h-full object-cover" />
-                              {isActive && (
-                                <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
-                                  <div className="bg-blue-600 text-white rounded-full p-0.5 shadow-sm">
-                                    <CheckCircle2 size={10} className="stroke-[3]" />
-                                  </div>
-                                </div>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                    <p className="text-[10px] text-slate-450 font-medium font-sans">Standard Rabab Complex profile image.</p>
                   </div>
                 </div>
 

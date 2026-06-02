@@ -26,12 +26,6 @@ const DashboardTopbar = ({ onMenuClick }: DashboardTopbarProps) => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [showUserDropdown, setShowUserDropdown] = useState(false)
-  const [imgError, setImgError] = useState(false)
-
-  useEffect(() => {
-    setImgError(false)
-  }, [user?.avatar])
-
   const notificationsDropdownRef = useRef<HTMLDivElement>(null)
   const userDropdownRef = useRef<HTMLDivElement>(null)
 
@@ -108,8 +102,7 @@ const DashboardTopbar = ({ onMenuClick }: DashboardTopbarProps) => {
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
   }
 
-  // Professional avatar image reference made fully dynamic to show updates instantly
-  const profileAvatar = user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+  const profileAvatar = "/avatar.jpg"
 
   return (
     <div className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between sticky top-0 z-40">
@@ -211,18 +204,11 @@ const DashboardTopbar = ({ onMenuClick }: DashboardTopbarProps) => {
 
             {/* User Avatar Image */}
             <div className="relative w-9 h-9 flex-shrink-0">
-              {!imgError ? (
-                <img
-                  src={profileAvatar}
-                  alt={user?.name || "Resident avatar"}
-                  onError={() => setImgError(true)}
-                  className="w-9 h-9 rounded-full object-cover border border-slate-100 shadow-sm"
-                />
-              ) : (
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                  {user?.name?.charAt(0).toUpperCase()}
-                </div>
-              )}
+              <img
+                src={profileAvatar}
+                alt={user?.name || "Resident avatar"}
+                className="w-9 h-9 rounded-full object-cover border border-slate-100 shadow-sm"
+              />
             </div>
           </button>
 
