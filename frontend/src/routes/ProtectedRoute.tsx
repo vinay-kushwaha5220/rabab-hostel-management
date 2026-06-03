@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom"
+import { Navigate, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContextV2"
 
 interface ProtectedRouteProps {
@@ -8,6 +8,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children, adminOnly = false }: ProtectedRouteProps) => {
   const { isAuthenticated, user, isLoading } = useAuth()
+  const location = useLocation()
 
   // Show loading state while checking authentication
   if (isLoading) {
@@ -21,8 +22,13 @@ const ProtectedRoute = ({ children, adminOnly = false }: ProtectedRouteProps) =>
     )
   }
 
-  // If not authenticated, redirect to home page
+  // If not authenticated
   if (!isAuthenticated) {
+    // If the path starts with /booking or /payment, redirect to login page with return URL
+    if (location.pathname.startsWith("/booking") || location.pathname.startsWith("/payment")) {
+      return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />
+    }
+    // Otherwise (e.g. accessing dashboard), redirect to home page (/)
     return <Navigate to="/" replace />
   }
 
