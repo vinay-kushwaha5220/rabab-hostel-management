@@ -346,19 +346,17 @@ const SettingsPage = () => {
                   <h2 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Personal Details</h2>
                 </div>
 
-                {/* Profile Photo Uploader Section */}
+                {/* Profile Photo Section */}
                 <div className="flex flex-col sm:flex-row items-center gap-5 mb-6 pb-6 border-b border-slate-100">
                   <div className="relative group flex-shrink-0">
-                    <img
-                      src="/avatar.jpg"
-                      alt="Profile Avatar"
-                      className="w-20 h-20 rounded-full object-cover border border-slate-200 shadow-sm"
-                    />
+                    <div className="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center shadow-md shadow-blue-100">
+                      <User className="w-10 h-10 text-white stroke-[2.5]" />
+                    </div>
                   </div>
                   
                   <div className="space-y-1.5 text-center sm:text-left">
                     <h3 className="text-sm font-bold text-slate-800">Profile Photo</h3>
-                    <p className="text-[10px] text-slate-450 font-medium font-sans">Standard Rabab Complex profile image.</p>
+                    <p className="text-[10px] text-slate-450 font-medium font-sans">Standard Rabab Complex profile icon.</p>
                   </div>
                 </div>
 

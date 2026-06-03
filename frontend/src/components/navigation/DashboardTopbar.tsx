@@ -4,7 +4,8 @@ import { Link, useNavigate } from "react-router-dom"
 import {
   Bell,
   Menu,
-  LogOut
+  LogOut,
+  User
 } from "lucide-react"
 import api from "../../services/apiV2"
 
@@ -102,7 +103,7 @@ const DashboardTopbar = ({ onMenuClick }: DashboardTopbarProps) => {
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
   }
 
-  const profileAvatar = "/avatar.jpg"
+
 
   return (
     <div className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between sticky top-0 z-40">
@@ -202,13 +203,9 @@ const DashboardTopbar = ({ onMenuClick }: DashboardTopbarProps) => {
               <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider leading-none mt-1">{user?.role || "USER"}</p>
             </div>
 
-            {/* User Avatar Image */}
-            <div className="relative w-9 h-9 flex-shrink-0">
-              <img
-                src={profileAvatar}
-                alt={user?.name || "Resident avatar"}
-                className="w-9 h-9 rounded-full object-cover border border-slate-100 shadow-sm"
-              />
+            {/* User Avatar Icon */}
+            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-sm shadow-blue-100 flex-shrink-0">
+              <User className="w-5 h-5 text-white stroke-[2.5]" />
             </div>
           </button>
 
