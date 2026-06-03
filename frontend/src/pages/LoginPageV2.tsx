@@ -47,15 +47,20 @@ const LoginPageV2 = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
+  // Get redirect URL from query params
+  const redirectUrl = searchParams.get("redirect")
+
   useEffect(() => {
     if (!isLoading && user && accessToken) {
-      if (user.role === "ADMIN") {
+      if (redirectUrl) {
+        navigate(redirectUrl)
+      } else if (user.role === "ADMIN") {
         navigate("/admin/dashboard")
       } else {
         navigate("/dashboard")
       }
     }
-  }, [user, accessToken, isLoading, navigate])
+  }, [user, accessToken, isLoading, navigate, redirectUrl])
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -65,9 +70,6 @@ const LoginPageV2 = () => {
 
   // Premium, luxury cozy bedroom background image
   const backgroundImageUrl = "https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80"
-
-  // Get redirect URL from query params
-  const redirectUrl = searchParams.get("redirect")
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()

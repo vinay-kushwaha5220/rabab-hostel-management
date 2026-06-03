@@ -6,23 +6,11 @@ import Button from "../components/ui/Button"
 import Card from "../components/ui/Card"
 import LoadingSpinner from "../components/ui/LoadingSpinner"
 import RoomCard from "../components/rooms/RoomCard"
-import { useAuth } from "../context/AuthContextV2"
 
 const HomePage = () => {
   const navigate = useNavigate()
-  const { user, accessToken, isLoading } = useAuth()
   const [featuredRooms, setFeaturedRooms] = useState<RoomType[]>([])
   const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    if (!isLoading && user && accessToken) {
-      if (user.role === "ADMIN") {
-        navigate("/admin/dashboard")
-      } else {
-        navigate("/dashboard")
-      }
-    }
-  }, [user, accessToken, isLoading, navigate])
 
   useEffect(() => {
     fetchFeaturedRooms()
