@@ -131,8 +131,12 @@ api.interceptors.response.use(
           localStorage.removeItem("accessToken")
           window.dispatchEvent(new CustomEvent("authCleared"))
 
-          // Redirect to login
-          window.location.href = "/login"
+          // Redirect to login only if not a public route
+          const publicPaths = ["/", "/rooms", "/contact", "/login", "/register", "/forgot-password"]
+          const isPublic = publicPaths.includes(window.location.pathname) || window.location.pathname.startsWith("/rooms/")
+          if (!isPublic) {
+            window.location.href = "/login"
+          }
 
           return Promise.reject(refreshError)
         } finally {
@@ -143,7 +147,9 @@ api.interceptors.response.use(
         localStorage.removeItem("accessToken")
         window.dispatchEvent(new CustomEvent("authCleared"))
         
-        if (!window.location.pathname.includes("/login")) {
+        const publicPaths = ["/", "/rooms", "/contact", "/login", "/register", "/forgot-password"]
+        const isPublic = publicPaths.includes(window.location.pathname) || window.location.pathname.startsWith("/rooms/")
+        if (!window.location.pathname.includes("/login") && !isPublic) {
           window.location.href = "/login"
         }
       }

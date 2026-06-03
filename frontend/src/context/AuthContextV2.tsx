@@ -273,8 +273,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setAccessToken(null)
       setUser(null)
 
-      // Redirect to login
-      navigate("/login")
+      // Redirect to login only if not a public route
+      const publicPaths = ["/", "/rooms", "/contact", "/login", "/register", "/forgot-password"]
+      const isPublic = publicPaths.includes(window.location.pathname) || window.location.pathname.startsWith("/rooms/")
+      if (!isPublic) {
+        navigate("/login")
+      }
 
       return null
     }
