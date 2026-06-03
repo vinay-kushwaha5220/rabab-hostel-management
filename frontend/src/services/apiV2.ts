@@ -4,7 +4,10 @@ import type { InternalAxiosRequestConfig } from "axios"
 // ==========================================
 // CREATE AXIOS INSTANCE
 // ==========================================
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"
+let API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"
+if (API_BASE_URL && !API_BASE_URL.endsWith("/api")) {
+  API_BASE_URL = API_BASE_URL.replace(/\/$/, "") + "/api"
+}
 
 const api = axios.create({
   baseURL: API_BASE_URL,

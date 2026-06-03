@@ -9,6 +9,8 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER || "your-email@gmail.com",
     pass: process.env.EMAIL_PASSWORD || "your-app-password",
   },
+  connectionTimeout: 5000, // 5 seconds connection timeout
+  socketTimeout: 5000,     // 5 seconds socket timeout
 })
 
 // Get Twilio client (lazy initialization)
@@ -66,46 +68,53 @@ export const sendContactMessage = async (req: Request, res: Response) => {
       phoneFormatted = "+" + phoneFormatted
     }
 
+    let emailSent = false
+
     // Send email to admin
-    try {
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER || "noreply@rababstay.com",
-        to: process.env.ADMIN_EMAIL || "admin@rababstay.com",
-        subject: `New Contact Form Submission: ${subject}`,
-        html: `
-          <h2>New Contact Form Submission</h2>
-          <p><strong>Name:</strong> ${name}</p>
-          <p><strong>Email:</strong> ${email}</p>
-          ${phone ? `<p><strong>Phone:</strong> ${phone}</p>` : ""}
-          <p><strong>Subject:</strong> ${subject}</p>
-          <p><strong>Message:</strong></p>
-          <p>${message.replace(/\n/g, "<br>")}</p>
-          ${sendSms ? `<p><strong>SMS Notification:</strong> Sent to ${phone}</p>` : ""}
-        `,
-      })
-    } catch (emailError) {
-      console.error("Email sending error:", emailError)
-      // Continue even if email fails
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: process.env.ADMIN_EMAIL || "admin@rababstay.com",
+          subject: `New Contact Form Submission: ${subject}`,
+          html: `
+            <h2>New Contact Form Submission</h2>
+            <p><strong>Name:</strong> ${name}</p>
+            <p><strong>Email:</strong> ${email}</p>
+            ${phone ? `<p><strong>Phone:</strong> ${phone}</p>` : ""}
+            <p><strong>Subject:</strong> ${subject}</p>
+            <p><strong>Message:</strong></p>
+            <p>${message.replace(/\n/g, "<br>")}</p>
+            ${sendSms ? `<p><strong>SMS Notification:</strong> Sent to ${phone}</p>` : ""}
+          `,
+        })
+        emailSent = true
+      } catch (emailError) {
+        console.error("Email sending error:", emailError)
+      }
+    } else {
+      console.warn("⚠️ Warning: EMAIL_USER or EMAIL_PASSWORD not set. Skipping admin email.")
     }
 
     // Send confirmation email to user
-    try {
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER || "noreply@rababstay.com",
-        to: email,
-        subject: "We received your message - Rabab Complex Stay",
-        html: `
-          <h2>Thank you for contacting us!</h2>
-          <p>Hi ${name},</p>
-          <p>We have received your message and will get back to you as soon as possible.</p>
-          <p><strong>Your Message:</strong></p>
-          <p>${message.replace(/\n/g, "<br>")}</p>
-          <p>Best regards,<br>Rabab Complex Stay Team</p>
-        `,
-      })
-    } catch (emailError) {
-      console.error("Confirmation email error:", emailError)
-      // Continue even if email fails
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: email,
+          subject: "We received your message - Rabab Complex Stay",
+          html: `
+            <h2>Thank you for contacting us!</h2>
+            <p>Hi ${name},</p>
+            <p>We have received your message and will get back to you as soon as possible.</p>
+            <p><strong>Your Message:</strong></p>
+            <p>${message.replace(/\n/g, "<br>")}</p>
+            <p>Best regards,<br>Rabab Complex Stay Team</p>
+          `,
+        })
+      } catch (emailError) {
+        console.error("Confirmation email error:", emailError)
+      }
     }
 
     // Send SMS if requested and phone is provided
@@ -131,7 +140,7 @@ export const sendContactMessage = async (req: Request, res: Response) => {
     return res.status(200).json({
       success: true,
       message: "Message sent successfully. We will contact you soon!",
-      emailSent: true,
+      emailSent: emailSent,
       smsSent: smsSent,
     })
   } catch (error: any) {
