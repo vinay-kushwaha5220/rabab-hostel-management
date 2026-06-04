@@ -34,8 +34,8 @@ const Logo = ({ size = "md" }: { size?: "sm" | "md" | "lg" }) => {
 
       {/* Logo Text */}
       <div className="flex flex-col">
-        <span className={`${textSizeClasses[size]} font-bold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent`}>
-          Rabab
+        <span className={`${textSizeClasses[size]} font-semibold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent`}>
+          Rabab Complex
         </span>
         <span className={`text-xs font-semibold text-gray-600 -mt-1`}>
           STAY

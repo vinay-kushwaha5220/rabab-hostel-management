@@ -169,8 +169,8 @@ const RoomsManagement = () => {
       const payload = {
         ...roomForm,
         price: parseFloat(String(roomForm.price)),
-        dailyPrice: parseFloat(String(roomForm.dailyPrice)) || parseFloat(String(roomForm.price)) / 12,
-        monthlyPrice: parseFloat(String(roomForm.price)),
+        dailyPrice: parseFloat(String(roomForm.dailyPrice)) || parseFloat(String(roomForm.price)) / 30,
+        monthlyPrice: parseFloat(String(roomForm.monthlyPrice)) || parseFloat(String(roomForm.price)),
         capacity: parseInt(String(roomForm.capacity)),
         floor: parseInt(String(roomForm.floor)),
         amenities: amenitiesArr,

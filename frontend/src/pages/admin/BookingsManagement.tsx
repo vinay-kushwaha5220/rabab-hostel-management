@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { Eye, Check, LogIn, LogOut, CreditCard, RefreshCw, CalendarPlus, XCircle, ChevronLeft, ChevronRight, MoreVertical } from "lucide-react"
+import { Eye, Check, LogIn, LogOut, CreditCard, RefreshCw, CalendarPlus, XCircle, ChevronLeft, ChevronRight, MoreVertical, AlertTriangle, Info } from "lucide-react"
 import api from "../../services/apiV2"
 import type { BookingType } from "../../types/booking"
 import Badge from "../../components/ui/Badge"
@@ -130,6 +130,48 @@ const BookingsManagement = () => {
   const [renewalNotes, setRenewalNotes] = useState("")
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
+  // Custom Confirm/Alert Modal State
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'danger' | 'success' | 'warning' | 'info';
+    isAlert: boolean;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info',
+    isAlert: false,
+    onConfirm: () => {},
+  })
+
+  const showAlert = (title: string, message: string, type: 'danger' | 'success' | 'warning' | 'info' = 'info') => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      type,
+      isAlert: true,
+      onConfirm: () => setConfirmModal(prev => ({ ...prev, isOpen: false }))
+    })
+  }
+
+  const showConfirm = (title: string, message: string, type: 'danger' | 'success' | 'warning' | 'info', onConfirm: () => void) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      type,
+      isAlert: false,
+      onConfirm: () => {
+        onConfirm()
+        setConfirmModal(prev => ({ ...prev, isOpen: false }))
+      }
+    })
+  }
+
   const months = [
     { value: "01", label: "January" },
     { value: "02", label: "February" },
@@ -175,24 +217,26 @@ const BookingsManagement = () => {
   }
 
   const cancelBooking = async (bookingId: number) => {
-    if (!confirm('Cancel this booking?')) return
-    try {
-      await api.put(`/bookings/${bookingId}/cancel`)
-      fetchBookings()
-    } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to cancel')
-    }
+    showConfirm('Cancel Booking', 'Are you sure you want to cancel this booking?', 'danger', async () => {
+      try {
+        await api.put(`/bookings/${bookingId}/cancel`)
+        fetchBookings()
+      } catch (error: any) {
+        showAlert('Error', error.response?.data?.message || 'Failed to cancel', 'danger')
+      }
+    })
   }
 
   const confirmBookingPayment = async (bookingId: number) => {
-    if (!confirm('Verify payment and confirm this booking?')) return
-    try {
-      await api.put(`/bookings/${bookingId}/confirm`)
-      alert('Payment verified and booking confirmed successfully!')
-      fetchBookings()
-    } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to verify payment')
-    }
+    showConfirm('Verify Payment', 'Verify payment and confirm this booking?', 'success', async () => {
+      try {
+        await api.put(`/bookings/${bookingId}/confirm`)
+        showAlert('Success', 'Payment verified and booking confirmed successfully!', 'success')
+        fetchBookings()
+      } catch (error: any) {
+        showAlert('Error', error.response?.data?.message || 'Failed to verify payment', 'danger')
+      }
+    })
   }
 
 
@@ -201,38 +245,40 @@ const BookingsManagement = () => {
       await api.put(`/bookings/${bookingId}/check-in`)
       fetchBookings()
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to check in')
+      showAlert('Error', error.response?.data?.message || 'Failed to check in', 'danger')
     }
   }
 
   const checkOutBooking = async (bookingId: number) => {
-    if (!confirm('ACTION REQUIRED: Are you sure the renter has officially left the room? This will release the unit for new bookings.')) return
-    try {
-      await api.put(`/bookings/${bookingId}/check-out`)
-      fetchBookings()
-    } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to check out')
-    }
+    showConfirm('Confirm Checkout', 'ACTION REQUIRED: Are you sure the renter has officially left the room? This will release the unit for new bookings.', 'warning', async () => {
+      try {
+        await api.put(`/bookings/${bookingId}/check-out`)
+        fetchBookings()
+      } catch (error: any) {
+        showAlert('Error', error.response?.data?.message || 'Failed to check out', 'danger')
+      }
+    })
   }
 
   const undoCheckOutBooking = async (bookingId: number) => {
-    if (!confirm('RESTORE STAY: Accidental checkout? This will make the guest active again and increment room occupancy.')) return
-    try {
-      await api.put(`/bookings/${bookingId}/undo-checkout`)
-      fetchBookings()
-    } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to restore stay')
-    }
+    showConfirm('Restore Stay', 'RESTORE STAY: Accidental checkout? This will make the guest active again and increment room occupancy.', 'warning', async () => {
+      try {
+        await api.put(`/bookings/${bookingId}/undo-checkout`)
+        fetchBookings()
+      } catch (error: any) {
+        showAlert('Error', error.response?.data?.message || 'Failed to restore stay', 'danger')
+      }
+    })
   }
 
   const openRenewalModal = (booking: BookingType) => {
     const renterStatus = booking.monthlyRenter?.status
     if (renterStatus === 'PENDING_PAYMENT' || renterStatus === 'OVERDUE') {
-      alert("Cannot renew stay: There is a pending payment or unpaid rent invoice for this resident. Please settle all outstanding dues first.")
+      showAlert('Cannot renew stay', "There is a pending payment or unpaid rent invoice for this resident. Please settle all outstanding dues first.", 'warning')
       return
     }
     if (renterStatus === 'PENDING_ADMIN_APPROVAL' || renterStatus === 'RENEWAL_PENDING') {
-      alert("Cannot renew stay: There is an active stay renewal request pending admin approval. Please approve or reject that request instead.")
+      showAlert('Cannot renew stay', "There is an active stay renewal request pending admin approval. Please approve or reject that request instead.", 'warning')
       return
     }
 
@@ -272,12 +318,6 @@ const BookingsManagement = () => {
 
   const handleRenewStaySubmit = async () => {
     if (!selectedBookingForRenewal) return
-    
-    if (!renewalMonth || !renewalUnits || !renewalElectricity || !renewalDueDate) {
-      alert('Please fill all required electricity fields (Units, Rate, Month, Due Date)')
-      return
-    }
-
     try {
       setActionLoading(`renew-${selectedBookingForRenewal.id}`)
       
@@ -898,6 +938,54 @@ const BookingsManagement = () => {
                 </button>
               </div>
             </Card>
+          </div>
+        )}
+
+        {/* Custom Confirmation / Alert Modal */}
+        {confirmModal.isOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="max-w-sm w-full">
+              <Card className="p-6 shadow-2xl border-none bg-white rounded-2xl animate-in zoom-in duration-200">
+                <div className="flex flex-col items-center text-center">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${
+                    confirmModal.type === 'danger' ? 'bg-red-50 text-red-600' :
+                    confirmModal.type === 'success' ? 'bg-green-50 text-green-600' :
+                    confirmModal.type === 'warning' ? 'bg-amber-50 text-amber-600' :
+                    'bg-blue-50 text-blue-600'
+                  }`}>
+                    {confirmModal.type === 'danger' && <XCircle className="w-6 h-6" />}
+                    {confirmModal.type === 'success' && <Check className="w-6 h-6" />}
+                    {confirmModal.type === 'warning' && <AlertTriangle className="w-6 h-6" />}
+                    {confirmModal.type === 'info' && <Info className="w-6 h-6" />}
+                  </div>
+                  
+                  <h3 className="text-lg font-black text-gray-900 tracking-tight mb-1">{confirmModal.title}</h3>
+                  <p className="text-sm font-medium text-gray-500 mb-6">{confirmModal.message}</p>
+                  
+                  <div className="flex gap-3 w-full">
+                    {!confirmModal.isAlert && (
+                      <button
+                        onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                        className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold tracking-widest text-[10px] uppercase py-2.5 rounded-lg transition-all"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    <button
+                      onClick={confirmModal.onConfirm}
+                      className={`flex-1 text-white font-bold tracking-widest text-[10px] uppercase py-2.5 rounded-lg transition-all shadow-sm ${
+                        confirmModal.type === 'danger' ? 'bg-red-600 hover:bg-red-700' :
+                        confirmModal.type === 'success' ? 'bg-green-600 hover:bg-green-700' :
+                        confirmModal.type === 'warning' ? 'bg-amber-600 hover:bg-amber-700' :
+                        'bg-blue-600 hover:bg-blue-700'
+                      }`}
+                    >
+                      {confirmModal.isAlert ? 'OK' : 'Confirm'}
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            </div>
           </div>
         )}
       </div>

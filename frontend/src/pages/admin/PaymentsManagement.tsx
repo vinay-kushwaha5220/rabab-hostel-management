@@ -13,6 +13,8 @@ const PaymentsManagement = () => {
   const [cycleFilter, setCycleFilter] = useState<CycleFilterType>("all")
   const [search, setSearch] = useState("")
   const [error, setError] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
 
   useEffect(() => {
     fetchPayments()
@@ -125,6 +127,18 @@ const PaymentsManagement = () => {
     return true
   })
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredPayments.length / ITEMS_PER_PAGE)
+  const paginatedPayments = filteredPayments.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [statusFilter, cycleFilter, search])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50/50 flex flex-col items-center justify-center p-6">
@@ -135,11 +149,11 @@ const PaymentsManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/40 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-50/40 py-4 px-2 sm:px-4 lg:px-6">
+      <div className="max-w-7xl mx-auto space-y-4">
         
         {/* Header Block */}
-        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.03)] flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+        <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="space-y-1">
             <button
               onClick={() => navigate('/admin/dashboard')}
@@ -164,9 +178,9 @@ const PaymentsManagement = () => {
         )}
 
         {/* Metrics Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           {/* Card 1: Total Volume */}
-          <div className="p-5 bg-white border border-slate-150 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group">
+          <div className="p-3 bg-white border border-slate-150 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group">
             <div className="flex justify-between items-start">
               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Volume</span>
               <span className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs group-hover:scale-110 transition-transform">📈</span>
@@ -178,7 +192,7 @@ const PaymentsManagement = () => {
           </div>
 
           {/* Card 2: Total Paid */}
-          <div className="p-5 bg-white border border-slate-150 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group">
+          <div className="p-3 bg-white border border-slate-150 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group">
             <div className="flex justify-between items-start">
               <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">Total Collected</span>
               <span className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs group-hover:scale-110 transition-transform">💰</span>
@@ -190,7 +204,7 @@ const PaymentsManagement = () => {
           </div>
 
           {/* Card 3: Total Pending */}
-          <div className="p-5 bg-white border border-slate-150 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group">
+          <div className="p-3 bg-white border border-slate-150 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group">
             <div className="flex justify-between items-start">
               <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wider">Pending Dues</span>
               <span className="w-6 h-6 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xs group-hover:scale-110 transition-transform">⏳</span>
@@ -202,7 +216,7 @@ const PaymentsManagement = () => {
           </div>
 
           {/* Card 4: Action Count */}
-          <div className="p-5 bg-white border border-slate-150 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group">
+          <div className="p-3 bg-white border border-slate-150 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group">
             <div className="flex justify-between items-start">
               <span className="text-[9px] font-bold text-blue-600 uppercase tracking-wider">Awaiting Verification</span>
               <span className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs group-hover:scale-110 transition-transform">⚙️</span>
@@ -217,7 +231,7 @@ const PaymentsManagement = () => {
         </div>
 
         {/* Filters and Search Toolbar */}
-        <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.03)] space-y-4">
+        <div className="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             
             {/* Search Input Box */}
@@ -312,18 +326,17 @@ const PaymentsManagement = () => {
                   <th className="py-4 px-4 font-extrabold">Cycle Scope</th>
                   <th className="py-4 px-4 font-extrabold">Status</th>
                   <th className="py-4 px-4 font-extrabold">Date</th>
-                  <th className="py-4 px-4 text-right font-extrabold">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                {filteredPayments.length === 0 ? (
+                {paginatedPayments.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-12 text-center text-slate-400 uppercase font-bold tracking-widest text-[9px]">
+                    <td colSpan={9} className="py-12 text-center text-slate-400 uppercase font-bold tracking-widest text-[9px]">
                       📁 No matching transactions found in database ledger
                     </td>
                   </tr>
                 ) : (
-                  filteredPayments.map((payment) => {
+                  paginatedPayments.map((payment) => {
                     const isHistorical = isPaymentHistorical(payment)
                     return (
                       <tr key={payment.id} className="hover:bg-slate-50/50 transition-colors">
@@ -379,16 +392,6 @@ const PaymentsManagement = () => {
                         <td className="py-4 px-4 font-medium text-slate-500">
                           {new Date(payment.createdAt).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}
                         </td>
-
-                        {/* Actions */}
-                        <td className="py-4 px-4 text-right">
-                          <button
-                            onClick={() => navigate(`/booking-confirmation/${payment.bookingId}`)}
-                            className="bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 px-2.5 py-1 rounded-xl text-[8px] font-extrabold uppercase tracking-wider transition-all shadow-sm active:scale-95"
-                          >
-                            View Contract
-                          </button>
-                        </td>
                       </tr>
                     )
                   })
@@ -396,26 +399,44 @@ const PaymentsManagement = () => {
               </tbody>
             </table>
           </div>
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="text-xs font-semibold text-slate-500">
+                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredPayments.length)} of {filteredPayments.length} entries
+              </div>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-colors"
+                >
+                  Previous
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 rounded-lg border text-xs font-bold flex items-center justify-center transition-colors ${
+                      currentPage === page
+                        ? "bg-slate-900 border-slate-900 text-white"
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-
-        {/* Ledger Bottom Summary Panel */}
-        <div className="bg-white border border-slate-150 rounded-3xl p-5 shadow-sm">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs text-slate-600">
-            <div className="space-y-1">
-              <div className="font-bold text-slate-400 uppercase tracking-wider text-[8px]">Displaying Ledger Results</div>
-              <div className="text-base font-extrabold text-slate-900">{filteredPayments.length} of {payments.length} Transactions</div>
-            </div>
-            <div className="space-y-1">
-              <div className="font-bold text-slate-400 uppercase tracking-wider text-[8px]">Total Volume (Filtered)</div>
-              <div className="text-base font-extrabold text-emerald-600">₹{getTotalPaid(filteredPayments).toLocaleString()}</div>
-            </div>
-            <div className="space-y-1">
-              <div className="font-bold text-slate-400 uppercase tracking-wider text-[8px]">Total Pending (Filtered)</div>
-              <div className="text-base font-extrabold text-amber-600">₹{getTotalPending(filteredPayments).toLocaleString()}</div>
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
   )

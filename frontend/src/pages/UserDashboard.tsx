@@ -314,12 +314,15 @@ const UserDashboard = () => {
                 <div className="flex items-center gap-2">
                   <span className="bg-amber-500/10 text-amber-400 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider border border-amber-500/20 flex items-center gap-1">
                     <Clock size={12} className="animate-spin" />
-                    Action Required
+                    Verification in Progress
                   </span>
                 </div>
                 <h2 className="text-2xl font-extrabold text-white tracking-tight">
-                  Room Reserved — Awaiting Payment
+                  Booking Submitted — Awaiting Admin Approval
                 </h2>
+                <p className="text-sm text-slate-300 mt-1">
+                   Your booking request and payment have been received. Admin verification is in progress.
+                </p>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-black text-amber-400">₹{activeBooking.totalAmount.toLocaleString()}</span>
                   <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Initial Deposit & Rent</span>
@@ -329,7 +332,7 @@ const UserDashboard = () => {
                 onClick={() => navigate(`/payment/${activeBooking.id}`)}
                 className="w-full md:w-auto bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs px-6 py-3 rounded-xl transition-all duration-200 shadow-lg shadow-amber-500/10 flex items-center justify-center gap-1.5"
               >
-                Complete Payment
+                Continue Payment
                 <ArrowRight size={14} />
               </button>
             </motion.div>
@@ -350,10 +353,10 @@ const UserDashboard = () => {
                   </span>
                 </div>
                 <h2 className="text-2xl font-extrabold text-white tracking-tight">
-                  Payment Verification Underway
+                  Admin Approval Pending
                 </h2>
                 <p className="text-xs text-slate-300 font-medium max-w-xl">
-                  Your booking payment has been submitted and is currently being verified by our staff. We will active your stay details immediately once checked.
+                  Your booking payment has been submitted and is currently awaiting admin approval. We will activate your stay details immediately once confirmed.
                 </p>
               </div>
               <button

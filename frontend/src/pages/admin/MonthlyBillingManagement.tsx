@@ -20,6 +20,10 @@ const MonthlyBillingManagement = () => {
   const [yearFilter, setYearFilter] = useState<string>("")
   const [roomFilter, setRoomFilter] = useState<string>("")
   
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
+
   const [showVerifyModal, setShowVerifyModal] = useState(false)
   const [selectedBill, setSelectedBill] = useState<MonthlyBill | null>(null)
   const [verifyAmount, setVerifyAmount] = useState("")
@@ -51,6 +55,11 @@ const MonthlyBillingManagement = () => {
     fetchStats()
     fetchRenewalRequests()
   }, [monthFilter, yearFilter, roomFilter])
+
+  // Reset pagination to first page when search filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [activeTab, floorFilter, roomTypeFilter, monthFilter, yearFilter, roomFilter])
 
   useEffect(() => {
     if (renewalRequests.length > 0 || checkoutRequests.length > 0) {
@@ -527,6 +536,13 @@ const MonthlyBillingManagement = () => {
     return true
   })
 
+  // Calculate paginated bills
+  const totalPages = Math.ceil(filteredBills.length / ITEMS_PER_PAGE)
+  const paginatedBills = filteredBills.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
+
   // Format Dates
   const formatDate = (dateStr: any) => {
     if (!dateStr) return "N/A"
@@ -748,7 +764,7 @@ const MonthlyBillingManagement = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                  {filteredBills.map((bill: any) => {
+                  {paginatedBills.map((bill: any) => {
                     const renter = bill.booking?.monthlyRenter
                     const rentStatus = getRentStatus(bill)
                     const { days: stayDays, text: daysLeftText } = getStayDaysLeft(renter?.dueDate || bill.dueDate)
@@ -909,6 +925,58 @@ const MonthlyBillingManagement = () => {
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {!loading && filteredBills.length > 0 && (
+          <div className="flex items-center justify-between bg-white px-4 py-3 border border-slate-100 rounded-2xl shadow-[0_2px_12px_-4px_rgba(0,0,0,0.03)] mt-4">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                  Showing <span className="font-black text-slate-700">{((currentPage - 1) * ITEMS_PER_PAGE) + 1}</span> to <span className="font-black text-slate-700">{Math.min(currentPage * ITEMS_PER_PAGE, filteredBills.length)}</span> of <span className="font-black text-slate-700">{filteredBills.length}</span> results
+                </p>
+              </div>
+              <div>
+                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50 focus:z-20 focus:outline-offset-0 transition-colors"
+                  >
+                    <span className="sr-only">Previous</span>
+                    <span aria-hidden="true" className="font-bold text-xs">←</span>
+                  </button>
+                  <div className="relative inline-flex items-center px-4 py-2 text-[10px] font-black text-slate-700 ring-1 ring-inset ring-gray-300">
+                    Page {currentPage} of {totalPages}
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50 focus:z-20 focus:outline-offset-0 transition-colors"
+                  >
+                    <span className="sr-only">Next</span>
+                    <span aria-hidden="true" className="font-bold text-xs">→</span>
+                  </button>
+                </nav>
+              </div>
             </div>
           </div>
         )}

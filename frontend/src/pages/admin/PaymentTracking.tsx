@@ -22,8 +22,12 @@ const PaymentTracking = () => {
   const [monthFilter, setMonthFilter] = useState<string>("")
   const [error, setError] = useState("")
 
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
+
   useEffect(() => {
     fetchPaymentData()
+    setCurrentPage(1)
   }, [statusFilter, monthFilter])
 
   const fetchPaymentData = async () => {
@@ -61,6 +65,12 @@ const PaymentTracking = () => {
   const getPaymentStatusText = (status: string) => {
     return status.charAt(0).toUpperCase() + status.slice(1)
   }
+
+  const totalPages = Math.ceil(payments.length / ITEMS_PER_PAGE)
+  const paginatedPayments = payments.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4 sm:px-6 lg:px-8">
@@ -175,7 +185,7 @@ const PaymentTracking = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {payments.map((payment) => (
+                  {paginatedPayments.map((payment) => (
                     <tr key={payment.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{payment.id}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{payment.bookingId}</td>
@@ -202,6 +212,31 @@ const PaymentTracking = () => {
                 </tbody>
               </table>
             </div>
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="p-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+                <div className="text-sm text-gray-700">
+                  Showing <span className="font-medium">{((currentPage - 1) * ITEMS_PER_PAGE) + 1}</span> to <span className="font-medium">{Math.min(currentPage * ITEMS_PER_PAGE, payments.length)}</span> of <span className="font-medium">{payments.length}</span> results
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </Card>
         )}
       </div>

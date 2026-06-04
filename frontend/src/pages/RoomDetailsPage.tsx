@@ -137,7 +137,7 @@ const RoomDetailsPage = () => {
                     </Badge>
                     {isUrgent && !isOccupied && (
                       <Badge variant="warning" size="sm" className="animate-pulse text-[9px]">
-                        Last few units
+                        Last few Room
                       </Badge>
                     )}
                   </div>
@@ -145,7 +145,7 @@ const RoomDetailsPage = () => {
                     {room.title}
                   </h1>
                   <div className="flex items-center gap-1.5 text-gray-400 font-bold uppercase tracking-widest text-[9px]">
-                    <span>Unit {room.roomNumber}</span>
+                    <span>Room No {room.roomNumber}</span>
                     <span className="w-0.5 h-0.5 rounded-full bg-gray-200"></span>
                     <span>Level {room.floor === 0 ? "Ground" : room.floor}</span>
                   </div>

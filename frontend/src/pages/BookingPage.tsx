@@ -16,7 +16,12 @@ const BookingPage = () => {
   const { user } = useAuth()
   const [room, setRoom] = useState<RoomType | null>(null)
   const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
+
+  // Payment Modal States
+  const [showUPIModal, setShowUPIModal] = useState(false)
+  const [utrNumber, setUtrNumber] = useState("")
+  const [utrError, setUtrError] = useState("")
+  const [paymentProcessing, setPaymentProcessing] = useState(false)
 
   const [formData, setFormData] = useState({
     customerName: "",
@@ -141,8 +146,14 @@ const BookingPage = () => {
     }
     if (!formData.customerPhone.trim()) {
       newErrors.customerPhone = "Phone is required"
-    } else if (!/^\d{10}$/.test(formData.customerPhone)) {
+    } else if (!/^\d{10}$/.test(formData.customerPhone.trim())) {
       newErrors.customerPhone = "Phone must be 10 digits"
+    }
+    
+    if (!formData.customerAadhaar.trim()) {
+      newErrors.customerAadhaar = "Aadhaar ID is required"
+    } else if (!/^[2-9]{1}\d{11}$/.test(formData.customerAadhaar.trim())) {
+      newErrors.customerAadhaar = "Invalid Aadhaar: Must be 12 digits and cannot start with 0 or 1"
     }
     if (!formData.checkInDate) newErrors.checkInDate = "Check-in date is required"
     if (!formData.checkOutDate) newErrors.checkOutDate = "Check-out date is required"
@@ -164,22 +175,46 @@ const BookingPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validateForm()) return
+    setShowUPIModal(true)
+  }
+
+  const submitPaymentAndBooking = async () => {
+    if (!utrNumber) {
+      setUtrError("UTR reference number is required")
+      return
+    }
+    if (!/^\d{12}$/.test(utrNumber)) {
+      setUtrError("UTR must be exactly a 12-digit number")
+      return
+    }
+    setUtrError("")
 
     try {
-      setSubmitting(true)
+      setPaymentProcessing(true)
       const bookingData = {
         roomId: Number(roomId),
         ...formData,
         numberOfGuests: Number(formData.numberOfGuests),
-        totalAmount: totalAmount, // Pass calculated total amount (including deposit)
+        totalAmount: totalAmount,
       }
+      // 1. Create the booking
       const response = await api.post("/bookings", bookingData)
-      navigate(`/payment/${response.data.booking.id}`)
+      const newBookingId = response.data.booking.id
+
+      // 2. Submit the payment
+      await api.post("/bookings/payment", {
+        bookingId: newBookingId,
+        paymentMethod: 'UPI',
+        transactionId: utrNumber,
+      })
+
+      // 3. Navigate to confirmation
+      navigate(`/booking-confirmation/${newBookingId}`)
     } catch (error: any) {
-      console.error('Error creating booking:', error)
-      alert(error.response?.data?.message || 'Failed to create booking')
+      console.error('Error creating booking/payment:', error)
+      setUtrError(error.response?.data?.message || 'Failed to process payment and booking.')
     } finally {
-      setSubmitting(false)
+      setPaymentProcessing(false)
     }
   }
 
@@ -209,9 +244,95 @@ const BookingPage = () => {
   if (!room) return null
 
   const isMonthly = formData.bookingType === "MONTHLY"
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
+    `upi://pay?pa=6386227501@axl&pn=Rabab Hostel&am=${totalAmount}&cu=INR`
+  )}`
 
   return (
-    <div className="min-h-screen bg-gray-50/30 py-6 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50/30 py-6 px-4 sm:px-6 lg:px-8 relative">
+      
+      {/* UPI Payment Modal */}
+      {showUPIModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="my-8 max-w-sm w-full">
+            <Card className="p-6 shadow-2xl border-none bg-white rounded-2xl animate-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4 border-b border-gray-50 pb-2">
+                <div>
+                  <h3 className="text-base font-black text-gray-900 tracking-tight">UPI Secure Payment</h3>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Scan or copy details to pay</p>
+                </div>
+                <button type="button" onClick={() => setShowUPIModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center">
+                  <img 
+                    src={qrCodeUrl} 
+                    alt="UPI Payment QR Code" 
+                    className="w-48 h-48 object-contain rounded-lg border bg-white p-2 shadow-inner"
+                  />
+                  <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mt-2">Scan with GPay, PhonePe or Paytm</p>
+                </div>
+
+                <div className="bg-blue-50/50 border border-blue-50/80 p-4 rounded-xl text-center space-y-1">
+                  <p className="text-[9px] text-blue-500 font-black uppercase tracking-widest">Amount to Pay</p>
+                  <p className="text-2xl font-black text-blue-700 tracking-tight">₹{totalAmount.toLocaleString()}</p>
+                  <div className="pt-2 flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-600">
+                    <span className="text-gray-400 font-medium">UPI ID:</span>
+                    <span className="font-mono bg-white px-2 py-0.5 border rounded border-gray-200">6386227501@axl</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest">Enter 12-Digit Transaction UTR <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    maxLength={12}
+                    value={utrNumber}
+                    onChange={(e) => {
+                      setUtrNumber(e.target.value.replace(/\D/g, ""))
+                      setUtrError("")
+                    }}
+                    placeholder="e.g. 348596041285"
+                    className={`w-full px-3 py-2.5 text-sm font-extrabold font-mono border rounded-lg focus:ring-1 outline-none bg-slate-50 focus:bg-white transition-all text-center tracking-widest placeholder:tracking-normal placeholder:font-sans placeholder:font-medium ${
+                      utrError 
+                        ? 'border-red-500 ring-1 ring-red-500 focus:ring-red-500' 
+                        : (utrNumber.length === 12 && !/^(\d)\1{11}$/.test(utrNumber) && !/^(012345678901|123456789012|234567890123|345678901234|456789012345|567890123456|678901234567|789012345678|890123456789|901234567890|987654321098|876543210987|765432109876|654321098765|543210987654|432109876543|321098765432|210987654321|109876543210)$/.test(utrNumber))
+                          ? 'border-green-500 ring-1 ring-green-500 focus:ring-green-500 text-green-700' 
+                          : utrNumber.length === 12 ? 'border-red-500 ring-1 ring-red-500 text-red-500' : 'border-gray-200 focus:ring-blue-500'
+                    }`}
+                  />
+                  {utrError && <p className="text-[10px] font-extrabold text-red-500 text-center">{utrError}</p>}
+                  {utrNumber.length === 12 && (/^(\d)\1{11}$/.test(utrNumber) || /^(012345678901|123456789012|234567890123|345678901234|456789012345|567890123456|678901234567|789012345678|890123456789|901234567890|987654321098|876543210987|765432109876|654321098765|543210987654|432109876543|321098765432|210987654321|109876543210)$/.test(utrNumber)) && <p className="text-[10px] font-extrabold text-red-500 text-center">Please enter a valid real UTR number</p>}
+                  {utrNumber.length === 12 && !utrError && !/^(\d)\1{11}$/.test(utrNumber) && !/^(012345678901|123456789012|234567890123|345678901234|456789012345|567890123456|678901234567|789012345678|890123456789|901234567890|987654321098|876543210987|765432109876|654321098765|543210987654|432109876543|321098765432|210987654321|109876543210)$/.test(utrNumber) && <p className="text-[10px] font-extrabold text-green-600 text-center">Valid UTR format</p>}
+                </div>
+
+                <div className="pt-2">
+                  <Button 
+                    type="button"
+                    onClick={() => {
+                      if (/^(\d)\1{11}$/.test(utrNumber) || /^(012345678901|123456789012|234567890123|345678901234|456789012345|567890123456|678901234567|789012345678|890123456789|901234567890|987654321098|876543210987|765432109876|654321098765|543210987654|432109876543|321098765432|210987654321|109876543210)$/.test(utrNumber)) {
+                        setUtrError("Please enter a valid real UTR number (fake sequential numbers not allowed)");
+                        return;
+                      }
+                      submitPaymentAndBooking();
+                    }} 
+                    variant="primary" 
+                    className="w-full text-xs font-black uppercase tracking-widest py-3 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    isLoading={paymentProcessing}
+                    disabled={utrNumber.length !== 12 || paymentProcessing || /^(\d)\1{11}$/.test(utrNumber) || /^(012345678901|123456789012|234567890123|345678901234|456789012345|567890123456|678901234567|789012345678|890123456789|901234567890|987654321098|876543210987|765432109876|654321098765|543210987654|432109876543|321098765432|210987654321|109876543210)$/.test(utrNumber)}
+                  >
+                    I Have Completed Payment
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => navigate(-1)} className="p-2 bg-white shadow-sm border border-gray-100 rounded-lg transition-all active:scale-95">
@@ -236,7 +357,7 @@ const BookingPage = () => {
                     <Input label="Full Name" name="customerName" value={formData.customerName} onChange={handleInputChange} error={errors.customerName} placeholder="As per Aadhaar" className="bg-gray-50/30" />
                     <Input label="Email" name="customerEmail" type="email" value={formData.customerEmail} onChange={handleInputChange} error={errors.customerEmail} placeholder="your@email.com" className="bg-gray-50/30" />
                     <Input label="Phone" name="customerPhone" type="tel" value={formData.customerPhone} onChange={handleInputChange} error={errors.customerPhone} placeholder="10-digit mobile" className="bg-gray-50/30" />
-                    <Input label="Aadhaar ID" name="customerAadhaar" value={formData.customerAadhaar} onChange={handleInputChange} placeholder="12-digit number" className="bg-gray-50/30" />
+                    <Input label="Aadhaar ID" name="customerAadhaar" value={formData.customerAadhaar} onChange={handleInputChange} error={errors.customerAadhaar} placeholder="12-digit number" className="bg-gray-50/30" />
                   </div>
                 </section>
 
@@ -310,8 +431,8 @@ const BookingPage = () => {
                 </section>
 
                 <div className="pt-6 border-t border-gray-100">
-                  <Button type="submit" variant="primary" size="lg" className="w-full text-xs font-bold uppercase tracking-widest shadow-lg" isLoading={submitting}>
-                    {submitting ? 'Confirming...' : 'CONFIRM & PAY NOW'}
+                  <Button type="submit" variant="primary" size="lg" className="w-full text-xs font-bold uppercase tracking-widest shadow-lg">
+                    CONFIRM & PAY NOW
                   </Button>
                 </div>
               </form>
