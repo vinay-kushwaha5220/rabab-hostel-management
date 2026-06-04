@@ -119,12 +119,20 @@ const DashboardTopbar = ({ onMenuClick }: DashboardTopbarProps) => {
         </button>
 
         {/* Mobile Brand Logo */}
-        <Link to="/" className="lg:hidden flex items-center gap-2 hover:opacity-90 transition-all cursor-pointer">
-          <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm shadow-blue-100">
-            <span className="text-white font-extrabold text-sm">RCS</span>
-          </div>
-          <span className="text-lg font-bold text-slate-800 tracking-tight">Rabab Complex Stay</span>
-        </Link>
+      <Link
+  to="/"
+  className="lg:hidden flex items-center gap-2 hover:opacity-90 transition-all cursor-pointer"
+>
+  <img
+    src="/avatar.jpg"
+    alt="Rabab Complex Stay"
+    className="w-10 h-10 rounded-full object-cover border border-amber-400 shadow-md"
+  />
+
+  <span className="text-lg font-bold text-slate-800 tracking-tight">
+    Rabab Complex Stay
+  </span>
+</Link>
       </div>
 
       {/* RIGHT: Notifications & Clickable User Menu */}
