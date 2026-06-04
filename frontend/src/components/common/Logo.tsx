@@ -13,24 +13,12 @@ const Logo = ({ size = "md" }: { size?: "sm" | "md" | "lg" }) => {
 
   return (
     <div className="flex items-center gap-2">
-      {/* Logo Icon */}
-      <div className={`${sizeClasses[size]} bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg`}>
-        <svg
-          className="w-full h-full p-1.5 text-white"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          {/* Building/Hotel Icon */}
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-          <polyline points="9 22 9 12 15 12 15 22" />
-          <line x1="9" y1="5" x2="9" y2="9" />
-          <line x1="15" y1="5" x2="15" y2="9" />
-          <line x1="9" y1="13" x2="9" y2="17" />
-          <line x1="15" y1="13" x2="15" y2="17" />
-        </svg>
-      </div>
+      {/* Logo Image */}
+      <img
+        src="/avatar.jpg"
+        alt="Rabab Complex Stay"
+        className={`${sizeClasses[size]} rounded-full object-cover border border-amber-400 shadow-md`}
+      />
 
       {/* Logo Text */}
       <div className="flex flex-col">
