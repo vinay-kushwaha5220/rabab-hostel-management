@@ -292,7 +292,7 @@ const HomePage = () => {
             <Button
               size="sm"
               onClick={() => navigate('/rooms')}
-              className="bg-white text-blue-600 hover:bg-gray-100 hover:text-blue-700 px-5 py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md"
+              className="!bg-white !text-blue-600 hover:!bg-gray-100 hover:!text-blue-700 px-5 py-2.5 font-bold uppercase tracking-wider text-[10px] sm:text-xs shadow-md"
             >
               Book Now
             </Button>
