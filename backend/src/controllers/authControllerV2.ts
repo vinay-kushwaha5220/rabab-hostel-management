@@ -1,5 +1,7 @@
 import type { Request, Response } from "express"
 import bcrypt from "bcryptjs"
+import crypto from "crypto"
+import { OAuth2Client } from "google-auth-library"
 import prisma from "../config/prisma.js"
 import {
   generateAccessToken,
@@ -206,6 +208,126 @@ export const login = async (req: Request, res: Response) => {
       message: "Server error",
       error: error instanceof Error ? error.message : "Unknown error",
     })
+  }
+}
+
+// ==========================================
+// SOCIAL LOGIN
+// ==========================================
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+export const socialLogin = async (req: Request, res: Response) => {
+  try {
+    const { idToken, provider } = req.body
+
+    if (provider !== "google") {
+      return res.status(400).json({ message: "Unsupported provider" })
+    }
+
+    if (!idToken) {
+      return res.status(400).json({ message: "ID token is required" })
+    }
+
+    // Verify Google Token
+    const audience = process.env.GOOGLE_CLIENT_ID || "";
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience,
+    }) as any;
+    
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      return res.status(400).json({ message: "Invalid Google token" });
+    }
+
+    const { email, name, picture } = payload;
+
+    // Find user
+    let user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      // Create user if they don't exist
+      const randomPassword = crypto.randomBytes(32).toString('hex');
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+      
+      user = await prisma.user.create({
+        data: {
+          name: name || "Google User",
+          email,
+          password: hashedPassword,
+          avatar: picture || null,
+          role: UserRole.USER,
+        },
+      });
+      console.log(`✅ New user registered via Google: ${email}`);
+    } else {
+      // If user exists but deactivated
+      if (!user.isActive) {
+        return res.status(403).json({
+          message: "Account is deactivated. Please contact admin.",
+        });
+      }
+      
+      // Optionally update avatar if they didn't have one
+      if (!user.avatar && picture) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { avatar: picture }
+        });
+        user.avatar = picture;
+      }
+      console.log(`✅ User logged in via Google: ${email}`);
+    }
+
+    // Generate tokens
+    const accessToken = generateAccessToken(user.id, user.role);
+    const refreshToken = generateRefreshToken(user.id);
+
+    // Get device info
+    const deviceInfo = req.headers["user-agent"] || "Unknown";
+    const ipAddress = req.ip || req.socket.remoteAddress || "Unknown";
+
+    // Store refresh token
+    await prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId: user.id,
+        expiresAt: getRefreshTokenExpiry(),
+        deviceInfo,
+        ipAddress,
+      },
+    });
+
+    // Set cookie
+    const isProduction = process.env.NODE_ENV === "production";
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.status(200).json({
+      message: "Social login successful",
+      accessToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isActive: user.isActive,
+        avatar: user.avatar,
+      },
+    });
+  } catch (error) {
+    console.error("Social login error:", error);
+    res.status(500).json({
+      message: "Server error",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
   }
 }
 

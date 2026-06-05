@@ -23,7 +23,7 @@ interface AuthContextType {
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (name: string, email: string, password: string, phone?: string) => Promise<void>
-  loginWithSocial: (email: string, name: string, provider: "google" | "facebook") => Promise<void>
+  loginWithSocial: (idToken: string, provider: "google" | "facebook") => Promise<void>
   logout: () => Promise<void>
   logoutAllDevices: () => Promise<void>
   refreshToken: () => Promise<string | null>
@@ -205,11 +205,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ==========================================
   // SOCIAL LOGIN
   // ==========================================
-  const loginWithSocial = async (email: string, name: string, provider: "google" | "facebook") => {
+  const loginWithSocial = async (idToken: string, provider: "google" | "facebook") => {
     try {
       const response = await api.post(
         "/v2/auth/social-login",
-        { email, name, provider },
+        { idToken, provider },
         { withCredentials: true }
       )
 

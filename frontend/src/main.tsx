@@ -1,6 +1,7 @@
 import React, { lazy, Suspense } from "react"
 import ReactDOM from "react-dom/client"
 import { RouterProvider, createBrowserRouter } from "react-router-dom"
+import { GoogleOAuthProvider } from "@react-oauth/google"
 import "./index.css"
 import { AuthProvider } from "./context/AuthContextV2"
 import RootLayout from "./layouts/RootLayout"
@@ -110,6 +111,8 @@ const router = createBrowserRouter([
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <RouterProvider router={router} />
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+      <RouterProvider router={router} />
+    </GoogleOAuthProvider>
   </React.StrictMode>
 )

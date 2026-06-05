@@ -12,6 +12,7 @@ import {
   verifyOtp,
   resetPassword,
   updateProfile,
+  socialLogin,
 } from "../controllers/authControllerV2.js"
 import { protect } from "../middleware/authMiddlewareV2.js"
 
@@ -33,6 +34,9 @@ router.post("/register", register)
 
 // POST /api/auth/login - Login user
 router.post("/login", login)
+
+// POST /api/auth/social-login - Social Login user
+router.post("/social-login", socialLogin)
 
 // POST /api/auth/refresh - Refresh access token
 router.post("/refresh", refreshAccessToken)
