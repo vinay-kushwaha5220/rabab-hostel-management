@@ -6,6 +6,7 @@ import type {
 import prisma from "../config/prisma.js"
 import type { AuthRequest } from "../middleware/authMiddleware.js"
 import { RoomType, BookingType } from "@prisma/client"
+import { syncRoomOccupancies } from "../utils/bookingUtils.js"
 
 
 
@@ -85,6 +86,7 @@ export const getRooms = async (
   res: Response
 ) => {
   try {
+    await syncRoomOccupancies()
     const { roomType, bookingType, minPrice, maxPrice, available } = req.query
 
     // Build filter object
@@ -186,6 +188,7 @@ export const getSingleRoom = async (
   res: Response
 ) => {
   try {
+    await syncRoomOccupancies()
     const { id } = req.params
 
     const room = await prisma.room.findUnique({

@@ -4,6 +4,7 @@ import prisma from "../config/prisma.js"
 import type { AuthRequest } from "../middleware/authMiddleware.js"
 import { BookingStatus, PaymentStatus, StayStatus, BookingType, NotificationType, NotificationPriority, VerificationStatus, MonthlyBillStatus, MonthlyRenterStatus, PaymentMethod } from "@prisma/client"
 import { calculateBookingPrice } from "../services/pricingEngine.js"
+import { syncRoomOccupancies } from "../utils/bookingUtils.js"
 
 // Standardized locale-independent cycle helpers to prevent duplicate billing
 export function getCycleMonthString(start: Date, end: Date): string {
@@ -65,6 +66,7 @@ export const createBooking = async (
     }
 
     // 2. Check room
+    await syncRoomOccupancies()
     const room = await prisma.room.findUnique({
       where: { id: Number(roomId) },
     })
@@ -594,8 +596,8 @@ export const checkInBooking = async (req: AuthRequest, res: Response) => {
         }
       }
 
-      // 3. Update room occupancy ONLY if guest is not already staying/checked-in
-      if (booking.stayStatus !== StayStatus.CHECKED_IN && booking.stayStatus !== StayStatus.STAYING) {
+      // 3. Update room occupancy ONLY if guest is not already staying/checked-in and not already confirmed
+      if (booking.status !== BookingStatus.CONFIRMED && booking.stayStatus !== StayStatus.CHECKED_IN && booking.stayStatus !== StayStatus.STAYING) {
         await tx.room.update({
           where: { id: booking.roomId },
           data: { 
@@ -605,6 +607,9 @@ export const checkInBooking = async (req: AuthRequest, res: Response) => {
         console.log(`🏨 Occupancy incremented for room ${booking.room?.roomNumber}`)
       }
     })
+    
+    // Auto-sync room occupancy to keep database consistent
+    await syncRoomOccupancies()
     
     res.status(200).json({ message: "Guest checked in successfully" })
   } catch (error: any) {
@@ -649,6 +654,9 @@ export const checkOutBooking = async (req: AuthRequest, res: Response) => {
         })
       ])
     }
+    
+    // Auto-sync room occupancy to keep database consistent
+    await syncRoomOccupancies()
     
     res.status(200).json({ message: "Checkout completed. Room is now available." })
   } catch (error: any) {
@@ -726,6 +734,9 @@ export const undoCheckOutBooking = async (req: AuthRequest, res: Response) => {
         }
       })
     ])
+
+    // Auto-sync room occupancy to keep database consistent
+    await syncRoomOccupancies()
 
     res.status(200).json({ message: "Stay restored successfully. Room occupancy updated." })
   } catch (error: any) {
@@ -1078,6 +1089,9 @@ export const cancelBooking = async (
 
     console.log(`✅ Booking cancelled: ${booking.bookingId}`)
 
+    // Auto-sync room occupancy to keep database consistent
+    await syncRoomOccupancies()
+
     res.status(200).json({
       message: "Booking cancelled successfully",
     })
@@ -1247,6 +1261,9 @@ export const confirmBooking = async (
     })
 
     console.log(`✅ Admin manually confirmed booking: ${booking.bookingId}`)
+
+    // Auto-sync room occupancy to keep database consistent
+    await syncRoomOccupancies()
 
     res.status(200).json({
       message: "Booking confirmed successfully",

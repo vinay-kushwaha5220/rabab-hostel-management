@@ -33,10 +33,10 @@ const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
   if (isMaint) {
     statusLabel = 'Maintenance'
     badgeVariant = 'danger'
-  } else if (isFull) {
-    statusLabel = 'Full'
-    badgeVariant = 'danger'
-  } else if (isOccupied) {
+  } else if (room.currentOccupancy === 0) {
+    statusLabel = 'Available'
+    badgeVariant = 'success'
+  } else if (room.currentOccupancy > 0) {
     statusLabel = 'Booked'
     badgeVariant = 'info'
   }

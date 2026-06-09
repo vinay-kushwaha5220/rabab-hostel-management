@@ -3,6 +3,7 @@ import prisma from "../config/prisma.js"
 import type { AuthRequest } from "../middleware/authMiddleware.js"
 import { MonthlyBillStatus, VerificationStatus, PaymentStatus, PaymentMethod, NotificationType, NotificationPriority, UserRole, BookingStatus, StayStatus, MonthlyRenterStatus, RenewalRequestStatus, RenewalRequestType, BookingType } from "@prisma/client"
 import { runAutomaticBillingReminders } from "../services/schedulerService.js"
+import { syncRoomOccupancies } from "../utils/bookingUtils.js"
 
 // ==========================================
 // SYNC THROTTLE — prevent running expensive
@@ -2130,6 +2131,9 @@ export const approveCheckout = async (req: AuthRequest, res: Response) => {
         priority: NotificationPriority.MEDIUM
       }
     })
+
+    // Auto-sync room occupancy to keep database consistent
+    await syncRoomOccupancies()
 
     res.status(200).json({
       message: "Checkout approved. Booking completed and room released.",

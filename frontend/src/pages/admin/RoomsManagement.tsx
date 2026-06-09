@@ -466,10 +466,10 @@ const RoomsManagement = () => {
                     if (isMaint) {
                       statusLabel = "MAINTENANCE"
                       statusColor = "bg-rose-50 text-rose-700 border border-rose-100"
-                    } else if (isFull) {
-                      statusLabel = "FULL"
-                      statusColor = "bg-orange-50 text-orange-700 border border-orange-100"
-                    } else if (isOccupied) {
+                    } else if (room.currentOccupancy === 0) {
+                      statusLabel = "AVAILABLE"
+                      statusColor = "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                    } else if (room.currentOccupancy > 0) {
                       statusLabel = "BOOKED"
                       statusColor = "bg-blue-50 text-blue-700 border border-blue-100"
                     }
