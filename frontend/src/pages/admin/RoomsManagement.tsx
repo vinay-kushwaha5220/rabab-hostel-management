@@ -457,8 +457,6 @@ const RoomsManagement = () => {
                 <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
                   {paginatedRooms.map((room) => {
                     const isMaint = !room.isAvailable
-                    const isFull = room.currentOccupancy >= room.capacity
-                    const isOccupied = room.currentOccupancy > 0
 
                     let statusLabel = "AVAILABLE"
                     let statusColor = "bg-emerald-50 text-emerald-700 border border-emerald-100"
