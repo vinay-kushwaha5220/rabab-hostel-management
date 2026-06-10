@@ -9,9 +9,9 @@ import { syncRoomOccupancies } from "../utils/bookingUtils.js"
 // Standardized locale-independent cycle helpers to prevent duplicate billing
 export function getCycleMonthString(start: Date, end: Date): string {
   const formatDateISO = (d: Date): string => {
-    const year = d.getFullYear()
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
+    const year = d.getUTCFullYear()
+    const month = String(d.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(d.getUTCDate()).padStart(2, '0')
     return `${year}-${month}-${day}`
   }
   return `Cycle: ${formatDateISO(start)} to ${formatDateISO(end)}`
@@ -19,10 +19,8 @@ export function getCycleMonthString(start: Date, end: Date): string {
 
 export function calculateCycleEnd(start: Date): Date {
   const end = new Date(start)
-  end.setMonth(end.getMonth() + 1)
-  // Real hostel rule: if you join Apr 27, your last day is May 27 (exactly 1 month)
-  // Do NOT subtract 1 day — that would make Apr 27 end on May 26 (wrong)
-  end.setHours(23, 59, 59, 999)
+  end.setUTCMonth(end.getUTCMonth() + 1)
+  end.setUTCHours(12, 0, 0, 0)
   return end
 }
 
@@ -138,6 +136,8 @@ export const createBooking = async (
     // 4. Calculate dates
     const checkIn = new Date(checkInDate)
     const checkOut = new Date(checkOutDate)
+    checkIn.setUTCHours(12, 0, 0, 0)
+    checkOut.setUTCHours(12, 0, 0, 0)
     
     if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
       console.log("❌ Validation failed: Invalid date format")
@@ -156,7 +156,7 @@ export const createBooking = async (
     let months = 1
     
     if (selectedBookingType === BookingType.MONTHLY) {
-      months = (checkOut.getFullYear() - checkIn.getFullYear()) * 12 + (checkOut.getMonth() - checkIn.getMonth())
+      months = (checkOut.getUTCFullYear() - checkIn.getUTCFullYear()) * 12 + (checkOut.getUTCMonth() - checkIn.getUTCMonth())
       if (months <= 0) months = 1
     }
 
@@ -507,6 +507,7 @@ export const checkInBooking = async (req: AuthRequest, res: Response) => {
       // 2. If MONTHLY stay, initialize cycles & first month's bill as PAID
       if (booking.bookingType === BookingType.MONTHLY) {
         const joinDate = new Date(booking.checkInDate)
+        joinDate.setUTCHours(12, 0, 0, 0)
         const firstCycleEnd = calculateCycleEnd(joinDate)
 
         const rentAmount = booking.room?.monthlyPrice || (booking.room?.dailyPrice * 30) || (booking.room?.price * 30) || 0
@@ -865,18 +866,18 @@ export const renewMonthlyStay = async (req: AuthRequest, res: Response) => {
     // Calculate dates for the next cycle based on the current checkout date (or previous cycle end)
     const prevEnd = renter.currentCycleEnd || renter.joinDate
     const nextStart = new Date(prevEnd)
-    nextStart.setDate(nextStart.getDate() + 1)
-    nextStart.setHours(0, 0, 0, 0)
+    nextStart.setUTCHours(12, 0, 0, 0)
     
     const nextEnd = calculateCycleEnd(nextStart)
 
     // Calculate stay cycle month string
     const monthName = getCycleMonthString(nextStart, nextEnd)
 
-    // 1. Extend checkOutDate on the booking by 30 days
+    // 1. Extend checkOutDate on the booking by 1 calendar month
     const currentCheckOut = new Date(booking.checkOutDate)
     const newCheckOut = new Date(currentCheckOut)
-    newCheckOut.setDate(newCheckOut.getDate() + 30)
+    newCheckOut.setUTCMonth(newCheckOut.getUTCMonth() + 1)
+    newCheckOut.setUTCHours(12, 0, 0, 0)
 
     await prisma.booking.update({
       where: { id: Number(id) },
@@ -1173,6 +1174,7 @@ export const confirmBooking = async (
     // Update MonthlyRenter profile to ACTIVE and generate first month invoice
     if (booking.bookingType === BookingType.MONTHLY) {
       const joinDate = new Date(booking.checkInDate)
+      joinDate.setUTCHours(12, 0, 0, 0)
       const firstCycleEnd = calculateCycleEnd(joinDate)
 
       const rentAmount = booking.room?.monthlyPrice || (booking.room?.dailyPrice * 30) || (booking.room?.price * 30) || 0

@@ -121,11 +121,11 @@ const MonthlyBillingManagement = () => {
   const getStayDaysLeft = (dueDateStr: string | Date | undefined) => {
     if (!dueDateStr) return { days: 0, text: "N/A" }
     const due = new Date(dueDateStr)
-    due.setHours(0, 0, 0, 0)
+    due.setUTCHours(12, 0, 0, 0)
     const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    today.setUTCHours(12, 0, 0, 0)
     const diffTime = due.getTime() - today.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
     return { 
       days: diffDays, 
       text: diffDays < 0 ? `Overdue by ${Math.abs(diffDays)} days` : (diffDays === 0 ? "Expires Today" : `${diffDays} days left`) 
@@ -546,7 +546,7 @@ const MonthlyBillingManagement = () => {
   // Format Dates
   const formatDate = (dateStr: any) => {
     if (!dateStr) return "N/A"
-    return new Date(dateStr).toLocaleDateString("en-US", { day: "numeric", month: "short" })
+    return new Date(dateStr).toLocaleDateString("en-US", { day: "numeric", month: "short", timeZone: "UTC" })
   }
 
   return (
@@ -1070,9 +1070,9 @@ const MonthlyBillingManagement = () => {
                   <div className="rounded-xl bg-blue-50 border border-blue-100 px-3 py-2">
                     <p className="text-[9px] text-blue-500 uppercase tracking-widest font-black mb-0.5">New Stay Cycle</p>
                     <p className="text-xs font-bold text-blue-800">
-                      {new Date(selectedRenewalRequest.nextCycleStart).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                      {new Date(selectedRenewalRequest.nextCycleStart).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" })}
                       {" → "}
-                      {new Date(selectedRenewalRequest.nextCycleEnd).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      {new Date(selectedRenewalRequest.nextCycleEnd).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}
                     </p>
                   </div>
                 )}

@@ -260,7 +260,7 @@ const RenterMonthlyDashboard = () => {
 
   const formatDate = (dateStr: any) => {
     if (!dateStr) return "N/A"
-    return new Date(dateStr).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
+    return new Date(dateStr).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
   }
 
   const getRenterBadgeVariant = (status?: string) => {
@@ -325,9 +325,9 @@ const RenterMonthlyDashboard = () => {
     let status = renterProfile?.status || activeBooking.stayStatus || "ACTIVE"
     if (renterProfile?.currentCycleEnd) {
       const today = new Date()
-      today.setHours(0, 0, 0, 0)
+      today.setUTCHours(12, 0, 0, 0)
       const cycleEnd = new Date(renterProfile.currentCycleEnd)
-      cycleEnd.setHours(0, 0, 0, 0)
+      cycleEnd.setUTCHours(12, 0, 0, 0)
 
       const hasUnpaid = monthlyBill && !monthlyBill.isPaid
 
@@ -356,11 +356,11 @@ const RenterMonthlyDashboard = () => {
   const calculateDaysLeft = () => {
     if (!renterProfile?.currentCycleEnd) return null
     const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    today.setUTCHours(12, 0, 0, 0)
     const end = new Date(renterProfile.currentCycleEnd)
-    end.setHours(0, 0, 0, 0)
+    end.setUTCHours(12, 0, 0, 0)
     const diffTime = end.getTime() - today.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
     return diffDays
   }
   const daysLeft = calculateDaysLeft()
@@ -928,7 +928,7 @@ const RenterMonthlyDashboard = () => {
                             <div className="flex flex-col items-center gap-1.5">
                               <div className="w-28 h-28 bg-white p-1 rounded-lg border border-slate-200 shadow-inner flex items-center justify-center relative overflow-hidden">
                                 <img
-                                  src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`upi://pay?pa=6386227501@axl&pn=${encodeURIComponent("Rabab Complex Stay")}&am=${monthlyBill.remainingAmount}&cu=INR&tn=${encodeURIComponent(`Rent ${monthlyBill.month || ''}`)}`)}`}
+                                  src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`upi://pay?pa=preetmilan1313-1@okicici&pn=${encodeURIComponent("Rabab Complex Stay")}&am=${monthlyBill.remainingAmount}&cu=INR&tn=${encodeURIComponent(`Rent ${monthlyBill.month || ''}`)}`)}`}
                                   alt="Scan to Pay Dues"
                                   className="w-full h-full object-contain"
                                 />
@@ -940,7 +940,7 @@ const RenterMonthlyDashboard = () => {
                             <div className="space-y-3 text-xs w-full text-center">
                               <p className="font-bold text-slate-800">Scan & Complete Payment</p>
                               <p className="text-[9px] text-slate-400 font-semibold leading-relaxed">
-                                Complete UPI scan or pay to address: <span className="font-bold text-blue-600 bg-blue-50 px-1 py-0.5 rounded">6386227501@axl</span>.
+                                Complete UPI scan or pay to address: <span className="font-bold text-blue-600 bg-blue-50 px-1 py-0.5 rounded">preetmilan1313-1@okicici</span>.
                               </p>
 
                               <div className="pt-1 text-left space-y-1">

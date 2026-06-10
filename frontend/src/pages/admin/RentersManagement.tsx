@@ -485,7 +485,7 @@ const RentersManagement = () => {
     const checkin = new Date(val)
     const checkout = new Date(checkin)
     if (newRenter.bookingType === 'MONTHLY') {
-      checkout.setDate(checkout.getDate() + 30)
+      checkout.setMonth(checkout.getMonth() + 1)
     } else {
       checkout.setDate(checkout.getDate() + 1)
     }
@@ -659,9 +659,9 @@ const RentersManagement = () => {
                         </td>
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-1 text-[10px] font-extrabold text-slate-700">
-                            <span>{new Date(renter.checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}</span>
+                            <span>{new Date(renter.checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit', timeZone: 'UTC' })}</span>
                             <span className="text-slate-300 font-black">→</span>
-                            <span>{cycleEnd ? new Date(cycleEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : 'N/A'}</span>
+                            <span>{cycleEnd ? new Date(cycleEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit', timeZone: 'UTC' }) : 'N/A'}</span>
                           </div>
                         </td>
                         <td className="px-4 py-3.5">
@@ -795,7 +795,7 @@ const RentersManagement = () => {
                           </div>
                           <div>
                             <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider">Stay Period</span>
-                            <span>{new Date(selectedRenter.checkInDate).toLocaleDateString()} to {new Date(selectedRenter.checkOutDate).toLocaleDateString()}</span>
+                            <span>{new Date(selectedRenter.checkInDate).toLocaleDateString('en-US', { timeZone: 'UTC' })} to {new Date(selectedRenter.checkOutDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}</span>
                           </div>
                           <div>
                             <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider">Duration Days</span>
@@ -986,7 +986,7 @@ const RentersManagement = () => {
                               <div className="flex justify-between items-start">
                                 <div>
                                   <div className="text-xs font-black text-slate-800">{b.month}</div>
-                                  <div className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">Due: {new Date(b.dueDate).toLocaleDateString()}</div>
+                                  <div className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">Due: {new Date(b.dueDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}</div>
                                 </div>
                                 <div className="flex gap-2 items-center">
                                   <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${

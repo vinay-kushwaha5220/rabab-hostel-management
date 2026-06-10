@@ -26,9 +26,9 @@ const throttledSyncOverdueStatuses = async () => {
 // Helper to format dynamic stay cycle as a unique month string
 const getCycleMonthString = (start: Date, end: Date): string => {
   const formatDateISO = (d: Date): string => {
-    const year = d.getFullYear()
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
+    const year = d.getUTCFullYear()
+    const month = String(d.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(d.getUTCDate()).padStart(2, '0')
     return `${year}-${month}-${day}`
   }
   return `Cycle: ${formatDateISO(start)} to ${formatDateISO(end)}`
@@ -36,10 +36,8 @@ const getCycleMonthString = (start: Date, end: Date): string => {
 
 const calculateCycleEnd = (start: Date): Date => {
   const end = new Date(start)
-  end.setMonth(end.getMonth() + 1)
-  // Real hostel rule: join Apr 27 → stay ends May 27 (exactly 1 month, inclusive)
-  // No -1 day needed
-  end.setHours(23, 59, 59, 999)
+  end.setUTCMonth(end.getUTCMonth() + 1)
+  end.setUTCHours(12, 0, 0, 0)
   return end
 }
 
@@ -48,8 +46,8 @@ const parseCycleDates = (monthStr: string): { start: Date; end: Date } | null =>
   if (match && match[1] && match[2]) {
     const start = new Date(match[1])
     const end = new Date(match[2])
-    start.setHours(0, 0, 0, 0)
-    end.setHours(23, 59, 59, 999)
+    start.setUTCHours(12, 0, 0, 0)
+    end.setUTCHours(12, 0, 0, 0)
     return { start, end }
   }
   return null
@@ -109,12 +107,12 @@ export const createMonthlyBill = async (req: AuthRequest, res: Response) => {
     if (monthlyRenter) {
       const prevEnd = monthlyRenter.currentCycleEnd || monthlyRenter.joinDate
       nextCycleStart = new Date(prevEnd)
-      nextCycleStart.setDate(nextCycleStart.getDate() + 1)
-      nextCycleStart.setHours(0, 0, 0, 0)
+      nextCycleStart.setUTCHours(12, 0, 0, 0)
 
       nextCycleEnd = calculateCycleEnd(nextCycleStart)
     } else {
       nextCycleStart = new Date(booking.checkInDate)
+      nextCycleStart.setUTCHours(12, 0, 0, 0)
       nextCycleEnd = calculateCycleEnd(nextCycleStart)
     }
 
@@ -150,11 +148,8 @@ export const createMonthlyBill = async (req: AuthRequest, res: Response) => {
     const totalDue = currentMonthTotal + previousDue
     const remainingAmount = totalDue // Initially full amount is remaining
 
-    const activeDueDate = dueDate ? new Date(dueDate) : new Date(nextCycleStart)
-    if (!dueDate && nextCycleStart) {
-      activeDueDate.setDate(activeDueDate.getDate() + 5) // Default 5 days grace
-      activeDueDate.setHours(23, 59, 59, 999)
-    }
+    const activeDueDate = dueDate ? new Date(dueDate) : new Date(nextCycleEnd)
+    activeDueDate.setUTCHours(12, 0, 0, 0)
 
     // Create monthly bill
     const bill = await prisma.monthlyBill.create({
@@ -1018,7 +1013,7 @@ export const syncAllRenterOverdueStatuses = async () => {
     })
 
     const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    today.setUTCHours(12, 0, 0, 0)
 
     console.log(`⚡ Monthly Renter Stay-Cycle Status Sync: checking ${activeRenters.length} renters...`)
 
@@ -1041,13 +1036,14 @@ export const syncAllRenterOverdueStatuses = async () => {
       }
 
       const cycleEnd = new Date(r.currentCycleEnd)
-      cycleEnd.setHours(0, 0, 0, 0)
+      cycleEnd.setUTCHours(12, 0, 0, 0)
 
       const isExpired = today >= cycleEnd
 
       // Dynamic late penalty math
       const penaltyStartDate = new Date(cycleEnd)
-      penaltyStartDate.setDate(penaltyStartDate.getDate() + 6) // e.g. 24 May + 6 = 30 May
+      penaltyStartDate.setUTCDate(penaltyStartDate.getUTCDate() + 6) // e.g. 24 May + 6 = 30 May
+      penaltyStartDate.setUTCHours(12, 0, 0, 0)
 
       let calculatedLatePenalty = 0
       let calculatedOverdueDays = 0
@@ -1095,7 +1091,7 @@ export const syncAllRenterOverdueStatuses = async () => {
 
       // 3. RENTER CYCLE / STATUS CORRELATION (STRICT STAY CYCLE DATES)
       const diffTime = cycleEnd.getTime() - today.getTime()
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
 
       let newStatus: MonthlyRenterStatus = r.status
       let newPaymentStatus = r.paymentStatus
@@ -1271,8 +1267,7 @@ export const requestStayRenewal = async (req: AuthRequest, res: Response) => {
     // 2. Prevent Double Renewal (Business Rule 6)
     const prevEnd = renter.currentCycleEnd || renter.joinDate
     const nextStart = new Date(prevEnd)
-    nextStart.setDate(nextStart.getDate() + 1)
-    nextStart.setHours(0, 0, 0, 0)
+    nextStart.setUTCHours(12, 0, 0, 0)
     
     const nextEnd = calculateCycleEnd(nextStart)
 
@@ -1592,9 +1587,8 @@ export const requestContinueStay = async (req: AuthRequest, res: Response) => {
     }
 
     // Calculate next cycle
-    const nextCycleStart = new Date(cycleEnd)
-    nextCycleStart.setDate(nextCycleStart.getDate() + 1)
-    nextCycleStart.setHours(0, 0, 0, 0)
+    const nextCycleStart = new Date(renter.currentCycleEnd)
+    nextCycleStart.setUTCHours(12, 0, 0, 0)
 
     const nextCycleEnd = calculateCycleEnd(nextCycleStart)
 
@@ -1885,10 +1879,9 @@ export const approveContinueStay = async (req: AuthRequest, res: Response) => {
     // Calculate bill total: Rent + Electricity + Extra/Other charges + Penalty + Previous carryover
     const billTotal = renter.rentAmount + parseFloat(String(electricityAmount || 0)) + previousPending + penalty + parseFloat(String(otherCharges || 0))
     
-    // Set bill due date exactly to grace limit (currentCycleEnd + 5 days)
-    const activeDueDate = new Date(renter.currentCycleEnd || new Date())
-    activeDueDate.setDate(activeDueDate.getDate() + 5)
-    activeDueDate.setHours(23, 59, 59, 999)
+    // Set bill due date exactly to the cycle end date
+    const activeDueDate = new Date(nextCycleEnd)
+    activeDueDate.setUTCHours(12, 0, 0, 0)
 
     let newBill
     const existingBill = await prisma.monthlyBill.findFirst({

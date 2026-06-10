@@ -536,16 +536,16 @@ const BookingsManagement = () => {
                       </td>
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-700">
-                          <span>{new Date(booking.checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                          <span>{new Date(booking.checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}</span>
                           <span className="text-gray-300 font-black">→</span>
-                          <span>{new Date(booking.checkOutDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                          <span>{new Date(booking.checkOutDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}</span>
                         </div>
                         {booking.bookingType === 'MONTHLY' && booking.monthlyRenter?.currentCycleStart ? (
                           <div className="mt-1.5 text-[9px] text-emerald-650 bg-emerald-50 px-1.5 py-0.5 rounded font-black border border-emerald-100 uppercase tracking-tight flex items-center gap-1 w-fit">
                             <span>🔄 Pay Cycle:</span>
-                            <span>{new Date(booking.monthlyRenter.currentCycleStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                            <span>{new Date(booking.monthlyRenter.currentCycleStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}</span>
                             <span>→</span>
-                            <span>{new Date(booking.monthlyRenter.currentCycleEnd!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                            <span>{new Date(booking.monthlyRenter.currentCycleEnd!).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}</span>
                           </div>
                         ) : (
                           <div className="text-[9px] text-gray-450 font-bold uppercase mt-1 w-fit">{booking.totalDays} Days</div>
@@ -678,7 +678,7 @@ const BookingsManagement = () => {
                                   className="w-full text-left px-3.5 py-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-50/50 transition-colors flex items-center gap-2 cursor-pointer"
                                 >
                                   <CalendarPlus size={13} className="text-indigo-500 stroke-[2.5]" />
-                                  <span>Renew Stay (30d)</span>
+                                  <span>Renew Stay</span>
                                 </button>
                               )}
 

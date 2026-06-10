@@ -53,19 +53,19 @@ export const CurrentBillTab = ({
   const penalty      = penaltyDays * 10
   const totalPayable = rentAmount + penalty
 
-  // Next cycle: always starts from cycleEnd + 1 day (anti-cheat rule)
+  // Next cycle starts exactly when the previous end cycle date is
   const nextCycleStart = (() => {
     const base = validity.cycleEnd || monthlyRenter.joinDate
     if (!base) return null
     const d = new Date(base)
-    d.setDate(d.getDate() + 1)
+    d.setUTCHours(12, 0, 0, 0)
     return d
   })()
   const nextCycleEnd = (() => {
     if (!nextCycleStart) return null
     const d = new Date(nextCycleStart)
-    d.setMonth(d.getMonth() + 1)
-    d.setDate(d.getDate() - 1)
+    d.setUTCMonth(d.getUTCMonth() + 1)
+    d.setUTCHours(12, 0, 0, 0)
     return d
   })()
 
@@ -97,12 +97,12 @@ export const CurrentBillTab = ({
   // ── Helpers ─────────────────────────────────────────────────────────────────
   const fmt = (d: any) => {
     if (!d) return "N/A"
-    return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+    return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
   }
 
   const fmtShort = (d: any) => {
     if (!d) return "N/A"
-    return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+    return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })
   }
 
   return (

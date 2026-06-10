@@ -580,7 +580,7 @@ const MyBookingsPage = () => {
                         <div className="bg-white p-2 rounded-xl shadow-md border border-slate-200">
                           <img
                             src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(
-                              `upi://pay?pa=6386227501@axl&pn=${encodeURIComponent("Rabab Complex Stay")}&am=${extensionDetails.extensionAmount}&cu=INR&tn=${encodeURIComponent(`Extension ${selectedBookingForExtension.bookingId}`)}`
+                              `upi://pay?pa=preetmilan1313-1@okicici&pn=${encodeURIComponent("Rabab Complex Stay")}&am=${extensionDetails.extensionAmount}&cu=INR&tn=${encodeURIComponent(`Extension ${selectedBookingForExtension.bookingId}`)}`
                             )}`}
                             alt="UPI QR Code"
                             className="w-28 h-28"
@@ -588,7 +588,7 @@ const MyBookingsPage = () => {
                         </div>
                         <p className="text-[9px] text-gray-500 font-semibold mt-3 text-center">
                           Scan with BHIM, GPay, PhonePe or Paytm.<br />
-                          UPI ID: <span className="font-bold text-blue-600">6386227501@axl</span>
+                          UPI ID: <span className="font-bold text-blue-600">preetmilan1313-1@okicici</span>
                         </p>
                       </div>
 

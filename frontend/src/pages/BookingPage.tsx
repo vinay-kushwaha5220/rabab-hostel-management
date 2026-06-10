@@ -245,7 +245,7 @@ const BookingPage = () => {
 
   const isMonthly = formData.bookingType === "MONTHLY"
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
-    `upi://pay?pa=6386227501@axl&pn=Rabab Hostel&am=${totalAmount}&cu=INR`
+    `upi://pay?pa=preetmilan1313-1@okicici&pn=Rabab Hostel&am=${totalAmount}&cu=INR`
   )}`
 
   return (
@@ -281,7 +281,7 @@ const BookingPage = () => {
                   <p className="text-2xl font-black text-blue-700 tracking-tight">₹{totalAmount.toLocaleString()}</p>
                   <div className="pt-2 flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-600">
                     <span className="text-gray-400 font-medium">UPI ID:</span>
-                    <span className="font-mono bg-white px-2 py-0.5 border rounded border-gray-200">6386227501@axl</span>
+                    <span className="font-mono bg-white px-2 py-0.5 border rounded border-gray-200">preetmilan1313-1@okicici</span>
                   </div>
                 </div>
 
