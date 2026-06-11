@@ -393,16 +393,16 @@ const UserDashboard = () => {
                   {getDaysLeftText()}
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
                 <button
                   onClick={() => navigate("/renter-monthly-dashboard?tab=bills")}
-                  className="w-full md:w-auto bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs px-5 py-3 rounded-xl transition-all duration-200 shadow-sm flex items-center justify-center gap-1.5"
+                  className="w-full md:w-auto bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm px-8 py-3.5 rounded-xl transition-all duration-200 shadow-md flex items-center justify-center gap-1.5 uppercase tracking-wide"
                 >
                   Pay Now
                 </button>
                 <button
                   onClick={() => navigate("/renter-monthly-dashboard?tab=dashboard")}
-                  className="w-full md:w-auto bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs px-5 py-3 rounded-xl transition-all duration-200 border border-slate-750 flex items-center justify-center"
+                  className="w-full md:w-auto text-slate-400 hover:text-slate-200 font-semibold text-[10px] px-3.5 py-1.5 rounded-lg transition-all duration-200 border border-slate-800 bg-slate-900/50 hover:bg-slate-800 flex items-center justify-center"
                 >
                   Request Checkout
                 </button>
@@ -466,16 +466,16 @@ const UserDashboard = () => {
                   ⚠️ A late penalty charge is active. Settle outstanding amount immediately.
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
                 <button
                   onClick={() => navigate("/renter-monthly-dashboard?tab=bills")}
-                  className="w-full md:w-auto bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs px-5 py-3 rounded-xl transition-all duration-200 shadow-lg shadow-rose-500/15 flex items-center justify-center"
+                  className="w-full md:w-auto bg-rose-500 hover:bg-rose-600 text-white font-black text-sm px-8 py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-rose-500/15 flex items-center justify-center uppercase tracking-wide"
                 >
                   Pay Now
                 </button>
                 <button
                   onClick={() => navigate("/renter-monthly-dashboard?tab=dashboard")}
-                  className="w-full md:w-auto bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs px-5 py-3 rounded-xl transition-all duration-200 border border-slate-750 flex items-center justify-center"
+                  className="w-full md:w-auto text-slate-400 hover:text-slate-200 font-semibold text-[10px] px-3.5 py-1.5 rounded-lg transition-all duration-200 border border-slate-800 bg-slate-900/50 hover:bg-slate-800 flex items-center justify-center"
                 >
                   Request Checkout
                 </button>
