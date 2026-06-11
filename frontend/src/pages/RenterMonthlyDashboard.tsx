@@ -948,10 +948,24 @@ const RenterMonthlyDashboard = () => {
                                 <input
                                   type="text"
                                   value={utrNumber}
-                                  onChange={(e) => setUtrNumber(e.target.value)}
+                                  maxLength={12}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, "");
+                                    setUtrNumber(val);
+                                  }}
                                   placeholder="Enter 12-digit transaction UTR"
-                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-600 font-semibold text-[11px] outline-none text-slate-800"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-600 font-semibold text-[11px] outline-none text-slate-800 tracking-wider text-center"
                                 />
+                                {utrNumber && utrNumber.length < 12 && (
+                                  <p className="text-[9px] text-amber-600 font-bold mt-1 ml-0.5 animate-pulse">
+                                    ⚠️ UTR must be exactly 12 digits (currently {utrNumber.length}/12)
+                                  </p>
+                                )}
+                                {utrNumber && utrNumber.length === 12 && (
+                                  <p className="text-[9px] text-emerald-600 font-bold mt-1 ml-0.5">
+                                    ✓ Valid 12-digit UTR format
+                                  </p>
+                                )}
                               </div>
                             </div>
                           </motion.div>
@@ -980,8 +994,11 @@ const RenterMonthlyDashboard = () => {
 
                         <button
                           onClick={handleProcessPayment}
-                          disabled={payingLoading}
-                          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white font-bold tracking-wider text-[10px] uppercase h-10 mt-2 rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-all"
+                          disabled={
+                            payingLoading || 
+                            (payMethod === 'UPI' && utrNumber.trim().length !== 12)
+                          }
+                          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-bold tracking-wider text-[10px] uppercase h-10 mt-2 rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-all"
                         >
                           {payingLoading ? (
                             <>
