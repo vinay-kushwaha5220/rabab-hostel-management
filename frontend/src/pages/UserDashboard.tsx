@@ -248,7 +248,8 @@ const UserDashboard = () => {
     return new Date(dateVal).toLocaleDateString("en-US", {
       day: 'numeric',
       month: 'short',
-      year: 'numeric'
+      year: 'numeric',
+      timeZone: 'UTC'
     })
   }
 
@@ -798,7 +799,7 @@ const UserDashboard = () => {
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-slate-700 truncate">{booking.room?.title || "Shared Room"}</p>
                         <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-                          {new Date(booking.checkInDate).toLocaleDateString("en-US", { month: 'short', day: 'numeric' })} — {new Date(booking.checkOutDate).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {new Date(booking.checkInDate).toLocaleDateString("en-US", { month: 'short', day: 'numeric', timeZone: 'UTC' })} — {new Date(booking.checkOutDate).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}
                         </p>
                       </div>
                       <div className="text-right flex-shrink-0">

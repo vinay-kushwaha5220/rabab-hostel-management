@@ -108,7 +108,17 @@ const PremiumBillDisplay: React.FC<PremiumBillDisplayProps> = ({
 
   const currentCycleStart = renter.currentCycleStart ? new Date(renter.currentCycleStart) : null
   const currentCycleEnd = renter.currentCycleEnd ? new Date(renter.currentCycleEnd) : null
-  const nextCycleStart = currentCycleEnd ? new Date(currentCycleEnd.getTime() + 24 * 60 * 60 * 1000) : null
+  const nextCycleStart = currentCycleEnd ? new Date(currentCycleEnd.getTime()) : null
+
+  const formatDate = (d: Date | null) => {
+    if (!d) return "N/A"
+    return d.toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    })
+  }
 
   return (
     <div className="w-full space-y-4">
@@ -132,7 +142,7 @@ const PremiumBillDisplay: React.FC<PremiumBillDisplayProps> = ({
             <div className="bg-white/50 rounded-lg p-4">
               <p className="text-xs text-gray-600 font-semibold">ENTRY DATE</p>
               <p className="text-lg font-bold text-gray-900 mt-1">
-                {currentCycleStart ? currentCycleStart.toLocaleDateString() : "N/A"}
+                {currentCycleStart ? formatDate(currentCycleStart) : "N/A"}
               </p>
             </div>
 
@@ -159,7 +169,7 @@ const PremiumBillDisplay: React.FC<PremiumBillDisplayProps> = ({
             <div className="bg-white/50 rounded-lg p-4">
               <p className="text-xs text-gray-600 font-semibold">EXPIRY DATE</p>
               <p className="text-lg font-bold text-gray-900 mt-1">
-                {currentCycleEnd ? currentCycleEnd.toLocaleDateString() : "N/A"}
+                {currentCycleEnd ? formatDate(currentCycleEnd) : "N/A"}
               </p>
             </div>
           </div>
@@ -234,7 +244,7 @@ const PremiumBillDisplay: React.FC<PremiumBillDisplayProps> = ({
             <div>
               <p className="text-sm text-gray-600 font-semibold">CURRENT CYCLE</p>
               <p className="text-gray-900 font-bold mt-1">
-                {currentCycleStart ? currentCycleStart.toLocaleDateString() : "Not set"} to {currentCycleEnd ? currentCycleEnd.toLocaleDateString() : "Not set"}
+                {currentCycleStart ? formatDate(currentCycleStart) : "Not set"} to {currentCycleEnd ? formatDate(currentCycleEnd) : "Not set"}
               </p>
             </div>
 
@@ -242,7 +252,7 @@ const PremiumBillDisplay: React.FC<PremiumBillDisplayProps> = ({
               <div>
                 <p className="text-sm text-gray-600 font-semibold">NEXT CYCLE (if approved)</p>
                 <p className="text-gray-900 font-bold mt-1">
-                  {nextCycleStart.toLocaleDateString()} onwards
+                  {formatDate(nextCycleStart)} onwards
                 </p>
               </div>
             )}
@@ -250,7 +260,7 @@ const PremiumBillDisplay: React.FC<PremiumBillDisplayProps> = ({
             <div>
               <p className="text-sm text-gray-600 font-semibold">DUE DATE</p>
               <p className="text-gray-900 font-bold mt-1">
-                {renter.dueDate ? new Date(renter.dueDate).toLocaleDateString() : "N/A"}
+                {renter.dueDate ? formatDate(new Date(renter.dueDate)) : "N/A"}
               </p>
             </div>
 
