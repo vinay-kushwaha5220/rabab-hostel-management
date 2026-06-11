@@ -760,6 +760,14 @@ export const verifyMonthlyPayment = async (req: AuthRequest, res: Response) => {
             paymentStatus: isFull ? "PAID" : "PARTIAL",
           }
         })
+
+        // Synchronize Booking checkOutDate with the monthly renter cycle end date
+        await prisma.booking.update({
+          where: { id: bill.bookingId },
+          data: {
+            checkOutDate: cycleDates.end
+          }
+        })
       }
     }
 

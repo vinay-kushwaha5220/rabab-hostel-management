@@ -156,18 +156,17 @@ const UserDashboard = () => {
         const cycleEnd = activeBooking.monthlyRenter.currentCycleEnd ? new Date(activeBooking.monthlyRenter.currentCycleEnd) : null
         if (cycleEnd) cycleEnd.setHours(0, 0, 0, 0)
 
-        const hasUnpaid = bill && !bill.isPaid
-        const dynamicExpired = cycleEnd && cycleEnd < today && hasUnpaid
+        const dynamicExpired = cycleEnd && cycleEnd < today
 
         if ((mrStatus as string) === 'CHECKOUT_REQUESTED') {
           dashboardState = 'CHECKOUT_REQUESTED'
         } else if (mrStatus === 'CHECKED_OUT') {
           dashboardState = 'CHECKOUT_CONFIRMED'
-        } else if (bill && !bill.isPaid && (bill.status === 'VERIFICATION_PENDING' || mrStatus === 'CONTINUE_REQUESTED' || mrStatus === 'PENDING_ADMIN_APPROVAL')) {
+        } else if (mrStatus === 'CONTINUE_REQUESTED' || mrStatus === 'PENDING_ADMIN_APPROVAL' || (bill && !bill.isPaid && bill.status === 'VERIFICATION_PENDING')) {
           dashboardState = 'RENEWAL_PENDING_VERIFICATION'
         } else if (dynamicExpired || (bill && !bill.isPaid && bill.status === 'OVERDUE')) {
           dashboardState = 'OVERDUE'
-        } else if (bill && !bill.isPaid && (bill.status === 'PENDING' || bill.status === 'PARTIAL' || mrStatus === 'PENDING_PAYMENT' || mrStatus === 'DUE_SOON' || mrStatus === 'EXPIRES_TODAY')) {
+        } else if (mrStatus === 'PENDING_PAYMENT' || (bill && !bill.isPaid && (bill.status === 'PENDING' || bill.status === 'PARTIAL' || mrStatus === 'DUE_SOON' || mrStatus === 'EXPIRES_TODAY'))) {
           dashboardState = 'RENEWAL_PENDING_PAYMENT'
         } else {
           dashboardState = 'ACTIVE'
@@ -215,8 +214,12 @@ const UserDashboard = () => {
     const cycleEnd = new Date(activeBooking.monthlyRenter.currentCycleEnd)
     cycleEnd.setHours(0, 0, 0, 0)
 
-    const hasUnpaid = bill && !bill.isPaid
-    return cycleEnd < today && hasUnpaid
+    const mrStatus = activeBooking.monthlyRenter.status
+    if (['CONTINUE_REQUESTED', 'PENDING_ADMIN_APPROVAL', 'CHECKOUT_REQUESTED', 'CHECKED_OUT'].includes(mrStatus)) {
+      return false
+    }
+
+    return cycleEnd < today
   }
   const isExpired = getIsExpired()
 

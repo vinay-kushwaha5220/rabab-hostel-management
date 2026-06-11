@@ -873,11 +873,8 @@ export const renewMonthlyStay = async (req: AuthRequest, res: Response) => {
     // Calculate stay cycle month string
     const monthName = getCycleMonthString(nextStart, nextEnd)
 
-    // 1. Extend checkOutDate on the booking by 1 calendar month
-    const currentCheckOut = new Date(booking.checkOutDate)
-    const newCheckOut = new Date(currentCheckOut)
-    newCheckOut.setUTCMonth(newCheckOut.getUTCMonth() + 1)
-    newCheckOut.setUTCHours(12, 0, 0, 0)
+    // 1. Extend checkOutDate on the booking to match the new cycle end date (nextEnd)
+    const newCheckOut = nextEnd
 
     await prisma.booking.update({
       where: { id: Number(id) },

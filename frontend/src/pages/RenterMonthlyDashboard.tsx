@@ -323,18 +323,17 @@ const RenterMonthlyDashboard = () => {
 
   const getDynamicStayStatus = () => {
     let status = renterProfile?.status || activeBooking.stayStatus || "ACTIVE"
+    if (status === "CHECKED_OUT" || status === "CHECKOUT_REQUESTED" || status === "CONTINUE_REQUESTED" || status === "PENDING_ADMIN_APPROVAL") {
+      return status
+    }
     if (renterProfile?.currentCycleEnd) {
       const today = new Date()
       today.setUTCHours(12, 0, 0, 0)
       const cycleEnd = new Date(renterProfile.currentCycleEnd)
       cycleEnd.setUTCHours(12, 0, 0, 0)
 
-      const hasUnpaid = monthlyBill && !monthlyBill.isPaid
-
-      if (cycleEnd < today && hasUnpaid) {
+      if (cycleEnd < today) {
         return "EXPIRED"
-      } else if (!hasUnpaid && status !== "CHECKED_OUT") {
-        return "ACTIVE"
       }
     }
     return status
