@@ -53,6 +53,33 @@ const parseCycleDates = (monthStr: string): { start: Date; end: Date } | null =>
   return null
 }
 
+const syncElectricityBillPayment = async (bookingId: number, monthStr: string, paidDate: Date | null) => {
+  try {
+    const match = monthStr.match(/Cycle:\s*([\d-]+)\s*to\s*([\d-]+)/)
+    if (match && match[1]) {
+      const start = new Date(match[1])
+      const year = start.getUTCFullYear()
+      const month = String(start.getUTCMonth() + 1).padStart(2, '0')
+      const elecMonth = `${year}-${month}`
+
+      await prisma.electricityBill.updateMany({
+        where: {
+          bookingId: bookingId,
+          month: elecMonth,
+          isPaid: false
+        },
+        data: {
+          isPaid: true,
+          paidDate: paidDate || new Date()
+        }
+      })
+      console.log(`⚡ syncElectricityBillPayment: Auto-marked electricity bill for booking ${bookingId}, month ${elecMonth} as PAID.`)
+    }
+  } catch (err) {
+    console.error("Failed to sync electricity bill payment status:", err)
+  }
+}
+
 // ==========================================
 // CREATE MONTHLY BILL (Admin)
 // ==========================================
@@ -644,6 +671,8 @@ export const verifyMonthlyPayment = async (req: AuthRequest, res: Response) => {
 
     // If this bill is fully paid, also mark all previous unpaid bills as PAID and settled
     if (newRemainingAmount <= 0) {
+      await syncElectricityBillPayment(bill.bookingId, bill.month, new Date())
+
       const previousUnpaidBills = await prisma.monthlyBill.findMany({
         where: {
           bookingId: bill.bookingId,
@@ -664,6 +693,7 @@ export const verifyMonthlyPayment = async (req: AuthRequest, res: Response) => {
             verificationStatus: VerificationStatus.VERIFIED
           }
         })
+        await syncElectricityBillPayment(prevBill.bookingId, prevBill.month, new Date())
       }
       console.log(`⚡ verifyMonthlyPayment: Auto-marked ${previousUnpaidBills.length} previous unpaid bills as PAID.`)
     }
