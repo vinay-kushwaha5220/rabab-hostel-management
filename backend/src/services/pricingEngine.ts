@@ -10,6 +10,7 @@ export interface PricingInput {
   duration: number; // Days for DAILY, months for MONTHLY
   extraCharges?: number;
   electricityCharges?: number;
+  securityAmount?: number | undefined;
 }
 
 export interface PricingResult {
@@ -30,7 +31,7 @@ export function calculateBookingPrice(input: PricingInput): PricingResult {
     : (input.room.dailyPrice || input.room.price);
 
   const roomRent = Math.round(rentRate * input.duration);
-  const deposit = isMonthly ? 2500 : 0;
+  const deposit = input.securityAmount !== undefined ? input.securityAmount : 0;
   const extraCharges = input.extraCharges || 0;
   const electricity = input.electricityCharges || 0;
 

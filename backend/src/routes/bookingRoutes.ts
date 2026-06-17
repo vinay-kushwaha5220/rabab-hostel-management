@@ -19,6 +19,7 @@ import {
   deleteBooking,
   recordPayment,
   deletePayment,
+  updateDeposit,
 } from "../controllers/bookingController.js"
 
 import { protect } from "../middleware/authMiddleware.js"
@@ -43,6 +44,7 @@ router.put("/:id/check-out", protect, adminOnly, checkOutBooking)
 router.put("/:id/refund", protect, adminOnly, refundBooking)
 router.put("/:id/undo-checkout", protect, adminOnly, undoCheckOutBooking)
 router.put("/:id/renew-stay", protect, adminOnly, renewMonthlyStay)
+router.put("/:id/deposit", protect, adminOnly, updateDeposit)
 
 // New stay/payment admin control endpoints
 router.post("/:id/payment", protect, adminOnly, recordPayment)

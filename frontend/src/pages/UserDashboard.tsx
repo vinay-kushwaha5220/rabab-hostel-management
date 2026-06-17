@@ -635,19 +635,29 @@ const UserDashboard = () => {
                       </p>
                     </div>
 
-                    {activeBooking.bookingType === 'MONTHLY' && activeBooking.monthlyRenter ? (
-                      <div className="space-y-1 bg-amber-50/65 p-4 rounded-xl border border-amber-200/70">
-                        <p className="text-[9px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
-                          <Activity size={11} className="text-amber-550 animate-pulse" /> Cycle dates
-                        </p>
-                        <p className="text-base font-bold text-slate-800 mt-0.5">
-                          {formatDate(activeBooking.monthlyRenter.currentCycleStart)}
-                        </p>
-                        <p className="text-[10px] text-slate-500 font-medium">
-                          Expires: {formatDate(activeBooking.monthlyRenter.currentCycleEnd)}
-                        </p>
-                      </div>
-                    ) : (
+                    {activeBooking.bookingType === 'MONTHLY' && activeBooking.monthlyRenter ? (() => {
+                      const start = activeBooking.monthlyRenter.currentCycleStart || activeBooking.checkInDate
+                      let end = activeBooking.monthlyRenter.currentCycleEnd
+                      if (!end && start) {
+                        const startDate = new Date(start)
+                        const endDate = new Date(startDate.getTime())
+                        endDate.setUTCMonth(startDate.getUTCMonth() + 1)
+                        end = endDate
+                      }
+                      return (
+                        <div className="space-y-1 bg-amber-50/65 p-4 rounded-xl border border-amber-200/70">
+                          <p className="text-[9px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
+                            <Activity size={11} className="text-amber-550 animate-pulse" /> Cycle dates
+                          </p>
+                          <p className="text-base font-bold text-slate-800 mt-0.5">
+                            {formatDate(start)}
+                          </p>
+                          <p className="text-[10px] text-slate-500 font-medium">
+                            Expires: {formatDate(end)}
+                          </p>
+                        </div>
+                      )
+                    })() : (
                       <div className="space-y-1 bg-slate-50/70 p-4 rounded-xl border border-slate-100">
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                           <Calendar size={11} className="text-slate-400" /> Expected checkout
@@ -658,6 +668,29 @@ const UserDashboard = () => {
                         <p className="text-[10px] text-slate-500 font-medium">
                           Total Stay: {activeBooking.totalDays} Days
                         </p>
+                      </div>
+                    )}
+
+                    {activeBooking.bookingType === 'MONTHLY' && (
+                      <div className="space-y-1 bg-blue-50/65 p-4 rounded-xl border border-blue-100/80 sm:col-span-2">
+                        <p className="text-[9px] font-bold text-blue-700 uppercase tracking-wider flex items-center gap-1">
+                          <CreditCard size={11} className="text-blue-500" /> Security Deposit
+                        </p>
+                        <div className="flex justify-between items-center mt-1">
+                          <p className="text-base font-bold text-slate-800">
+                            ₹{(activeBooking.securityAmount || activeBooking.monthlyRenter?.securityAmount || 0).toLocaleString()}
+                          </p>
+                          <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                            activeBooking.depositStatus === 'PAID' || activeBooking.monthlyRenter?.depositStatus === 'PAID'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-250/50'
+                              : 'bg-amber-50 text-amber-700 border-amber-250/50 animate-pulse'
+                          }`}>
+                            {activeBooking.depositStatus === 'PAID' || activeBooking.monthlyRenter?.depositStatus === 'PAID'
+                              ? 'Successfully Deposited'
+                              : 'Pending'
+                            }
+                          </span>
+                        </div>
                       </div>
                     )}
 

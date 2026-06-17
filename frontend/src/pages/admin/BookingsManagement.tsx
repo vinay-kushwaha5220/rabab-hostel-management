@@ -130,6 +130,12 @@ const BookingsManagement = () => {
   const [renewalNotes, setRenewalNotes] = useState("")
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
+  // Deposit Modal States
+  const [showDepositModal, setShowDepositModal] = useState(false)
+  const [selectedBookingForDeposit, setSelectedBookingForDeposit] = useState<BookingType | null>(null)
+  const [editDepositAmount, setEditDepositAmount] = useState("")
+  const [editDepositStatus, setEditDepositStatus] = useState<"PENDING" | "PAID">("PENDING")
+
   // Custom Confirm/Alert Modal State
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -298,6 +304,33 @@ const BookingsManagement = () => {
     setRenewalDueDate(fiveDaysFromNow)
     
     setShowRenewModal(true)
+  }
+
+  const openDepositModal = (booking: BookingType) => {
+    setSelectedBookingForDeposit(booking)
+    setEditDepositAmount(String(booking.securityAmount !== undefined ? booking.securityAmount : booking.monthlyRenter?.securityAmount || 0))
+    setEditDepositStatus(booking.depositStatus || booking.monthlyRenter?.depositStatus || "PENDING")
+    setShowDepositModal(true)
+  }
+
+  const handleDepositSubmit = async () => {
+    if (!selectedBookingForDeposit) return
+    try {
+      setActionLoading(`deposit-${selectedBookingForDeposit.id}`)
+      await api.put(`/bookings/${selectedBookingForDeposit.id}/deposit`, {
+        securityAmount: parseFloat(editDepositAmount) || 0,
+        depositStatus: editDepositStatus
+      })
+      showAlert('Success', 'Deposit details updated successfully!', 'success')
+      setShowDepositModal(false)
+      setSelectedBookingForDeposit(null)
+      fetchBookings()
+    } catch (error: any) {
+      console.error('Error during deposit update:', error)
+      showAlert('Error', error.response?.data?.message || 'Failed to update deposit details', 'danger')
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   const handleRenewUnitsChange = (val: string) => {
@@ -553,10 +586,19 @@ const BookingsManagement = () => {
                       </td>
                       <td className="py-3.5 px-5 text-right">
                         <div className="text-xs font-black text-slate-900">₹{booking.totalAmount.toLocaleString()}</div>
-                        {booking.bookingType === 'MONTHLY' && booking.monthlyRenter && (
+                        {booking.bookingType === 'MONTHLY' && (
                           <div className="text-[9px] text-slate-400 font-bold mt-1.5 leading-normal uppercase tracking-tight text-right">
-                            <div>Rent: ₹{booking.monthlyRenter.rentAmount.toLocaleString()}/mo</div>
-                            <div>Deposit: ₹{booking.monthlyRenter.securityAmount.toLocaleString()}</div>
+                            <div>Rent: ₹{(booking.monthlyRenter?.rentAmount || (booking.totalAmount - (booking.securityAmount || 0))).toLocaleString()}/mo</div>
+                            <div>
+                              Deposit: ₹{(booking.securityAmount !== undefined ? booking.securityAmount : booking.monthlyRenter?.securityAmount || 0).toLocaleString()} 
+                              <span className={`ml-1 font-black ${
+                                booking.depositStatus === 'PAID' || booking.monthlyRenter?.depositStatus === 'PAID'
+                                  ? 'text-green-600'
+                                  : 'text-amber-500 animate-pulse'
+                              }`}>
+                                ({booking.depositStatus === 'PAID' || booking.monthlyRenter?.depositStatus === 'PAID' ? 'Successfully Deposited' : 'Pending'})
+                              </span>
+                            </div>
                           </div>
                         )}
                       </td>
@@ -679,6 +721,16 @@ const BookingsManagement = () => {
                                 >
                                   <CalendarPlus size={13} className="text-indigo-500 stroke-[2.5]" />
                                   <span>Renew Stay</span>
+                                </button>
+                              )}
+
+                              {booking.bookingType === 'MONTHLY' && (
+                                <button
+                                  onClick={() => openDepositModal(booking)}
+                                  className="w-full text-left px-3.5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50/50 transition-colors flex items-center gap-2 cursor-pointer"
+                                >
+                                  <CreditCard size={13} className="text-blue-500 stroke-[2.5]" />
+                                  <span>Manage Deposit</span>
                                 </button>
                               )}
 
@@ -933,6 +985,78 @@ const BookingsManagement = () => {
                 <button
                   onClick={() => setShowRenewModal(false)}
                   className="bg-white hover:bg-slate-50 text-slate-500 border border-slate-200 font-bold tracking-widest text-[9px] uppercase py-2.5 px-4 rounded-lg transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Manage Deposit Modal */}
+        {showDepositModal && selectedBookingForDeposit && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <Card className="w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200 relative overflow-hidden bg-white border border-slate-100">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Manage Security Deposit</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+                    {selectedBookingForDeposit.customerName} — Room {selectedBookingForDeposit.room?.roomNumber || "N/A"}
+                  </p>
+                </div>
+                <span className="text-xs bg-blue-50 text-blue-700 font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Room {selectedBookingForDeposit.room?.roomNumber || "N/A"}
+                </span>
+              </div>
+
+              <div className="space-y-4 mt-2">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-0.5">Deposit Amount (₹) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editDepositAmount}
+                    onChange={(e) => setEditDepositAmount(e.target.value)}
+                    placeholder="Enter deposit amount"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-1 focus:ring-blue-500 text-xs font-bold text-slate-800 bg-slate-50/50 outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-0.5">Payment Status</label>
+                  <div className="flex bg-gray-100/50 p-1 rounded-xl border border-gray-200/50">
+                    {(["PENDING", "PAID"] as const).map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => setEditDepositStatus(status)}
+                        className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                          editDepositStatus === status 
+                            ? status === "PAID"
+                              ? "bg-emerald-600 text-white shadow-sm"
+                              : "bg-amber-500 text-white shadow-sm"
+                            : "text-gray-400 hover:text-gray-600"
+                        }`}
+                      >
+                        {status === "PAID" ? "Successfully Deposited" : "Pending"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2.5 mt-6 border-t border-gray-100 pt-4">
+                <button
+                  onClick={handleDepositSubmit}
+                  disabled={actionLoading === `deposit-${selectedBookingForDeposit.id}`}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold tracking-widest text-[9px] uppercase py-3 rounded-xl transition-all active:scale-95 shadow-sm cursor-pointer"
+                >
+                  {actionLoading === `deposit-${selectedBookingForDeposit.id}` ? "Saving..." : "Save Deposit Changes"}
+                </button>
+                <button
+                  onClick={() => setShowDepositModal(false)}
+                  className="bg-white hover:bg-slate-50 text-slate-500 border border-slate-200 font-bold tracking-widest text-[9px] uppercase py-3 px-4 rounded-xl transition-all cursor-pointer"
                 >
                   Cancel
                 </button>

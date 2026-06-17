@@ -56,9 +56,9 @@ const BookingConfirmationPage = () => {
     )
   }
 
-  const SECURITY_DEPOSIT = 2500
   const isMonthly = booking.bookingType === "MONTHLY"
-  const rentAmount = isMonthly ? (booking.totalAmount - SECURITY_DEPOSIT) : booking.totalAmount
+  const securityDeposit = isMonthly ? (booking.securityAmount || 0) : 0
+  const rentAmount = isMonthly ? (booking.totalAmount - securityDeposit) : booking.totalAmount
   const finalAmount = booking.totalAmount
   const isConfirmed = booking.status === "CONFIRMED" || booking.status === "COMPLETED"
 
@@ -139,8 +139,17 @@ const BookingConfirmationPage = () => {
                 </div>
                 {isMonthly && (
                   <div className="flex justify-between items-center text-[11px] font-bold text-blue-600">
-                    <span>Refundable Deposit</span>
-                    <span>₹{SECURITY_DEPOSIT.toLocaleString()}</span>
+                    <div className="flex flex-col">
+                      <span>Refundable Deposit</span>
+                      <span className="text-[9px] font-bold uppercase mt-0.5">
+                        Status: {booking.depositStatus === "PAID" ? (
+                          <span className="text-green-600 font-extrabold">Successfully Deposited</span>
+                        ) : (
+                          <span className="text-amber-600 font-extrabold">Pending</span>
+                        )}
+                      </span>
+                    </div>
+                    <span>₹{securityDeposit.toLocaleString()}</span>
                   </div>
                 )}
                 <div className="pt-4 border-t border-slate-200 flex justify-between items-end">

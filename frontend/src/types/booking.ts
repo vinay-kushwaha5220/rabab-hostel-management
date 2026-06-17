@@ -19,6 +19,7 @@ export type MonthlyRenterType = {
   overdueDays: number
   status: "ACTIVE" | "DUE_SOON" | "EXPIRES_TODAY" | "RENEWAL_PENDING" | "PENDING_ADMIN_APPROVAL" | "STAY_CONTINUED" | "PENDING_PAYMENT" | "OVERDUE" | "CHECKOUT_REQUESTED" | "CHECKED_OUT" | "CONTINUE_REQUESTED"
   paymentStatus?: string
+  depositStatus?: "PENDING" | "PAID"
   renewalRequestDate?: string
   renewalDecisionDate?: string
   checkoutRequestDate?: string
@@ -74,6 +75,8 @@ export type BookingType = {
   numberOfGuests: number
   totalDays: number
   totalAmount: number
+  securityAmount?: number
+  depositStatus?: "PENDING" | "PAID"
   
   // Status
   status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED"

@@ -46,6 +46,7 @@ export const createBooking = async (
       checkOutDate,
       numberOfGuests,
       bookingType, // DAILY or MONTHLY
+      securityAmount,
     } = req.body
 
     // 1. Check required fields
@@ -167,7 +168,8 @@ export const createBooking = async (
         price: room.price
       },
       stayType: selectedBookingType,
-      duration: selectedBookingType === BookingType.MONTHLY ? months : totalDays
+      duration: selectedBookingType === BookingType.MONTHLY ? months : totalDays,
+      securityAmount: securityAmount !== undefined ? Number(securityAmount) : undefined
     })
     totalAmount = priceInfo.grandTotal
 
@@ -196,6 +198,8 @@ export const createBooking = async (
           status: BookingStatus.PENDING,
           paymentStatus: PaymentStatus.PENDING,
           stayStatus: StayStatus.BOOKED,
+          securityAmount: priceInfo.deposit,
+          depositStatus: priceInfo.deposit > 0 ? "PENDING" : "PAID"
         },
         include: {
           room: true,
@@ -238,8 +242,9 @@ export const createBooking = async (
             nextDueDate,
             stayStatus: StayStatus.BOOKED,
             rentAmount,
-            securityAmount: 2500,
-            status: "PENDING_PAYMENT" as const
+            securityAmount: priceInfo.deposit,
+            status: "PENDING_PAYMENT" as const,
+            depositStatus: priceInfo.deposit > 0 ? "PENDING" : "PAID"
           }
         });
         
@@ -529,7 +534,8 @@ export const checkInBooking = async (req: AuthRequest, res: Response) => {
               status: MonthlyRenterStatus.ACTIVE,
               paymentStatus: "PAID",
               pendingAmount: 0,
-              paidAmount: rentAmount
+              paidAmount: rentAmount,
+              depositStatus: booking.depositStatus || "PAID"
             }
           })
         } else {
@@ -545,11 +551,12 @@ export const checkInBooking = async (req: AuthRequest, res: Response) => {
               nextDueDate: firstCycleEnd,
               stayStatus: StayStatus.CHECKED_IN,
               rentAmount,
-              securityAmount: 2500,
+              securityAmount: booking.securityAmount || 0,
               paidAmount: rentAmount,
               pendingAmount: 0,
               status: MonthlyRenterStatus.ACTIVE,
-              paymentStatus: "PAID"
+              paymentStatus: "PAID",
+              depositStatus: booking.depositStatus || "PAID"
             }
           })
         }
@@ -829,7 +836,6 @@ export const renewMonthlyStay = async (req: AuthRequest, res: Response) => {
       nextDueDate.setDate(nextDueDate.getDate() + 30)
 
       const rentAmount = booking.room.monthlyPrice || (booking.room.dailyPrice * 30) || (booking.room.price * 30) || 0
-      const SECURITY_DEPOSIT = 2500
 
       renter = await prisma.monthlyRenter.create({
         data: {
@@ -841,8 +847,9 @@ export const renewMonthlyStay = async (req: AuthRequest, res: Response) => {
           nextDueDate,
           stayStatus: StayStatus.CHECKED_IN,
           rentAmount,
-          securityAmount: SECURITY_DEPOSIT,
-          status: "ACTIVE" as const
+          securityAmount: booking.securityAmount || 0,
+          status: "ACTIVE" as const,
+          depositStatus: booking.depositStatus || "PAID"
         }
       })
     }
@@ -1165,6 +1172,7 @@ export const confirmBooking = async (
       data: {
         status: BookingStatus.CONFIRMED,
         paymentStatus: PaymentStatus.SUCCESS,
+        depositStatus: "PAID"
       }
     })
 
@@ -1188,7 +1196,8 @@ export const confirmBooking = async (
           status: MonthlyRenterStatus.ACTIVE,
           paymentStatus: "PAID",
           pendingAmount: 0,
-          paidAmount: rentAmount
+          paidAmount: rentAmount,
+          depositStatus: "PAID"
         }
       })
 
@@ -1641,6 +1650,56 @@ export const deletePayment = async (req: AuthRequest, res: Response) => {
     res.status(200).json({ message: "Payment record deleted successfully." })
   } catch (error: any) {
     console.error("Delete payment error:", error)
+    res.status(500).json({ message: error.message })
+  }
+}
+
+// ==========================================
+// UPDATE BOOKING DEPOSIT (ADMIN ONLY)
+// ==========================================
+export const updateDeposit = async (req: AuthRequest, res: Response) => {
+  const { id } = req.params
+  const { securityAmount, depositStatus } = req.body
+
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: Number(id) },
+      include: { monthlyRenter: true }
+    })
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" })
+    }
+
+    // Wrap in a transaction
+    await prisma.$transaction(async (tx) => {
+      // 1. Update Booking
+      const bookingData: any = {}
+      if (securityAmount !== undefined) bookingData.securityAmount = parseFloat(String(securityAmount))
+      if (depositStatus !== undefined) bookingData.depositStatus = depositStatus
+
+      await tx.booking.update({
+        where: { id: booking.id },
+        data: bookingData
+      })
+
+      // 2. Update MonthlyRenter if exists
+      if (booking.monthlyRenter) {
+        const renterData: any = {}
+        if (securityAmount !== undefined) renterData.securityAmount = parseFloat(String(securityAmount))
+        if (depositStatus !== undefined) renterData.depositStatus = depositStatus
+
+        await tx.monthlyRenter.update({
+          where: { id: booking.monthlyRenter.id },
+          data: renterData
+        })
+      }
+    })
+
+    console.log(`💼 UPDATE DEPOSIT: Updated deposit details for booking ${id}`)
+    res.status(200).json({ message: "Deposit details updated successfully." })
+  } catch (error: any) {
+    console.error("Update deposit error:", error)
     res.status(500).json({ message: error.message })
   }
 }

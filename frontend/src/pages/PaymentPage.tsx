@@ -137,10 +137,8 @@ const PaymentPage = () => {
   if (!booking) return null
 
   const isMonthly = booking.bookingType === 'MONTHLY'
-  const SECURITY_DEPOSIT = 2500
-  
-  const baseAmount = isMonthly ? booking.totalAmount - SECURITY_DEPOSIT : booking.totalAmount
-  const securityDeposit = isMonthly ? SECURITY_DEPOSIT : 0
+  const securityDeposit = isMonthly ? (booking.securityAmount || 0) : 0
+  const baseAmount = isMonthly ? booking.totalAmount - securityDeposit : booking.totalAmount
   const finalAmount = booking.totalAmount
 
   // Dynamic QR Code link

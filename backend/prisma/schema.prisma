@@ -245,6 +245,9 @@ model Booking {
   paymentStatus PaymentStatus @default(PENDING)
   stayStatus    StayStatus    @default(BOOKED)
 
+  securityAmount Float         @default(0)
+  depositStatus  String        @default("PENDING")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -498,13 +501,14 @@ model MonthlyRenter {
   stayStatus        StayStatus @default(CHECKED_IN)
 
   rentAmount     Float
-  securityAmount Float @default(2500)
+  securityAmount Float @default(0)
   paidAmount     Float @default(0)
   pendingAmount  Float @default(0)
   overdueDays    Int   @default(0)
 
   status        MonthlyRenterStatus @default(ACTIVE)
   paymentStatus String?             @default("PENDING")
+  depositStatus String              @default("PENDING")
 
   // Renewal tracking
   renewalRequestDate    DateTime?

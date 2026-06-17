@@ -33,6 +33,7 @@ const BookingPage = () => {
     numberOfGuests: 1,
     bookingType: "DAILY" as "DAILY" | "MONTHLY",
     monthlyMonths: 1, // Default 1 month for monthly booking
+    securityAmount: 0,
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -70,7 +71,7 @@ const BookingPage = () => {
 
   useEffect(() => {
     calculatePrice()
-  }, [formData.checkInDate, formData.checkOutDate, formData.bookingType, room, formData.monthlyMonths])
+  }, [formData.checkInDate, formData.checkOutDate, formData.bookingType, room, formData.monthlyMonths, formData.securityAmount])
 
   const fetchRoomDetails = async () => {
     try {
@@ -106,7 +107,8 @@ const BookingPage = () => {
           price: room.price
         },
         stayType: formData.bookingType,
-        duration: formData.bookingType === "MONTHLY" ? formData.monthlyMonths : days
+        duration: formData.bookingType === "MONTHLY" ? formData.monthlyMonths : days,
+        securityAmount: formData.bookingType === "MONTHLY" ? Number(formData.securityAmount || 0) : undefined
       })
       setTotalAmount(priceInfo.grandTotal)
     } else {
@@ -127,7 +129,8 @@ const BookingPage = () => {
       bookingType: type,
       checkInDate: "",
       checkOutDate: "",
-      monthlyMonths: 1
+      monthlyMonths: 1,
+      securityAmount: 0
     }))
     setErrors({})
   }
@@ -412,6 +415,24 @@ const BookingPage = () => {
                     <div className="w-full sm:col-span-2 xl:col-span-1">
                       <Input label="No. of Guests" name="numberOfGuests" type="number" min="1" max={room.capacity} value={formData.numberOfGuests} onChange={handleInputChange} error={errors.numberOfGuests} className="bg-gray-50/30" />
                     </div>
+
+                    {isMonthly && (
+                      <div className="w-full">
+                        <Input 
+                          label="Security Deposit (₹)" 
+                          name="securityAmount" 
+                          type="number" 
+                          min="0"
+                          value={formData.securityAmount} 
+                          onChange={(e) => {
+                            const val = Math.max(0, parseInt(e.target.value) || 0)
+                            setFormData(prev => ({ ...prev, securityAmount: val }))
+                          }} 
+                          placeholder="Enter manual deposit" 
+                          className="bg-gray-50/30" 
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {isMonthly && (
@@ -478,7 +499,7 @@ const BookingPage = () => {
                   {isMonthly && (
                     <div className="flex justify-between items-center text-xs">
                       <span className="font-bold text-blue-600 uppercase tracking-widest text-[9px]">Deposit</span>
-                      <span className="font-bold text-blue-700">₹{SECURITY_DEPOSIT.toLocaleString()}</span>
+                      <span className="font-bold text-blue-700">₹{(formData.securityAmount || 0).toLocaleString()}</span>
                     </div>
                   )}
                 </div>
