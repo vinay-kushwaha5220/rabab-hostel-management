@@ -637,7 +637,7 @@ const UserDashboard = () => {
 
                     {activeBooking.bookingType === 'MONTHLY' && activeBooking.monthlyRenter ? (() => {
                       const start = activeBooking.monthlyRenter.currentCycleStart || activeBooking.checkInDate
-                      let end = activeBooking.monthlyRenter.currentCycleEnd
+                      let end: string | Date | null | undefined = activeBooking.monthlyRenter.currentCycleEnd
                       if (!end && start) {
                         const startDate = new Date(start)
                         const endDate = new Date(startDate.getTime())

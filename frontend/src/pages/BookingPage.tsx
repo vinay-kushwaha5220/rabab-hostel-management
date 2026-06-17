@@ -39,7 +39,6 @@ const BookingPage = () => {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [totalDays, setTotalDays] = useState(0)
   const [totalAmount, setTotalAmount] = useState(0)
-  const SECURITY_DEPOSIT = 2500
 
   useEffect(() => {
     fetchRoomDetails()
