@@ -472,6 +472,7 @@ export const getAllBookings = async (
           },
         },
         payments: true,
+        monthlyRenter: true,
       },
       orderBy: { createdAt: "desc" },
     })
@@ -1007,6 +1008,7 @@ export const getBookingById = async (
           },
         },
         payments: true, // FIXED: Relation name is 'payments' in schema.prisma
+        monthlyRenter: true,
       },
     })
 
